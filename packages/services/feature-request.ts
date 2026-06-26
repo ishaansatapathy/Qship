@@ -214,3 +214,38 @@ export async function addClarificationMessage(input: {
     .returning();
   return row!;
 }
+
+export async function assertFeatureInUserWorkspace(userId: string, featureId: string) {
+  const ws = await getWorkspaceProjectForUser(userId);
+  if (!ws) {
+    throw new ServiceError("FORBIDDEN", "Join a workspace before accessing feature requests");
+  }
+  const feature = await getFeatureRequest(featureId);
+  if (feature.projectId !== ws.project.id) {
+    throw new ServiceError("FORBIDDEN", "Feature request is not in your workspace");
+  }
+  return { ws, feature };
+}
+
+export async function replaceFeatureTasks(
+  featureRequestId: string,
+  tasks: { title: string; description: string; status?: "backlog" | "todo" | "in_progress" | "review" | "done" }[],
+) {
+  await db.delete(engineeringTasks).where(eq(engineeringTasks.featureRequestId, featureRequestId));
+  if (tasks.length === 0) return [];
+
+  const rows = await db
+    .insert(engineeringTasks)
+    .values(
+      tasks.map((task, index) => ({
+        id: crypto.randomUUID(),
+        featureRequestId,
+        title: task.title.trim(),
+        description: task.description.trim(),
+        status: task.status ?? "todo",
+        sortOrder: index,
+      })),
+    )
+    .returning();
+  return rows;
+}

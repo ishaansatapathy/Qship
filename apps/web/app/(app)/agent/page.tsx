@@ -8,14 +8,17 @@ import {
   Bot,
   Calendar,
   CheckCircle2,
+  Github,
+  ListChecks,
   Loader2,
   Mail,
   Paperclip,
   PenLine,
+  Rocket,
   Search,
   Sparkles,
-  ListChecks,
   Square,
+  Target,
 } from "lucide-react";
 
 import { trpc } from "~/trpc/client";
@@ -53,7 +56,7 @@ type ToolMemoryEntry = {
 const SUGGESTIONS = [
   {
     label: "Pipeline summary",
-    icon: Sparkles,
+    icon: Target,
     prompt: "Give me a summary of our feature delivery pipeline — what's submitted, in delivery, and awaiting approval?",
   },
   {
@@ -63,24 +66,47 @@ const SUGGESTIONS = [
       "I want to submit a feature: add bulk export for customer reports in CSV format. Create the request and run AI triage.",
   },
   {
+    label: "End-to-end delivery",
+    icon: Sparkles,
+    prompt:
+      "Find our most recent submitted feature request, generate a PRD, break it into engineering tasks, and run an AI review.",
+  },
+  {
     label: "List open requests",
     icon: ListChecks,
     prompt: "List our recent feature requests and highlight anything that needs attention.",
   },
   {
-    label: "Generate PRD",
-    icon: Bot,
-    prompt: "Find the most recent submitted feature request and generate a PRD for it.",
-  },
-  {
     label: "GitHub status",
-    icon: Search,
+    icon: Github,
     prompt: "Is GitHub connected to our workspace? List linked repositories if any.",
   },
 ];
 
+const SHIPFLOW_ACTION_KINDS = new Set([
+  "feature_list",
+  "feature_created",
+  "feature_detail",
+  "feature_tasks",
+  "ai_review",
+  "pipeline_summary",
+  "github_repos",
+]);
+
 function actionIcon(kind: ActionCard["kind"]) {
   switch (kind) {
+    case "feature_list":
+    case "feature_created":
+    case "feature_detail":
+      return Rocket;
+    case "feature_tasks":
+      return ListChecks;
+    case "ai_review":
+      return Sparkles;
+    case "pipeline_summary":
+      return Target;
+    case "github_repos":
+      return Github;
     case "email_queued":
       return Mail;
     case "calendar_queued":
@@ -212,7 +238,10 @@ function ActionPanel({
     );
   }
 
-  const latest = actions.find((a) => a.kind === "inbox_ranked" || a.kind === "inbox_search") ?? actions[actions.length - 1]!;
+  const latest =
+    actions.find((a) => SHIPFLOW_ACTION_KINDS.has(a.kind)) ??
+    actions.find((a) => a.kind === "inbox_ranked" || a.kind === "inbox_search") ??
+    actions[actions.length - 1]!;
   const queuedAction = [...actions]
     .reverse()
     .find(
@@ -312,6 +341,22 @@ function ActionPanel({
             <span style={{ fontSize: 11, color: "var(--qship-dim)", fontFamily: "var(--qship-mono)" }}>
               {actions.length} actions this turn
             </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              {actions.slice(0, -1).map((action, i) => {
+                const ActionIcon = actionIcon(action.kind);
+                return (
+                  <div key={`${action.kind}-${i}`} className="qship-agent-log-row" style={{ alignItems: "center", gap: 8 }}>
+                    <ActionIcon size={12} style={{ opacity: 0.55, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "var(--qship-muted)", flex: 1 }}>{action.title}</span>
+                    {action.href ? (
+                      <Link href={action.href} className="qship-mono-tag" style={{ fontSize: 10 }}>
+                        Open
+                      </Link>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : null}
       </div>

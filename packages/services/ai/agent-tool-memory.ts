@@ -10,6 +10,14 @@ export type AgentToolMemoryEntry = {
 export const MAX_TOOL_MEMORY_ENTRIES = 12;
 
 const MEMORY_TOOLS = new Set([
+  "list_feature_requests",
+  "get_feature_request",
+  "get_pipeline_summary",
+  "create_feature_request",
+  "generate_feature_prd",
+  "generate_feature_tasks",
+  "run_ai_review",
+  "list_github_repositories",
   "search_inbox",
   "list_inbox",
   "get_thread",
@@ -53,8 +61,89 @@ export function summarizeToolResult(
   const threadId = typeof args.threadId === "string" ? args.threadId.trim() : undefined;
   const eventId = typeof args.eventId === "string" ? args.eventId.trim() : undefined;
   const query = typeof args.query === "string" ? args.query.trim() : undefined;
+  const featureId = typeof args.id === "string" ? args.id.trim() : undefined;
 
   switch (toolName) {
+    case "list_feature_requests": {
+      const count = typeof data?.count === "number" ? data.count : undefined;
+      const requests = Array.isArray(data?.requests) ? data.requests : [];
+      const top = requests
+        .slice(0, 3)
+        .map((r) => {
+          if (!r || typeof r !== "object") return "";
+          const row = r as Record<string, unknown>;
+          const title = typeof row.title === "string" ? row.title : "";
+          const status = typeof row.status === "string" ? row.status : "";
+          return title ? `${title} (${status})` : "";
+        })
+        .filter(Boolean);
+      return {
+        at,
+        tool: toolName,
+        summary: clip(`Listed ${count ?? requests.length} feature request(s)${top.length ? `: ${top.join("; ")}` : ""}`),
+      };
+    }
+
+    case "get_feature_request": {
+      const title = typeof data?.title === "string" ? data.title : "Feature request";
+      const status = typeof data?.status === "string" ? data.status : "";
+      return {
+        at,
+        tool: toolName,
+        summary: clip(`Read "${title}"${status ? ` — ${status}` : ""}`),
+        query: featureId,
+      };
+    }
+
+    case "get_pipeline_summary": {
+      const total = typeof data?.total === "number" ? data.total : 0;
+      const needs = typeof data?.needsAttention === "number" ? data.needsAttention : 0;
+      return {
+        at,
+        tool: toolName,
+        summary: clip(`Pipeline: ${total} total, ${needs} need attention`),
+      };
+    }
+
+    case "create_feature_request": {
+      const title = typeof data?.title === "string" ? data.title : "New request";
+      return { at, tool: toolName, summary: clip(`Created feature request "${title}"`) };
+    }
+
+    case "generate_feature_prd": {
+      return {
+        at,
+        tool: toolName,
+        summary: clip(`Generated PRD for feature ${featureId ?? ""}`.trim()),
+        query: featureId,
+      };
+    }
+
+    case "generate_feature_tasks": {
+      const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
+      return {
+        at,
+        tool: toolName,
+        summary: clip(`Created ${tasks.length} engineering task(s)${featureId ? ` for ${featureId}` : ""}`),
+        query: featureId,
+      };
+    }
+
+    case "run_ai_review": {
+      const pass = data?.review && typeof data.review === "object" ? (data.review as Record<string, unknown>).pass : undefined;
+      return {
+        at,
+        tool: toolName,
+        summary: clip(`AI review ${pass === true ? "passed" : pass === false ? "needs fixes" : "completed"}`),
+        query: featureId,
+      };
+    }
+
+    case "list_github_repositories": {
+      const count = typeof data?.count === "number" ? data.count : 0;
+      return { at, tool: toolName, summary: clip(`Found ${count} linked GitHub repo(s)`) };
+    }
+
     case "search_inbox":
     case "list_inbox": {
       const count = typeof data?.count === "number" ? data.count : undefined;

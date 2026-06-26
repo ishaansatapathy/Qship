@@ -1,6 +1,8 @@
 "use client";
 
-import { Calendar, Mail, X } from "lucide-react";
+import { Calendar, Mail, Rocket, X } from "lucide-react";
+
+import { isFeatureFocusId } from "~/lib/shipflow-focus";
 
 export type AgentFocusState = {
   threadId?: string;
@@ -18,11 +20,14 @@ type AgentFocusChipProps = {
 export function AgentFocusChip({ focus, onClear, disabled }: AgentFocusChipProps) {
   if (!focus.threadId && !focus.eventId) return null;
 
-  const isThread = Boolean(focus.threadId);
-  const Icon = isThread ? Mail : Calendar;
-  const label = isThread
-    ? focus.threadLabel?.trim() || "Email thread"
-    : focus.eventLabel?.trim() || "Calendar event";
+  const isFeature = isFeatureFocusId(focus.threadId);
+  const isThread = Boolean(focus.threadId) && !isFeature;
+  const Icon = isFeature ? Rocket : isThread ? Mail : Calendar;
+  const label = isFeature
+    ? focus.threadLabel?.trim() || "Feature request"
+    : isThread
+      ? focus.threadLabel?.trim() || "Email thread"
+      : focus.eventLabel?.trim() || "Calendar event";
 
   return (
     <div className="qship-agent-focus-chip" role="status" aria-label={`Focused on ${label}`}>

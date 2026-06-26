@@ -36,6 +36,8 @@ export type AgentActionCard = {
     | "feature_list"
     | "feature_created"
     | "feature_detail"
+    | "feature_tasks"
+    | "ai_review"
     | "pipeline_summary"
     | "github_repos";
   title: string;

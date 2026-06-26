@@ -7,16 +7,24 @@ import type { OpenAiToolDefinition } from "./ai/openai-tools";
 import type { AgentActionCard } from "./ai/agent";
 import { ServiceError } from "./errors";
 import {
+  addClarificationMessage,
+  assertFeatureInUserWorkspace,
   createFeatureRequest,
   getFeatureRequest,
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
+  replaceFeatureTasks,
   saveFeaturePrd,
   updateFeatureMetadata,
   updateFeatureStatus,
 } from "./feature-request";
-import { generateFeaturePrd, triageFeatureRequest } from "./feature-ai";
+import {
+  generateFeaturePrd,
+  generateFeatureTasks,
+  runFeatureAiReview,
+  triageFeatureRequest,
+} from "./feature-ai";
 import {
   getGithubConnectionForUser,
   listGithubRepositoriesForUser,
@@ -92,6 +100,49 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
     },
   },
   {
+    name: "generate_feature_tasks",
+    description: "Break a PRD into engineering tasks and move the feature to planning.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID (must have PRD)" } },
+    },
+  },
+  {
+    name: "add_clarification",
+    description: "Add a clarification note to a feature request (user or agent message).",
+    inputSchema: {
+      type: "object",
+      required: ["id", "content"],
+      properties: {
+        id: { type: "string", description: "Feature request UUID" },
+        content: { type: "string", description: "Clarification message" },
+        role: { type: "string", enum: ["user", "agent"], description: "Who said this (default agent)" },
+      },
+    },
+  },
+  {
+    name: "run_ai_review",
+    description: "Run an AI pre-ship review on a feature (PRD + tasks) and update pipeline status.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "request_human_review",
+    description: "Move a feature to human_review — awaiting human sign-off before ship.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: {
+        id: { type: "string", description: "Feature request UUID" },
+        note: { type: "string", description: "Optional note for the approver" },
+      },
+    },
+  },
+  {
     name: "update_feature_status",
     description: "Move a feature request to a new pipeline status.",
     inputSchema: {
@@ -147,6 +198,12 @@ function featureSummary(row: {
   };
 }
 
+async function loadAuthorizedFeature(userId: string, id: string) {
+  const trimmed = id.trim();
+  if (!trimmed) throw new ServiceError("BAD_REQUEST", "id is required");
+  return assertFeatureInUserWorkspace(userId, trimmed);
+}
+
 export async function executeShipflowTool(
   ctx: ShipflowToolContext,
   name: string,
@@ -187,8 +244,7 @@ export async function executeShipflowTool(
 
     case "get_feature_request": {
       const id = String(args.id ?? "").trim();
-      if (!id) return JSON.stringify({ error: "id is required" });
-      const row = await getFeatureRequest(id);
+      const { feature: row } = await loadAuthorizedFeature(userId, id);
       actions.push({
         kind: "feature_detail",
         title: row.title,
@@ -203,6 +259,9 @@ export async function executeShipflowTool(
         metadata: row.metadata,
         hasPrd: Boolean(row.prd),
         taskCount: row.tasks?.length ?? 0,
+        clarificationCount: row.clarifications?.length ?? 0,
+        prd: row.prd?.content ?? null,
+        tasks: row.tasks?.map((t) => ({ id: t.id, title: t.title, status: t.status })) ?? [],
       });
     }
 
@@ -241,8 +300,7 @@ export async function executeShipflowTool(
 
     case "triage_feature_request": {
       const id = String(args.id ?? "").trim();
-      if (!id) return JSON.stringify({ error: "id is required" });
-      const feature = await getFeatureRequest(id);
+      const { feature } = await loadAuthorizedFeature(userId, id);
       const triage = await triageFeatureRequest({
         title: feature.title,
         rawRequest: feature.rawRequest,
@@ -253,8 +311,7 @@ export async function executeShipflowTool(
 
     case "generate_feature_prd": {
       const id = String(args.id ?? "").trim();
-      if (!id) return JSON.stringify({ error: "id is required" });
-      const feature = await getFeatureRequest(id);
+      const { feature } = await loadAuthorizedFeature(userId, id);
       await updateFeatureStatus(id, "prd_generating");
       const content = await generateFeaturePrd({
         title: feature.title,
@@ -266,9 +323,91 @@ export async function executeShipflowTool(
         kind: "feature_detail",
         title: `PRD: ${feature.title}`,
         detail: "prd_ready",
-        href: "/requests",
+        href: `/requests?id=${id}`,
       });
       return JSON.stringify({ featureId: id, status: "prd_ready", prd: { version: prd.version, content } });
+    }
+
+    case "generate_feature_tasks": {
+      const id = String(args.id ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      if (!feature.prd?.content) {
+        return JSON.stringify({ error: "Generate a PRD first (generate_feature_prd)" });
+      }
+      const drafts = await generateFeatureTasks({
+        title: feature.title,
+        rawRequest: feature.rawRequest,
+        prd: feature.prd.content,
+      });
+      const tasks = await replaceFeatureTasks(id, drafts);
+      await updateFeatureStatus(id, "planning");
+      actions.push({
+        kind: "feature_tasks",
+        title: `Tasks: ${feature.title}`,
+        detail: `${tasks.length} engineering task(s)`,
+        href: `/requests?id=${id}`,
+        lines: tasks.map((t) => `${t.title} · ${t.status}`),
+      });
+      return JSON.stringify({
+        featureId: id,
+        status: "planning",
+        tasks: tasks.map((t) => ({ id: t.id, title: t.title, status: t.status })),
+      });
+    }
+
+    case "add_clarification": {
+      const id = String(args.id ?? "").trim();
+      const content = String(args.content ?? "").trim();
+      if (!content) return JSON.stringify({ error: "content is required" });
+      await loadAuthorizedFeature(userId, id);
+      const role = args.role === "user" ? "user" : "agent";
+      const row = await addClarificationMessage({ featureRequestId: id, role, content });
+      if (role === "user") {
+        await updateFeatureStatus(id, "clarifying").catch(() => undefined);
+      }
+      return JSON.stringify({ id: row.id, featureRequestId: id, role, content: row.content });
+    }
+
+    case "run_ai_review": {
+      const id = String(args.id ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const review = await runFeatureAiReview({
+        title: feature.title,
+        rawRequest: feature.rawRequest,
+        prd: feature.prd?.content ?? null,
+        taskTitles: feature.tasks?.map((t) => t.title) ?? [],
+      });
+      const nextStatus = review.pass ? "human_review" : "fix_needed";
+      await updateFeatureStatus(id, nextStatus);
+      actions.push({
+        kind: "ai_review",
+        title: `AI review: ${feature.title}`,
+        detail: review.pass ? "Passed — ready for human review" : "Fixes needed",
+        href: `/requests?id=${id}`,
+        lines: review.findings.slice(0, 5),
+      });
+      return JSON.stringify({ featureId: id, status: nextStatus, review });
+    }
+
+    case "request_human_review": {
+      const id = String(args.id ?? "").trim();
+      const note = String(args.note ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      if (note) {
+        await addClarificationMessage({
+          featureRequestId: id,
+          role: "agent",
+          content: `Ready for human approval: ${note}`,
+        });
+      }
+      const row = await updateFeatureStatus(id, "human_review");
+      actions.push({
+        kind: "feature_detail",
+        title: `Awaiting approval: ${feature.title}`,
+        detail: "human_review",
+        href: `/requests?id=${id}`,
+      });
+      return JSON.stringify(featureSummary(row));
     }
 
     case "update_feature_status": {
@@ -278,6 +417,7 @@ export async function executeShipflowTool(
       if (!(FEATURE_STATUSES as readonly string[]).includes(status)) {
         return JSON.stringify({ error: `Invalid status. Allowed: ${FEATURE_STATUSES.join(", ")}` });
       }
+      await loadAuthorizedFeature(userId, id);
       const row = await updateFeatureStatus(id, status as (typeof FEATURE_STATUSES)[number]);
       return JSON.stringify(featureSummary(row));
     }
@@ -334,4 +474,19 @@ export async function executeShipflowTool(
 
 export function isShipflowTool(name: string): boolean {
   return SHIPFLOW_MCP_TOOLS.some((t) => t.name === name);
+}
+
+/** Prefix for feature-request focus stored in session focusThreadId. */
+export const FEATURE_FOCUS_PREFIX = "feature:";
+
+export function isFeatureFocusId(value: string | undefined): boolean {
+  return Boolean(value?.startsWith(FEATURE_FOCUS_PREFIX));
+}
+
+export function toFeatureFocusId(featureId: string): string {
+  return `${FEATURE_FOCUS_PREFIX}${featureId}`;
+}
+
+export function fromFeatureFocusId(value: string): string {
+  return value.startsWith(FEATURE_FOCUS_PREFIX) ? value.slice(FEATURE_FOCUS_PREFIX.length) : value;
 }
