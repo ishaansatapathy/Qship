@@ -17,13 +17,34 @@ import { FEATURE_STATUSES } from "@repo/services/workflow";
 import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 export const featureRouter = router({
-  listStatuses: publicProcedure.input(zodUndefinedModel).query(() => ({
+  listStatuses: publicProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/statuses",
+        tags: ["Feature Requests"],
+        summary: "List pipeline statuses and core loop description",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(() => ({
     statuses: FEATURE_STATUSES,
     coreLoop:
       "Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review → Human Approval → Ship",
   })),
 
-  workspace: protectedProcedure.input(zodUndefinedModel).query(async ({ ctx }) => {
+  workspace: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/workspace",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Get authenticated user's workspace (org + project)",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(async ({ ctx }) => {
     try {
       const ws = await getWorkspaceProjectForUser(ctx.user.id);
       if (!ws) return null;
@@ -39,7 +60,18 @@ export const featureRouter = router({
     }
   }),
 
-  pipelineSummary: protectedProcedure.input(zodUndefinedModel).query(async ({ ctx }) => {
+  pipelineSummary: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/pipeline-summary",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Counts of features by pipeline stage",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(async ({ ctx }) => {
     try {
       const ws = await getWorkspaceProjectForUser(ctx.user.id);
       if (!ws) {
@@ -59,6 +91,15 @@ export const featureRouter = router({
   }),
 
   list: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "List feature requests in the user's project",
+      },
+    })
     .input(z.object({ projectId: z.string().min(1).optional() }).optional())
     .query(async ({ ctx, input }) => {
       try {
@@ -71,7 +112,18 @@ export const featureRouter = router({
       }
     }),
 
-  get: protectedProcedure.input(z.object({ id: z.string().min(1) })).query(async ({ input }) => {
+  get: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Get a feature request with PRD, tasks, and clarifications",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ input }) => {
     try {
       return await getFeatureRequest(input.id);
     } catch (error) {
@@ -79,7 +131,18 @@ export const featureRouter = router({
     }
   }),
 
-  delivery: protectedProcedure.input(z.object({ id: z.string().min(1) })).query(async ({ ctx, input }) => {
+  delivery: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/delivery",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Delivery timeline, plain-language summary, and next step",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
     try {
       return await getFeatureDeliveryView(input.id, ctx.user.id);
     } catch (error) {
@@ -88,6 +151,15 @@ export const featureRouter = router({
   }),
 
   create: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Submit a new feature request (optional AI triage)",
+      },
+    })
     .input(
       z.object({
         organizationId: z.string().min(1).optional(),
@@ -131,6 +203,15 @@ export const featureRouter = router({
     }),
 
   generatePrd: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/prd",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Generate AI PRD and move feature to prd_ready",
+      },
+    })
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ input }) => {
       try {
@@ -152,6 +233,15 @@ export const featureRouter = router({
     }),
 
   updateStatus: protectedProcedure
+    .meta({
+      openapi: {
+        method: "PATCH",
+        path: "/feature/requests/{id}/status",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Move a feature request to a new pipeline status",
+      },
+    })
     .input(
       z.object({
         id: z.string().min(1),

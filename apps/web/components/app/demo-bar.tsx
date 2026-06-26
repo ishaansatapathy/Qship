@@ -22,7 +22,7 @@ export function DemoBar({ email }: DemoBarProps) {
 
   useEffect(() => {
     setMounted(true);
-    if (sessionStorage.getItem("thread_demo_bar_dismissed") === "1") {
+    if (sessionStorage.getItem("qship_demo_bar_dismissed") === "1") {
       setDismissed(true);
     }
   }, []);
@@ -31,7 +31,7 @@ export function DemoBar({ email }: DemoBarProps) {
 
   const handleDismiss = () => {
     setDismissed(true);
-    sessionStorage.setItem("thread_demo_bar_dismissed", "1");
+    sessionStorage.setItem("qship_demo_bar_dismissed", "1");
   };
 
   const allExhausted = FEATURE_LINKS.every(({ feature }) => limits[feature].isExhausted);

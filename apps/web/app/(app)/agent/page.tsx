@@ -575,7 +575,7 @@ function AgentPageContent() {
     fetch(`/agent/stream`, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json", "x-thread-csrf": "1" },
+      headers: { "Content-Type": "application/json", "x-app-csrf": "1" },
       body: JSON.stringify({
         message,
         sessionId: activeSessionId,

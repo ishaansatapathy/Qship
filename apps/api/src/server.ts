@@ -15,6 +15,7 @@ import { env } from "./env";
 import { handleGithubWebhook } from "./github-webhook";
 import { mcpRouter } from "./routes/mcp";
 import { agentStreamRouter } from "./routes/agent-stream";
+import { enrichShipflowOpenApi, type OpenApiDocumentWithPaths } from "./openapi-enrichment";
 
 export const app = express();
 
@@ -74,19 +75,58 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-const openApiDocument = generateOpenApiDocument(openApiRouter, {
-  title: "API",
-  version: "1.0.0",
-  baseUrl: env.BASE_URL.concat("/api"),
+app.get("/ready", async (_req, res) => {
+  try {
+    if (!process.env.DATABASE_URL) {
+      return res.status(503).json({ ready: false, reason: "DATABASE_URL not configured" });
+    }
+    const { pingDatabase } = await import("@repo/database/health");
+    await pingDatabase();
+    return res.json({ ready: true, database: "ok" });
+  } catch (error) {
+    logger.error("Readiness check failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(503).json({ ready: false, database: "error" });
+  }
 });
 
+function buildOpenApiDocument(): OpenApiDocumentWithPaths {
+  const document = generateOpenApiDocument(openApiRouter, {
+    title: "ShipFlow API",
+    version: "1.0.0",
+    baseUrl: env.BASE_URL.concat("/api"),
+  }) as OpenApiDocumentWithPaths;
+
+  return enrichShipflowOpenApi(document, {
+    clientUrl: env.CLIENT_URL,
+    baseUrl: env.BASE_URL,
+  });
+}
+
+let cachedOpenApiDocument: OpenApiDocumentWithPaths | null = null;
+
+function getOpenApiDocument(): OpenApiDocumentWithPaths {
+  if (!cachedOpenApiDocument) {
+    cachedOpenApiDocument = buildOpenApiDocument();
+  }
+  return cachedOpenApiDocument;
+}
+
 app.get("/openapi.json", (_req, res) => {
-  return res.json(openApiDocument);
+  return res.json(getOpenApiDocument());
 });
 
 import("@scalar/express-api-reference")
   .then(({ apiReference }) => {
-    app.use("/docs", apiReference({ url: "/openapi.json" }));
+    app.use(
+      "/docs",
+      apiReference({
+        url: "/openapi.json",
+        theme: "purple",
+        metaData: { title: "ShipFlow API — Scalar Docs" },
+      }),
+    );
   })
   .catch((error) => {
     logger.warn("API docs disabled", {

@@ -41,7 +41,7 @@ export default function ActionApprovePage() {
         const res = await fetch(`/corsair/permissions/${encodeURIComponent(token)}/${action}`, {
           method: "POST",
           credentials: "include",
-          headers: { "x-thread-csrf": "1" },
+          headers: { "x-app-csrf": "1" },
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error ?? res.statusText);

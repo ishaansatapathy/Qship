@@ -39,7 +39,7 @@ function CheckEmailContent() {
           </div>
           <h1>Check your email</h1>
           <p>
-            We sent a verification link to <strong>{email}</strong>. Open it to finish setting up Thread.
+            We sent a verification link to <strong>{email}</strong>. Open it to finish setting up ShipFlow.
           </p>
           <p style={{ marginTop: 16 }}>
             <Link href="/sign-in" className="qship-btn-ghost" style={{ display: "inline-flex", textDecoration: "none" }}>

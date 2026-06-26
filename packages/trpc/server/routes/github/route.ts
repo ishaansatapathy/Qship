@@ -11,7 +11,18 @@ import { getMembershipForUser, ensurePersonalWorkspace } from "@repo/services/or
 import { mapServiceError, protectedProcedure, router } from "../../trpc";
 
 export const githubRouter = router({
-  connectionStatus: protectedProcedure.input(zodUndefinedModel).query(async ({ ctx }) => {
+  connectionStatus: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/github/connection",
+        tags: ["GitHub"],
+        protect: true,
+        summary: "GitHub App connection status for the workspace",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(async ({ ctx }) => {
     try {
       return await getGithubConnectionForUser(ctx.user.id);
     } catch (error) {
@@ -20,6 +31,15 @@ export const githubRouter = router({
   }),
 
   getInstallUrl: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/github/install-url",
+        tags: ["GitHub"],
+        protect: true,
+        summary: "GitHub App installation URL for the workspace",
+      },
+    })
     .input(z.object({ returnTo: z.string().optional() }).optional())
     .query(async ({ ctx, input }) => {
       try {
@@ -46,7 +66,18 @@ export const githubRouter = router({
       }
     }),
 
-  listRepositories: protectedProcedure.input(zodUndefinedModel).query(async ({ ctx }) => {
+  listRepositories: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/github/repositories",
+        tags: ["GitHub"],
+        protect: true,
+        summary: "List GitHub repositories linked to the workspace",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(async ({ ctx }) => {
     try {
       const repos = await listGithubRepositoriesForUser(ctx.user.id);
       return repos.map((repo) => ({

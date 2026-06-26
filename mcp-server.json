@@ -1,0 +1,76 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/mcp-server.json",
+  "name": "shipflow-mcp",
+  "description": "ShipFlow MCP — 14 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration.",
+  "version": "1.0.0",
+  "transport": {
+    "type": "http",
+    "endpoint": "${SHIPFLOW_API_URL:-http://localhost:8000}/mcp",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "auth": {
+    "type": "bearer_or_cookie",
+    "note": "Option A: BetterAuth session cookies from web sign-in. Option B: Authorization: Bearer <SHIPFLOW_MCP_API_KEY> — must match SHIPFLOW_MCP_USER_ID env (scoped; no arbitrary impersonation)."
+  },
+  "tools": [
+    {
+      "name": "get_workspace",
+      "description": "Get the authenticated user's ShipFlow workspace (organization + project + role)."
+    },
+    {
+      "name": "list_feature_requests",
+      "description": "List feature requests in the workspace pipeline, newest first. Optional limit (1–50)."
+    },
+    {
+      "name": "get_feature_request",
+      "description": "Get a single feature request with PRD, engineering tasks, and clarification messages."
+    },
+    {
+      "name": "create_feature_request",
+      "description": "Submit a new employee feature request. Optionally runs AI triage (priority, effort, clarifying questions)."
+    },
+    {
+      "name": "triage_feature_request",
+      "description": "Run AI triage on an existing feature request — priority, category, impact summary, clarifying questions."
+    },
+    {
+      "name": "generate_feature_prd",
+      "description": "Generate an AI PRD (problem, goals, user stories, acceptance criteria) and mark feature prd_ready."
+    },
+    {
+      "name": "generate_feature_tasks",
+      "description": "Break a PRD into engineering tasks and move the feature to planning status."
+    },
+    {
+      "name": "add_clarification",
+      "description": "Add a clarification note to a feature request (user or agent role)."
+    },
+    {
+      "name": "run_ai_review",
+      "description": "Run an AI pre-ship review against PRD + tasks. Returns pass/fail findings and updates pipeline status."
+    },
+    {
+      "name": "request_human_review",
+      "description": "Move a feature to human_review — awaiting human sign-off before ship."
+    },
+    {
+      "name": "update_feature_status",
+      "description": "Move a feature request to any valid pipeline status (submitted → shipped)."
+    },
+    {
+      "name": "get_pipeline_summary",
+      "description": "Counts of features by stage: submitted, in delivery, awaiting approval, shipped."
+    },
+    {
+      "name": "github_connection_status",
+      "description": "Check whether the GitHub App is connected for the workspace."
+    },
+    {
+      "name": "list_github_repositories",
+      "description": "List GitHub repositories linked after GitHub App installation."
+    }
+  ]
+}

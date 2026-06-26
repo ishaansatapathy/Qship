@@ -1,5 +1,5 @@
 /* ============================================================
-   Thread App Shell — authenticated workspace
+   Qship App Shell — authenticated workspace
    Inherits theme tokens from .qship-page (see thread.css)
    ============================================================ */
 
@@ -3588,7 +3588,7 @@
   .qship-modal-backdrop {
     align-items: flex-end;
   }
-  /* Thread app topbar — shrink font */
+  /* Qship app topbar — shrink font */
   .qship-app-title {
     font-size: 13px;
   }

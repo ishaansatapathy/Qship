@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   }
 
   const nextParam = request.nextUrl.searchParams.get("next");
-  const nextPath = nextParam?.startsWith("/") ? nextParam : "/inbox";
+  const nextPath = nextParam?.startsWith("/") ? nextParam : "/brief";
 
   const email = process.env.DEMO_USER_EMAIL ?? process.env.SEED_USER_EMAIL ?? "demo@qship.dev";
   const password =
