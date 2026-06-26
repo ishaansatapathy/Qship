@@ -72,3 +72,83 @@ Be specific and shippable — no fluff.`,
 
   return parseJson<PrdContent>(content);
 }
+
+export type FeatureTaskDraft = {
+  title: string;
+  description: string;
+  status: "backlog" | "todo";
+};
+
+export type FeatureAiReview = {
+  summary: string;
+  findings: string[];
+  recommendation: string;
+  pass: boolean;
+  severity: "low" | "medium" | "high";
+};
+
+export async function generateFeatureTasks(input: {
+  title: string;
+  rawRequest: string;
+  prd: PrdContent;
+}) {
+  if (!isOpenAiConfigured()) {
+    throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured. Set OPENAI_API_KEY.");
+  }
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are an engineering lead breaking a PRD into shippable engineering tasks.
+Return JSON with key "tasks": array of { title (short), description (1-2 sentences), status ("todo" or "backlog") }.
+Produce 4-8 tasks ordered for delivery. First task should be todo; rest can be backlog.`,
+      },
+      {
+        role: "user",
+        content: `Feature: ${input.title}\n\nRequest:\n${input.rawRequest}\n\nPRD:\n${JSON.stringify(input.prd, null, 2)}`,
+      },
+    ],
+    { jsonObject: true, temperature: 0.2 },
+  );
+
+  const parsed = parseJson<{ tasks: FeatureTaskDraft[] }>(content);
+  return parsed.tasks ?? [];
+}
+
+export async function runFeatureAiReview(input: {
+  title: string;
+  rawRequest: string;
+  prd?: PrdContent | null;
+  taskTitles?: string[];
+}) {
+  if (!isOpenAiConfigured()) {
+    throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured. Set OPENAI_API_KEY.");
+  }
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a senior engineer doing a pre-ship code/design review for a feature delivery pipeline.
+Return JSON: summary (1-2 sentences), findings (array of specific issues or gaps), recommendation (next step),
+pass (boolean — true if ready for human approval), severity (low|medium|high).
+Be constructive and specific to the feature — not generic advice.`,
+      },
+      {
+        role: "user",
+        content: [
+          `Feature: ${input.title}`,
+          `Request: ${input.rawRequest}`,
+          input.prd ? `PRD: ${JSON.stringify(input.prd, null, 2)}` : "PRD: not yet generated",
+          input.taskTitles?.length ? `Tasks: ${input.taskTitles.join("; ")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      },
+    ],
+    { jsonObject: true, temperature: 0.15 },
+  );
+
+  return parseJson<FeatureAiReview>(content);
+}
