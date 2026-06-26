@@ -1,4 +1,4 @@
-export type ThreadContact = {
+export type WorkspaceContact = {
   id: string;
   email: string;
   displayName?: string;
@@ -27,19 +27,18 @@ export function deriveContactHandle(email: string, displayName?: string | null) 
 }
 
 export interface ContactsService {
-  search(userId: string, query: string, limit?: number): Promise<ThreadContact[]>;
+  search(userId: string, query: string, limit?: number): Promise<WorkspaceContact[]>;
   upsert(
     userId: string,
-    input: { email: string; displayName?: string; source?: ThreadContact["source"] },
-  ): Promise<ThreadContact>;
+    input: { email: string; displayName?: string; source?: WorkspaceContact["source"] },
+  ): Promise<WorkspaceContact>;
   syncFromInbox(userId: string): Promise<{ imported: number; fromCache: number; fromLive: number }>;
-  /** Paginate entire INBOX and upsert unique senders (for @mention backfill). */
   syncInboxBatch(
     userId: string,
     opts?: { pageToken?: string; pageSize?: number },
   ): Promise<{
     imported: number;
-    threadsScanned: number;
+    mailScanned: number;
     nextPageToken?: string;
     done: boolean;
     resultSizeEstimate?: number;

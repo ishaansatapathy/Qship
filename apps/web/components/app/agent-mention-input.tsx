@@ -8,7 +8,7 @@ import type { RouterOutputs } from "@repo/trpc/client";
 
 type Contact = RouterOutputs["contacts"]["search"]["contacts"][number];
 
-const SYNC_STORAGE_KEY = "thread:contacts-full-sync-at";
+const SYNC_STORAGE_KEY = "qship:contacts-full-sync-at";
 const SYNC_TTL_MS = 24 * 60 * 60 * 1000;
 
 function getActiveMention(text: string, cursor: number) {
@@ -82,7 +82,7 @@ export function AgentMentionInput({
         do {
           if (cancelled) return;
           const batch = await syncBatch.mutateAsync({ pageToken, pageSize: 25 });
-          totalScanned += batch.threadsScanned;
+          totalScanned += batch.mailScanned;
           totalImported += batch.imported;
           estimate = batch.resultSizeEstimate ?? estimate;
           pageToken = batch.nextPageToken;
@@ -184,7 +184,7 @@ export function AgentMentionInput({
           <Loader2 size={12} className="qship-spin" />
           Importing senders from all inbox mail…
           <span className="qship-agent-sync-banner-meta">
-            {syncProgress.scanned} threads scanned · {syncProgress.imported} contacts
+            {syncProgress.scanned} messages scanned · {syncProgress.imported} contacts
             {syncProgress.estimate ? ` · ~${syncProgress.estimate} in inbox` : ""}
           </span>
         </div>

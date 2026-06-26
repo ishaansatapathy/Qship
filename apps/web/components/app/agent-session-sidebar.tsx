@@ -28,7 +28,7 @@ function formatRelativeTime(date: Date): string {
 
 function sessionTitle(session: SessionListItem): string {
   if (session.title?.trim()) return session.title.trim();
-  if (session.focusThreadLabel?.trim()) return session.focusThreadLabel.trim();
+  if (session.focusContextLabel?.trim()) return session.focusContextLabel.trim();
   if (session.focusEventLabel?.trim()) return session.focusEventLabel.trim();
   return "New chat";
 }

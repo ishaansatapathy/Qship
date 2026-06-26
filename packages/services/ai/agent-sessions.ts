@@ -11,7 +11,7 @@ import type { AgentFocus } from "./agent-focus";
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 
 export type AgentSessionFocus = AgentFocus & {
-  threadLabel?: string;
+  contextLabel?: string;
   eventLabel?: string;
 };
 
@@ -30,7 +30,7 @@ export type AgentSessionListItem = {
   title: string | null;
   messageCount: number;
   updatedAt: Date;
-  focusThreadLabel: string | null;
+  focusContextLabel: string | null;
   focusEventLabel: string | null;
 };
 
@@ -53,9 +53,9 @@ function rowToRecord(row: typeof agentChatSessionsTable.$inferSelect): AgentSess
     messages: row.messages ?? [],
     toolMemory: (row.toolMemory ?? []) as AgentToolMemoryEntry[],
     focus: {
-      threadId: row.focusThreadId ?? undefined,
+      contextId: row.focusContextId ?? undefined,
       eventId: row.focusEventId ?? undefined,
-      threadLabel: row.focusThreadLabel ?? undefined,
+      contextLabel: row.focusContextLabel ?? undefined,
       eventLabel: row.focusEventLabel ?? undefined,
     },
     createdAt: row.createdAt,
@@ -72,7 +72,7 @@ export async function listAgentSessions(userId: string, limit = 30): Promise<Age
       title: agentChatSessionsTable.title,
       messages: agentChatSessionsTable.messages,
       updatedAt: agentChatSessionsTable.updatedAt,
-      focusThreadLabel: agentChatSessionsTable.focusThreadLabel,
+      focusContextLabel: agentChatSessionsTable.focusContextLabel,
       focusEventLabel: agentChatSessionsTable.focusEventLabel,
     })
     .from(agentChatSessionsTable)
@@ -85,7 +85,7 @@ export async function listAgentSessions(userId: string, limit = 30): Promise<Age
     title: row.title,
     messageCount: row.messages?.length ?? 0,
     updatedAt: row.updatedAt,
-    focusThreadLabel: row.focusThreadLabel,
+    focusContextLabel: row.focusContextLabel,
     focusEventLabel: row.focusEventLabel,
   }));
 }
@@ -120,9 +120,9 @@ export async function createAgentSession(
       title,
       messages,
       toolMemory: (opts?.toolMemory ?? []) as AgentSessionToolMemoryEntry[],
-      focusThreadId: focus.threadId ?? null,
+      focusContextId: focus.contextId ?? null,
       focusEventId: focus.eventId ?? null,
-      focusThreadLabel: focus.threadLabel ?? null,
+      focusContextLabel: focus.contextLabel ?? null,
       focusEventLabel: focus.eventLabel ?? null,
       updatedAt: new Date(),
     })
@@ -153,9 +153,9 @@ export async function updateAgentSession(
     focus = {};
   } else if (patch.focus !== undefined) {
     focus = {
-      threadId: patch.focus.threadId,
+      contextId: patch.focus.contextId,
       eventId: patch.focus.eventId,
-      threadLabel: patch.focus.threadLabel,
+      contextLabel: patch.focus.contextLabel,
       eventLabel: patch.focus.eventLabel,
     };
   } else {
@@ -168,9 +168,9 @@ export async function updateAgentSession(
       title,
       messages: messages.slice(-MAX_STORED_MESSAGES),
       toolMemory: (patch.toolMemory ?? existing.toolMemory) as AgentSessionToolMemoryEntry[],
-      focusThreadId: focus.threadId ?? null,
+      focusContextId: focus.contextId ?? null,
       focusEventId: focus.eventId ?? null,
-      focusThreadLabel: focus.threadLabel ?? null,
+      focusContextLabel: focus.contextLabel ?? null,
       focusEventLabel: focus.eventLabel ?? null,
       updatedAt: new Date(),
     })

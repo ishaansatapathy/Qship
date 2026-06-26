@@ -14,21 +14,21 @@ type Slide = {
 
 function Window({ title, children, accent = false }: { title: string; children: ReactNode; accent?: boolean }) {
   return (
-    <div className="thread-show-window" data-accent={accent}>
-      <div className="thread-show-window-head">
+    <div className="qship-show-window" data-accent={accent}>
+      <div className="qship-show-window-head">
         <span className="qship-rotator-dot" />
         <span className="qship-rotator-dot" />
         <span style={{ marginLeft: 8, fontFamily: "var(--qship-mono)", fontSize: 10, color: "var(--qship-dim)" }}>
           {title}
         </span>
       </div>
-      <div className="thread-show-window-body">{children}</div>
+      <div className="qship-show-window-body">{children}</div>
     </div>
   );
 }
 
 function SkelBar({ w, strong = false }: { w: string; strong?: boolean }) {
-  return <span className="thread-skel-bar" style={{ width: w, opacity: strong ? 0.8 : undefined }} />;
+  return <span className="qship-skel-bar" style={{ width: w, opacity: strong ? 0.8 : undefined }} />;
 }
 
 const SLIDES: Slide[] = [
@@ -117,11 +117,11 @@ const SLIDES: Slide[] = [
     front: (
       <Window title="shipflow · shipped" accent>
         <div className="qship-rotator-stack">
-          <div className="thread-show-done">
+          <div className="qship-show-done">
             <CheckCircle2 size={15} color="var(--qship-accent-bright)" />
             <span>AI review passed</span>
           </div>
-          <div className="thread-show-done">
+          <div className="qship-show-done">
             <CheckCircle2 size={15} color="var(--qship-accent-bright)" />
             <span>Human approved release</span>
           </div>
@@ -159,38 +159,38 @@ export function QshipShowcase() {
         </Reveal>
 
         <div
-          className="thread-show-stage"
+          className="qship-show-stage"
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
-          <div key={`b-${active}`} className="thread-show-back">
+          <div key={`b-${active}`} className="qship-show-back">
             {slide.back}
           </div>
-          <div key={`f-${active}`} className="thread-show-front">
+          <div key={`f-${active}`} className="qship-show-front">
             {slide.front}
           </div>
         </div>
 
-        <div className="thread-show-caption" key={`c-${active}`}>
+        <div className="qship-show-caption" key={`c-${active}`}>
           <h3 style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.02em" }}>{slide.title}</h3>
           <p style={{ marginTop: 8, fontSize: 13.5, lineHeight: 1.65, color: "var(--qship-muted)", maxWidth: 440, marginInline: "auto" }}>
             {slide.desc}
           </p>
         </div>
 
-        <div className="thread-show-segments" role="tablist" aria-label="Automation steps">
+        <div className="qship-show-segments" role="tablist" aria-label="Automation steps">
           {SLIDES.map((s, i) => (
             <button
               key={s.id}
               type="button"
               role="tab"
               aria-selected={i === active}
-              className="thread-show-segment"
+              className="qship-show-segment"
               data-active={i === active}
               onClick={() => setActive(i)}
             >
               <span
-                className="thread-show-segment-fill"
+                className="qship-show-segment-fill"
                 data-active={i === active && !paused}
                 style={{ animationDuration: `${SLIDE_MS}ms` }}
               />

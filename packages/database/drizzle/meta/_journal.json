@@ -267,6 +267,13 @@
       "when": 1781666500000,
       "tag": "0037_agent_sessions_shipflow_users",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1781666600000,
+      "tag": "0038_rename_agent_focus_context",
+      "breakpoints": true
     }
   ]
 }

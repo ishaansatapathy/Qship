@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     ).toString("base64url");
     const authUrl = buildGoogleAuthUrl(state, redirectUri);
     const response = NextResponse.redirect(authUrl);
-    response.cookies.set("thread_oauth_state", nonce, {
+    response.cookies.set("qship_oauth_state", nonce, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",

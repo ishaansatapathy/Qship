@@ -2,7 +2,7 @@
 
 import { cacheIncr, cacheGet, isRedisConfigured } from "../cache/kv-store";
 
-const COUNTERS_HASH = "thread:metrics:counters";
+const COUNTERS_HASH = "qship:metrics:counters";
 
 const counters = new Map<string, number>();
 

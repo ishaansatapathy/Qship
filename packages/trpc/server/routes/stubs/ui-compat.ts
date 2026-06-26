@@ -5,15 +5,14 @@ import {
   emptyAgentSession,
   emptyDailyBrief,
   emptyMeetingPrep,
-  emptyObservabilitySummary,
   emptyQueueItem,
   emptyQueueStats,
   emptyRankResult,
-  emptyThreadContext,
+  emptyMailContext,
   type ConnectionState,
 } from "./stub-fixtures";
 
-/** Legacy Thread UI expects rich shapes — use loose output typing for compat stubs. */
+/** Legacy dashboard UI expects rich shapes — use loose output typing for compat stubs. */
 const out = z.any();
 
 const connectionInput = z.object({}).passthrough();
@@ -22,13 +21,13 @@ const queueItemReturn = emptyQueueItem();
 
 const noopQueueItem = async () => queueItemReturn;
 
-/** Keeps legacy dashboard pages alive without Gmail/Thread backend. */
+/** Keeps legacy dashboard pages alive without Gmail backend. */
 export const inboxRouter = router({
   connectionStatus: protectedProcedure.input(connectionInput).output(out).query(() => ({
     gmail: "not_connected" as ConnectionState,
   })),
 
-  listThreads: protectedProcedure
+  listMail: protectedProcedure
     .input(
       z
         .object({
@@ -40,47 +39,47 @@ export const inboxRouter = router({
         .passthrough(),
     )
     .output(out).query(() => ({
-      threads: [] as Array<Record<string, unknown>>,
+      items: [] as Array<Record<string, unknown>>,
       nextPageToken: undefined as string | undefined,
       stale: false,
     })),
 
-  listCachedThreads: protectedProcedure
+  listCachedMail: protectedProcedure
     .input(z.object({ limit: z.number().optional(), query: z.string().optional() }).passthrough())
-    .output(out).query(() => ({ threads: [] as Array<Record<string, unknown>>, stale: false })),
+    .output(out).query(() => ({ items: [] as Array<Record<string, unknown>>, stale: false })),
 
   listDrafts: protectedProcedure
     .input(z.object({ maxResults: z.number().optional(), pageToken: z.string().optional() }).passthrough())
     .output(out).query(() => ({ drafts: [] as Array<Record<string, unknown>>, nextPageToken: undefined as string | undefined })),
 
-  getThread: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).query(() => null),
+  getMailItem: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).query(() => null),
 
   listLabels: protectedProcedure.input(connectionInput).output(out).query(() => ({ labels: [] as Array<Record<string, unknown>> })),
 
-  searchThreadsDb: protectedProcedure
+  searchMailDb: protectedProcedure
     .input(z.object({ query: z.string().optional(), limit: z.number().optional() }).passthrough())
-    .output(out).query(() => ({ threads: [] as Array<Record<string, unknown>> })),
+    .output(out).query(() => ({ items: [] as Array<Record<string, unknown>> })),
 
-  markThreadRead: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  starThread: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  unstarThread: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  markImportant: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  markNotImportant: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  trashThread: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  muteThread: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  unmuteThread: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  archiveThread: protectedProcedure.input(z.object({ threadId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  markMailRead: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  starMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  unstarMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  markImportant: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  markNotImportant: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  trashMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  muteMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  unmuteMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  archiveMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
   applyLabel: protectedProcedure
-    .input(z.object({ threadId: z.string(), labelId: z.string() }).passthrough())
+    .input(z.object({ contextId: z.string(), labelId: z.string() }).passthrough())
     .output(out).mutation(noopQueueItem),
   removeLabel: protectedProcedure
-    .input(z.object({ threadId: z.string(), labelId: z.string() }).passthrough())
+    .input(z.object({ contextId: z.string(), labelId: z.string() }).passthrough())
     .output(out).mutation(noopQueueItem),
   createLabel: protectedProcedure.input(z.object({ name: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
   disconnectGmail: protectedProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
 
-  batchModifyThreads: protectedProcedure
-    .input(z.object({ threadIds: z.array(z.string()) }).passthrough())
+  batchModifyMail: protectedProcedure
+    .input(z.object({ contextIds: z.array(z.string()) }).passthrough())
     .output(out)
     .mutation(noopQueueItem),
 
@@ -176,9 +175,9 @@ export const aiRouter = router({
     ready: Boolean(process.env.OPENAI_API_KEY?.trim()),
   })),
 
-  threadContext: protectedProcedure
-    .input(z.object({ threadId: z.string().optional() }).passthrough())
-    .output(out).query(() => emptyThreadContext),
+  mailContext: protectedProcedure
+    .input(z.object({ contextId: z.string().optional() }).passthrough())
+    .output(out).query(() => emptyMailContext),
 
   contactIntel: protectedProcedure
     .input(z.object({ email: z.string().optional(), name: z.string().optional() }).passthrough())
@@ -188,16 +187,16 @@ export const aiRouter = router({
     .input(z.object({ eventId: z.string().optional(), timeZone: z.string().optional() }).passthrough())
     .output(out).query(() => emptyMeetingPrep),
 
-  rankInboxThreads: protectedProcedure
-    .input(z.object({ threadIds: z.array(z.string()).optional() }).passthrough())
+  rankInboxMail: protectedProcedure
+    .input(z.object({ contextIds: z.array(z.string()).optional() }).passthrough())
     .output(out).mutation(() => emptyRankResult),
 
   smartReplies: protectedProcedure
-    .input(z.object({ threadId: z.string() }).passthrough())
+    .input(z.object({ contextId: z.string() }).passthrough())
     .output(out).query(() => ({ replies: [] as string[] })),
 
-  summarizeThread: protectedProcedure
-    .input(z.object({ threadId: z.string() }).passthrough())
+  summarizeMail: protectedProcedure
+    .input(z.object({ contextId: z.string() }).passthrough())
     .output(out).query(() => ({ summary: "" })),
 
   dailyBrief: protectedProcedure
@@ -210,10 +209,10 @@ export const aiRouter = router({
 
   getBriefDismissals: protectedProcedure
     .input(connectionInput)
-    .output(out).query(() => ({ dismissedThreadIds: [] as string[] })),
+    .output(out).query(() => ({ dismissedFocusIds: [] as string[] })),
 
-  dismissBriefThread: protectedProcedure
-    .input(z.object({ threadId: z.string() }).passthrough())
+  dismissBriefFocus: protectedProcedure
+    .input(z.object({ contextId: z.string() }).passthrough())
     .output(out).mutation(noopQueueItem),
 });
 
@@ -232,7 +231,7 @@ export const agentRouter = router({
         kind: string;
         label?: string;
         queueItemId?: string;
-        threadId?: string;
+        contextId?: string;
         eventId?: string;
       }>,
     })),
@@ -242,7 +241,7 @@ export const agentRouter = router({
     .output(out).query(() => [] as Array<{
       id: string;
       title: string | null;
-      focusThreadLabel?: string | null;
+      focusContextLabel?: string | null;
       focusEventLabel?: string | null;
       updatedAt: string;
     }>),
@@ -258,9 +257,9 @@ export const agentRouter = router({
           title: z.string().nullable().optional(),
           focus: z
             .object({
-              threadId: z.string().optional(),
+              contextId: z.string().optional(),
               eventId: z.string().optional(),
-              threadLabel: z.string().optional(),
+              contextLabel: z.string().optional(),
               eventLabel: z.string().optional(),
             })
             .optional(),
@@ -281,9 +280,9 @@ export const agentRouter = router({
           title: z.string().optional(),
           focus: z
             .object({
-              threadId: z.string().optional(),
+              contextId: z.string().optional(),
               eventId: z.string().optional(),
-              threadLabel: z.string().optional(),
+              contextLabel: z.string().optional(),
               eventLabel: z.string().optional(),
             })
             .nullable()
@@ -307,6 +306,3 @@ export const contactsRouter = router({
 
 export const briefRouter = router({});
 
-export const observabilityRouter = router({
-  summary: protectedProcedure.input(connectionInput).output(out).query(() => emptyObservabilitySummary),
-});

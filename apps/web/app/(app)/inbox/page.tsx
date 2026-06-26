@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Legacy Thread inbox — ShipFlow uses Feature Requests. */
+/** Redirect — ShipFlow uses Feature Requests. */
 export default function InboxPage() {
   redirect("/requests");
 }

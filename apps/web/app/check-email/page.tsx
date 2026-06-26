@@ -21,7 +21,7 @@ function CheckEmailContent() {
         </Link>
       </header>
       <main className="qship-auth-page-main">
-        <div className="thread-check-email">
+        <div className="qship-check-email">
           <QshipLogoMark size={44} />
           <div
             style={{

@@ -6,6 +6,7 @@ import { featureRouter } from "./routes/feature/route";
 import { workspaceRouter } from "./routes/workspace/route";
 import { githubRouter } from "./routes/github/route";
 import { agentRouter } from "./routes/agent/route";
+import { observabilityRouter } from "./routes/observability/route";
 import {
   inboxRouter,
   calendarRouter,
@@ -14,7 +15,6 @@ import {
   aiRouter,
   contactsRouter,
   briefRouter,
-  observabilityRouter,
 } from "./routes/stubs/ui-compat";
 
 export const serverRouter = router({

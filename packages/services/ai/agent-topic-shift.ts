@@ -10,7 +10,7 @@ const DEICTIC_RE = /\b(this|these|that|it|same one|above|below)\b/i;
 const CALENDAR_INTENT_RE =
   /\b(calendar|meeting|meetings|schedule|scheduled|appointment|appointments|event|events|tomorrow at|next week|this week|availability|free slot)\b/i;
 const INBOX_INTENT_RE =
-  /\b(inbox|email|emails|thread|threads|mail|reply|replies|draft|sender|unread|gmail)\b/i;
+  /\b(inbox|email|emails|mail|reply|replies|draft|sender|unread|gmail)\b/i;
 const NEW_SEARCH_RE = /\b(search|find|look up|lookup|rank|show me|list my|what(?:'s| is) in)\b/i;
 
 function recentMemoryTopics(memory: AgentToolMemoryEntry[]): string {
@@ -22,7 +22,7 @@ function recentMemoryTopics(memory: AgentToolMemoryEntry[]): string {
 }
 
 /**
- * Heuristic topic-shift detection — clears stale thread/event focus when the user
+ * Heuristic topic-shift detection — clears stale focus when the user
  * clearly moves to a different domain or starts a fresh search without deictics.
  */
 export function detectTopicShift(
@@ -30,7 +30,7 @@ export function detectTopicShift(
   focus: AgentFocus | undefined,
   toolMemory: AgentToolMemoryEntry[] = [],
 ): TopicShiftResult {
-  if (!focus?.threadId?.trim() && !focus?.eventId?.trim()) {
+  if (!focus?.contextId?.trim() && !focus?.eventId?.trim()) {
     return { shouldClearFocus: false };
   }
 
@@ -45,7 +45,7 @@ export function detectTopicShift(
   const hasCalendar = CALENDAR_INTENT_RE.test(lower);
   const hasInbox = INBOX_INTENT_RE.test(lower);
 
-  if (focus.threadId?.trim() && hasCalendar && !hasInbox) {
+  if (focus.contextId?.trim() && hasCalendar && !hasInbox) {
     return { shouldClearFocus: true, reason: "calendar_intent" };
   }
 
@@ -66,7 +66,7 @@ export function detectTopicShift(
   }
 
   if (
-    (focus.threadId || focus.eventId) &&
+    (focus.contextId || focus.eventId) &&
     trimmed.length >= 40 &&
     !hasCalendar &&
     !hasInbox &&

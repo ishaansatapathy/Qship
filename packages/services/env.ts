@@ -32,7 +32,7 @@ const envSchema = z.object({
   GOOGLE_OAUTH_REDIRECT_URI: z.string().optional(),
   /** Brevo (recommended) ? transactional email to any recipient */
   BREVO_API_KEY: z.string().optional(),
-  /** e.g. Thread <noreply@yourdomain.com> — sender must be verified in Brevo */
+  /** e.g. Qship <noreply@yourdomain.com> — sender must be verified in Brevo */
   EMAIL_FROM: z.string().optional(),
   EMAIL_SENDER_NAME: z.string().optional(),
   EMAIL_PROVIDER: z.literal("brevo").optional(),

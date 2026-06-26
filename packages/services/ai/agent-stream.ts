@@ -8,11 +8,7 @@
  */
 
 import { logger } from "@repo/logger";
-import { getCalendarService } from "../calendar";
 import { ServiceError } from "../errors";
-import { getInboxService } from "../inbox";
-import { getQueueService } from "../queue";
-import { getSettingsService } from "../settings";
 import { isOpenAiConfigured } from "./openai";
 import type { OpenAiConversationMessage } from "./openai-tools";
 import { runOpenAiToolLoop } from "./openai-tools";
@@ -59,7 +55,7 @@ export async function runAgentChatStream(
   }
 
   const history =
-    input.focus?.threadId || input.focus?.eventId
+    input.focus?.contextId || input.focus?.eventId
       ? (input.history ?? []).slice(-4)
       : (input.history ?? []);
   const previewMessages: OpenAiConversationMessage[] = [
@@ -73,28 +69,18 @@ export async function runAgentChatStream(
     };
   }
 
-  const inbox = getInboxService();
-  const queue = getQueueService();
-  const calendar = getCalendarService();
-  const settings = getSettingsService();
-  const approvalDefaults = await settings.getApprovalDefaults(tenantId);
   const actions: AgentActionCard[] = [];
-  const emailQueueFingerprints = new Set<string>();
-  const sendCounter = { count: 0 };
 
-  const prepared = await prepareAgentRun(tenantId, input, approvalDefaults);
+  const prepared = await prepareAgentRun(tenantId, input, {
+    autoApproveEmail: false,
+    autoApproveAgentEmail: false,
+    autoApproveCalendar: false,
+  });
   const memoryTracker = createToolMemoryTracker(prepared, input.toolMemory ?? []);
 
   const baseExecutor = buildToolExecutor({
     tenantId,
-    userEmail: input.userEmail,
-    approvalDefaults,
-    inbox,
-    queue,
-    calendar,
     actions,
-    emailQueueFingerprints,
-    sendCounter,
   });
 
   const executeTool = async (name: string, args: Record<string, unknown>): Promise<string> => {

@@ -18,7 +18,7 @@ export interface RetryOptions {
   baseDelayMs?: number;
   /** Maximum delay cap in ms (default 8000). */
   maxDelayMs?: number;
-  /** Label for log lines (e.g. "threads.list"). */
+  /** Label for log lines (e.g. "mail.list"). */
   label?: string;
 }
 
@@ -46,9 +46,9 @@ function delay(ms: number): Promise<void> {
  *
  * @example
  * ```ts
- * const thread = await withRetry(
- *   () => corsair.gmail.api.threads.get({ userId: "me", id: threadId }),
- *   { maxAttempts: 3, label: "threads.get" },
+ * const item = await withRetry(
+ *   () => corsair.gmail.api.messages.get({ userId: "me", id: messageId }),
+ *   { maxAttempts: 3, label: "messages.get" },
  * );
  * ```
  */

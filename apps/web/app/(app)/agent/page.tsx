@@ -32,9 +32,9 @@ import { AgentSessionSidebar } from "~/components/app/agent-session-sidebar";
 import { SkeletonList } from "~/components/app/skeleton-list";
 import { QueryErrorState } from "~/components/app/query-error-state";
 import {
-  dismissBriefThread,
-  dismissBriefThreadFromQueueItem,
-  dismissBriefThreadsFromAgentActions,
+  dismissBriefFocus,
+  dismissBriefFocusFromQueueItem,
+  dismissBriefFocusFromAgentActions,
 } from "~/lib/brief-dismissals";
 import { useDemoAiGuard } from "~/components/app/demo-limit-modal";
 import { useQueueIntegrationGate } from "~/components/app/connect-required-modal";
@@ -50,7 +50,7 @@ type ToolMemoryEntry = {
   at: string;
   tool: string;
   summary: string;
-  threadId?: string;
+  contextId?: string;
   eventId?: string;
   query?: string;
 };
@@ -124,14 +124,14 @@ function actionIcon(kind: ActionCard["kind"]) {
 
 type AgentDeepLink = {
   prompt: string;
-  threadId: string;
+  contextId: string;
   eventId: string;
 };
 
 function readAgentDeepLink(searchParams: ReturnType<typeof useSearchParams>): AgentDeepLink {
   const fromRouter: AgentDeepLink = {
     prompt: searchParams.get("prompt")?.trim() ?? "",
-    threadId: searchParams.get("thread")?.trim() ?? "",
+    contextId: searchParams.get("focus")?.trim() ?? "",
     eventId: searchParams.get("event")?.trim() ?? "",
   };
   if (fromRouter.prompt) return fromRouter;
@@ -141,7 +141,7 @@ function readAgentDeepLink(searchParams: ReturnType<typeof useSearchParams>): Ag
   if (!prompt) return fromRouter;
   return {
     prompt,
-    threadId: params.get("thread")?.trim() ?? "",
+    contextId: params.get("focus")?.trim() ?? "",
     eventId: params.get("event")?.trim() ?? "",
   };
 }
@@ -188,7 +188,7 @@ function ActionPanel({
   const pendingQueue = trpc.queue.list.useQuery({ status: "pending" });
   const approve = trpc.queue.approve.useMutation({
     onSuccess: async (item) => {
-      dismissBriefThreadFromQueueItem(item);
+      dismissBriefFocusFromQueueItem(item);
       await utils.queue.list.invalidate();
       await utils.queue.pendingCount.invalidate();
       await utils.ai.dailyBrief.invalidate();
@@ -371,7 +371,7 @@ function AgentPageContent() {
   const [linkParamsReady, setLinkParamsReady] = useState(false);
   const [deepLink, setDeepLink] = useState<AgentDeepLink>({
     prompt: "",
-    threadId: "",
+    contextId: "",
     eventId: "",
   });
 
@@ -381,7 +381,7 @@ function AgentPageContent() {
   }, [searchParams]);
 
   const urlPrompt = deepLink.prompt;
-  const urlThreadId = deepLink.threadId;
+  const urlContextId = deepLink.contextId;
   const urlEventId = deepLink.eventId;
   const isDeepLink = Boolean(urlPrompt);
 
@@ -433,15 +433,15 @@ function AgentPageContent() {
     deepLinkLockRef.current = true;
     setSessionReady(false);
     sessionBootstrapping.current = false;
-  }, [urlPrompt, urlThreadId, urlEventId]);
+  }, [urlPrompt, urlContextId, urlEventId]);
 
   const applySession = useCallback((session: NonNullable<RouterOutputs["agent"]["getSession"]>) => {
     setMessages(session.messages);
     setToolMemory(session.toolMemory);
     setFocus({
-      threadId: session.focus.threadId,
+      contextId: session.focus.contextId,
       eventId: session.focus.eventId,
-      threadLabel: session.focus.threadLabel,
+      contextLabel: session.focus.contextLabel,
       eventLabel: session.focus.eventLabel,
     });
   }, []);
@@ -471,7 +471,7 @@ function AgentPageContent() {
           deepLinkLockRef.current = true;
           await startNewChat({
             focus: {
-              threadId: urlThreadId || undefined,
+              contextId: urlContextId || undefined,
               eventId: urlEventId || undefined,
             },
             title: urlPrompt.slice(0, 72) || null,
@@ -491,7 +491,7 @@ function AgentPageContent() {
         sessionBootstrapping.current = false;
       }
     })();
-  }, [isDeepLink, linkParamsReady, sessionReady, sessionsQuery.data, sessionsQuery.isLoading, startNewChat, urlEventId, urlThreadId, urlPrompt, utils.agent.listSessions]);
+  }, [isDeepLink, linkParamsReady, sessionReady, sessionsQuery.data, sessionsQuery.isLoading, startNewChat, urlEventId, urlContextId, urlPrompt, utils.agent.listSessions]);
 
   useEffect(() => {
     if (!sessionReady || !activeSessionId || sessionsQuery.isLoading || createSession.isPending) return;
@@ -527,14 +527,14 @@ function AgentPageContent() {
 
   const persistFocus = async (nextFocus: AgentFocusState) => {
     if (!activeSessionId) return;
-    const hasFocus = Boolean(nextFocus.threadId || nextFocus.eventId);
+    const hasFocus = Boolean(nextFocus.contextId || nextFocus.eventId);
     await updateSession.mutateAsync({
       id: activeSessionId,
       focus: hasFocus
         ? {
-            threadId: nextFocus.threadId,
+            contextId: nextFocus.contextId,
             eventId: nextFocus.eventId,
-            threadLabel: nextFocus.threadLabel,
+            contextLabel: nextFocus.contextLabel,
             eventLabel: nextFocus.eventLabel,
           }
         : null,
@@ -567,7 +567,7 @@ function AgentPageContent() {
     setInput("");
     setLastActions([]);
     setStreamStatus(null);
-    const hasFocus = Boolean(focus.threadId || focus.eventId);
+    const hasFocus = Boolean(focus.contextId || focus.eventId);
     const history = hasFocus ? messages.slice(-4) : messages.slice(-12);
     setMessages((prev) => [...prev, { role: "user", content: message }]);
     setIsPending(true);
@@ -583,9 +583,9 @@ function AgentPageContent() {
         toolMemory,
         userEmail: meQuery.data?.email,
         focusCleared: !hasFocus,
-        focusThreadId: focus.threadId,
+        focusContextId: focus.contextId,
         focusEventId: focus.eventId,
-        focusThreadLabel: focus.threadLabel,
+        focusContextLabel: focus.contextLabel,
         focusEventLabel: focus.eventLabel,
       }),
       signal: abortController.signal,
@@ -646,18 +646,18 @@ function AgentPageContent() {
                     setFocus({});
                   }
                   setStreamStatus(null);
-                  dismissBriefThreadsFromAgentActions(actions);
+                  dismissBriefFocusFromAgentActions(actions);
 
-                  const focusedThreadId = focus.threadId ?? urlThreadId;
+                  const focusedContextId = focus.contextId ?? urlContextId;
                   if (
-                    focusedThreadId &&
+                    focusedContextId &&
                     actions.some(
                       (a) =>
                         a.kind === "email_queued" ||
-                        (a.kind === "thread" && a.href?.includes(urlThreadId)),
+                        (a.kind === "context" && a.href?.includes(urlContextId)),
                     )
                   ) {
-                    dismissBriefThread(focusedThreadId);
+                    dismissBriefFocus(focusedContextId);
                   }
 
                   void utils.agent.listSessions.invalidate();
@@ -882,10 +882,10 @@ function AgentPageContent() {
                   onSelect={(next) => void handleAttachFocus(next)}
                   disabled={isPending}
                 />
-                {isFeatureFocusId(focus.threadId) ? (
+                {isFeatureFocusId(focus.contextId) ? (
                   <div className="qship-agent-delivery-wrap">
                     <FeatureDeliveryPanel
-                      featureId={fromFeatureFocusId(focus.threadId!)}
+                      featureId={fromFeatureFocusId(focus.contextId!)}
                       compact
                       showOpenLink
                     />

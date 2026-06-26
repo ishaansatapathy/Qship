@@ -32,7 +32,7 @@ import type { OpenAiConversationMessage } from "./openai-tools";
  * Checked case-insensitively against the raw user message.
  *
  * Deliberately kept conservative to avoid false-positives on legitimate
- * requests like "ignore this email thread" or "forget that, let's reschedule".
+ * requests like "ignore this email" or "forget that, let's reschedule".
  */
 const INJECTION_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   {
@@ -69,11 +69,11 @@ const INJECTION_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     reason: "Bulk-send mass-action command detected",
   },
   {
-    pattern: /forward\s+(all|every)\s+(my\s+)?(emails?|messages?|threads?)/i,
+    pattern: /forward\s+(all|every)\s+(my\s+)?(emails?|messages?|conversations?)/i,
     reason: "Mass-forward command detected",
   },
   {
-    pattern: /delete\s+(all|every)\s+(my\s+)?(emails?|messages?|threads?|events?)/i,
+    pattern: /delete\s+(all|every)\s+(my\s+)?(emails?|messages?|conversations?|events?)/i,
     reason: "Mass-delete command detected",
   },
   {

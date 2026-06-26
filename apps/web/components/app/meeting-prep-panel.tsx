@@ -14,10 +14,10 @@ import { trpc } from "~/trpc/client";
 interface Props {
   eventId: string;
   timeZone?: string;
-  onOpenThread?: (id: string) => void;
+  onOpenMail?: (id: string) => void;
 }
 
-export function MeetingPrepPanel({ eventId, timeZone, onOpenThread }: Props) {
+export function MeetingPrepPanel({ eventId, timeZone, onOpenMail }: Props) {
   const prep = trpc.ai.meetingPrep.useQuery(
     { eventId, timeZone },
     {
@@ -139,7 +139,7 @@ export function MeetingPrepPanel({ eventId, timeZone, onOpenThread }: Props) {
                 <button
                   type="button"
                   className="mpp-email-item"
-                  onClick={() => onOpenThread?.(email.id)}
+                  onClick={() => onOpenMail?.(email.id)}
                   title={email.snippet}
                 >
                   <span className="mpp-email-subject">{email.subject}</span>

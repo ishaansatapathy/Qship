@@ -13,7 +13,7 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
 });
 const qshipHero = localFont({
-  src: "./fonts/ThreadHero.ttf",
+  src: "./fonts/QshipHero.ttf",
   variable: "--font-qship-hero",
   display: "swap",
 });

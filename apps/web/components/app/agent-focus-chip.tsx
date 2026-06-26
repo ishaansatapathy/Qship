@@ -5,9 +5,9 @@ import { Calendar, Mail, Rocket, X } from "lucide-react";
 import { isFeatureFocusId } from "~/lib/shipflow-focus";
 
 export type AgentFocusState = {
-  threadId?: string;
+  contextId?: string;
   eventId?: string;
-  threadLabel?: string;
+  contextLabel?: string;
   eventLabel?: string;
 };
 
@@ -18,15 +18,15 @@ type AgentFocusChipProps = {
 };
 
 export function AgentFocusChip({ focus, onClear, disabled }: AgentFocusChipProps) {
-  if (!focus.threadId && !focus.eventId) return null;
+  if (!focus.contextId && !focus.eventId) return null;
 
-  const isFeature = isFeatureFocusId(focus.threadId);
-  const isThread = Boolean(focus.threadId) && !isFeature;
-  const Icon = isFeature ? Rocket : isThread ? Mail : Calendar;
+  const isFeature = isFeatureFocusId(focus.contextId);
+  const isMailContext = Boolean(focus.contextId) && !isFeature;
+  const Icon = isFeature ? Rocket : isMailContext ? Mail : Calendar;
   const label = isFeature
-    ? focus.threadLabel?.trim() || "Feature request"
-    : isThread
-      ? focus.threadLabel?.trim() || "Email thread"
+    ? focus.contextLabel?.trim() || "Feature request"
+    : isMailContext
+      ? focus.contextLabel?.trim() || "Email conversation"
       : focus.eventLabel?.trim() || "Calendar event";
 
   return (

@@ -48,14 +48,14 @@ export const agentRouter = router({
               at: z.string(),
               tool: z.string(),
               summary: z.string(),
-              threadId: z.string().optional(),
+              contextId: z.string().optional(),
               eventId: z.string().optional(),
               query: z.string().optional(),
             }),
           )
           .optional(),
         userEmail: z.string().email().optional(),
-        focusThreadId: z.string().optional(),
+        focusContextId: z.string().optional(),
         focusEventId: z.string().optional(),
       }),
     )
@@ -64,7 +64,7 @@ export const agentRouter = router({
         let history = input.history;
         let toolMemory = input.toolMemory;
         let focus = {
-          threadId: input.focusThreadId,
+          contextId: input.focusContextId,
           eventId: input.focusEventId,
         };
 
@@ -75,9 +75,9 @@ export const agentRouter = router({
           }
           history = session.messages;
           toolMemory = session.toolMemory;
-          if (!input.focusThreadId && !input.focusEventId) {
+          if (!input.focusContextId && !input.focusEventId) {
             focus = {
-              threadId: session.focus.threadId,
+              contextId: session.focus.contextId,
               eventId: session.focus.eventId,
             };
           }
@@ -122,7 +122,7 @@ export const agentRouter = router({
           id: row.id,
           title: row.title,
           messageCount: row.messageCount,
-          focusThreadLabel: row.focusThreadLabel,
+          focusContextLabel: row.focusContextLabel,
           focusEventLabel: row.focusEventLabel,
           updatedAt: row.updatedAt.toISOString(),
         }));
@@ -157,9 +157,9 @@ export const agentRouter = router({
           title: z.string().nullable().optional(),
           focus: z
             .object({
-              threadId: z.string().optional(),
+              contextId: z.string().optional(),
               eventId: z.string().optional(),
-              threadLabel: z.string().optional(),
+              contextLabel: z.string().optional(),
               eventLabel: z.string().optional(),
             })
             .optional(),
@@ -189,9 +189,9 @@ export const agentRouter = router({
         title: z.string().optional(),
         focus: z
           .object({
-            threadId: z.string().optional(),
+            contextId: z.string().optional(),
             eventId: z.string().optional(),
-            threadLabel: z.string().optional(),
+            contextLabel: z.string().optional(),
             eventLabel: z.string().optional(),
           })
           .nullable()

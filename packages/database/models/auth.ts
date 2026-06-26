@@ -1,6 +1,6 @@
 import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-/** BetterAuth tables — prefixed to avoid collision with legacy Thread `users`. */
+/** BetterAuth tables — prefixed to avoid collision with legacy app `users`. */
 export const users = pgTable("shipflow_users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

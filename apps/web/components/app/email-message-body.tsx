@@ -16,7 +16,7 @@ const PURIFY_OPTIONS = {
 
 export function EmailMessageBody({ bodyHtml, body, snippet, className }: EmailMessageBodyProps) {
   const plain = body?.trim() || snippet?.trim() || "(No content)";
-  const htmlClass = className ? `thread-email-html-body ${className}` : "thread-email-html-body";
+  const htmlClass = className ? `qship-email-html-body ${className}` : "qship-email-html-body";
   const [sanitized, setSanitized] = useState<string | null>(null);
 
   useEffect(() => {

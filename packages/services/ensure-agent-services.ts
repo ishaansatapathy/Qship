@@ -24,18 +24,18 @@ function disconnectedInbox(): InboxService {
     get(_target, prop) {
       if (prop === "isConfigured") return () => false;
       if (prop === "getConnectionStatus") return async () => ({ gmail: "not_connected" as const });
-      if (prop === "listThreads") return async () => ({ threads: [] });
-      if (prop === "listCachedThreads") return async () => ({ threads: [] });
-      if (prop === "getThread") return async () => null;
+      if (prop === "listMail") return async () => ({ items: [] });
+      if (prop === "listCachedMail") return async () => ({ items: [] });
+      if (prop === "getMailItem") return async () => null;
       if (prop === "listDrafts") return async () => ({ drafts: [] });
       if (prop === "getDraft") return async () => null;
       if (prop === "listLabels") return async () => [];
-      if (prop === "searchThreadsDb") return async () => ({ threads: [] });
+      if (prop === "searchMailDb") return async () => ({ items: [] });
       if (prop === "searchMessagesDb") return async () => ({ messages: [] });
       if (prop === "searchDraftsDb") return async () => ({ drafts: [] });
       if (prop === "searchLabelsDb") return async () => ({ labels: [] });
       if (prop === "listMessages") return async () => ({ messages: [] });
-      if (prop === "batchModifyThreads") return async () => ({ modifiedMessages: 0 });
+      if (prop === "batchModifyMail") return async () => ({ modifiedMessages: 0 });
       return notConnected(GMAIL_MSG);
     },
   });

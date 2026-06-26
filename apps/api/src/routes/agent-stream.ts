@@ -18,7 +18,7 @@ const toolMemoryEntrySchema = z.object({
   at: z.string(),
   tool: z.string(),
   summary: z.string(),
-  threadId: z.string().optional(),
+  contextId: z.string().optional(),
   eventId: z.string().optional(),
   query: z.string().optional(),
 });
@@ -37,9 +37,9 @@ const agentStreamBodySchema = z.object({
     .optional(),
   toolMemory: z.array(toolMemoryEntrySchema).max(12).optional(),
   userEmail: z.string().email().optional(),
-  focusThreadId: z.string().trim().min(1).max(128).optional(),
+  focusContextId: z.string().trim().min(1).max(128).optional(),
   focusEventId: z.string().trim().min(1).max(256).optional(),
-  focusThreadLabel: z.string().trim().min(1).max(200).optional(),
+  focusContextLabel: z.string().trim().min(1).max(200).optional(),
   focusEventLabel: z.string().trim().min(1).max(200).optional(),
   focusCleared: z.boolean().optional(),
 });
@@ -75,9 +75,9 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
     history,
     toolMemory,
     userEmail,
-    focusThreadId,
+    focusContextId,
     focusEventId,
-    focusThreadLabel,
+    focusContextLabel,
     focusEventLabel,
     focusCleared,
   } = parsed.data;
@@ -105,10 +105,10 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
     let effectiveHistory = history;
     let effectiveToolMemory = toolMemory ?? [];
     let effectiveFocus = {
-      threadId: focusThreadId,
+      contextId: focusContextId,
       eventId: focusEventId,
     };
-    let effectiveThreadLabel = focusThreadLabel;
+    let effectivecontextLabel = focusContextLabel;
     let effectiveEventLabel = focusEventLabel;
 
     if (sessionId) {
@@ -120,17 +120,17 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
       effectiveHistory = session.messages;
       effectiveToolMemory = session.toolMemory;
       if (focusCleared) {
-        effectiveFocus = { threadId: undefined, eventId: undefined };
-        effectiveThreadLabel = undefined;
+        effectiveFocus = { contextId: undefined, eventId: undefined };
+        effectivecontextLabel = undefined;
         effectiveEventLabel = undefined;
-      } else if (focusThreadId || focusEventId) {
-        effectiveFocus = { threadId: focusThreadId, eventId: focusEventId };
+      } else if (focusContextId || focusEventId) {
+        effectiveFocus = { contextId: focusContextId, eventId: focusEventId };
       } else {
         effectiveFocus = {
-          threadId: session.focus.threadId,
+          contextId: session.focus.contextId,
           eventId: session.focus.eventId,
         };
-        effectiveThreadLabel = session.focus.threadLabel;
+        effectivecontextLabel = session.focus.contextLabel;
         effectiveEventLabel = session.focus.eventLabel;
       }
     }
@@ -164,9 +164,9 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
         focus: result.focusCleared
           ? null
           : {
-              threadId: effectiveFocus.threadId,
+              contextId: effectiveFocus.contextId,
               eventId: effectiveFocus.eventId,
-              threadLabel: effectiveThreadLabel,
+              contextLabel: effectivecontextLabel,
               eventLabel: effectiveEventLabel,
             },
       });
@@ -210,13 +210,6 @@ function toolStatusLabel(tool: string): string {
     get_pipeline_summary: "Summarizing pipeline…",
     github_connection_status: "Checking GitHub…",
     list_github_repositories: "Listing repositories…",
-    search_inbox: "Searching inbox…",
-    get_thread: "Reading thread…",
-    summarize_thread: "Summarizing email…",
-    rank_inbox: "Ranking threads by urgency…",
-    queue_email: "Preparing email…",
-    queue_calendar_invite: "Preparing calendar invite…",
-    list_queue: "Checking queue…",
     list_calendar_events: "Checking calendar…",
   };
   return labels[tool] ?? `Running ${tool}…`;

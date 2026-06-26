@@ -626,7 +626,7 @@
 }
 
 .qship-fade-up {
-  animation: thread-fade-up 0.55s ease both;
+  animation: qship-fade-up 0.55s ease both;
 }
 
 @media (max-width: 960px) {
@@ -1260,7 +1260,7 @@
   font-weight: 600;
   white-space: nowrap;
   letter-spacing: -0.01em;
-  animation: thread-tip-in 0.18s ease;
+  animation: qship-tip-in 0.18s ease;
 }
 
 @keyframes qship-tip-in {
@@ -1458,7 +1458,7 @@
   height: 5px;
   border-radius: 50%;
   background: var(--qship-muted);
-  animation: thread-typing 1s ease-in-out infinite;
+  animation: qship-typing 1s ease-in-out infinite;
 }
 
 .qship-agent-typing i:nth-child(2) {
@@ -1586,7 +1586,7 @@
   filter: saturate(0.8);
   transform: scale(0.96);
   transform-origin: top left;
-  animation: thread-show-back-in 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: qship-show-back-in 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 1;
 }
 
@@ -1596,7 +1596,7 @@
   bottom: 0;
   width: 56%;
   z-index: 2;
-  animation: thread-show-front-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.08s backwards;
+  animation: qship-show-front-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.08s backwards;
 }
 
 @keyframes qship-show-back-in {
@@ -1705,7 +1705,7 @@
 }
 
 .qship-show-segment-fill[data-active="true"] {
-  animation-name: thread-segment-progress;
+  animation-name: qship-segment-progress;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
