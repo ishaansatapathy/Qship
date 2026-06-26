@@ -45,6 +45,9 @@ export async function getFeatureRequest(id: string) {
       prd: true,
       tasks: true,
       clarifications: true,
+      pullRequests: { with: { repository: true } },
+      aiReviews: { with: { issues: true }, orderBy: (r, { desc: d }) => [d(r.createdAt)] },
+      humanApprovals: { orderBy: (h, { desc: d }) => [d(h.createdAt)] },
     },
   });
   if (!row) throw new ServiceError("NOT_FOUND", "Feature request not found");

@@ -7,6 +7,7 @@ import { workspaceRouter } from "./routes/workspace/route";
 import { githubRouter } from "./routes/github/route";
 import { agentRouter } from "./routes/agent/route";
 import { observabilityRouter } from "./routes/observability/route";
+import { billingRouter } from "./routes/billing/route";
 import {
   inboxRouter,
   calendarRouter,
@@ -32,6 +33,7 @@ export const serverRouter = router({
   contacts: contactsRouter,
   brief: briefRouter,
   observability: observabilityRouter,
+  billing: billingRouter,
 });
 
 export const openApiRouter = serverRouter;
