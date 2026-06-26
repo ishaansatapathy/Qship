@@ -23,9 +23,9 @@ import {
 import {
   generateFeaturePrd,
   generateFeatureTasks,
-  runFeatureAiReview,
   triageFeatureRequest,
 } from "./feature-ai";
+import { runFeatureAiReviewWithOptionalPr } from "./github/pr-review";
 import {
   getGithubConnectionForUser,
   listGithubRepositoriesForUser,
@@ -402,37 +402,15 @@ export async function executeShipflowTool(
 
     case "run_ai_review": {
       const id = String(args.id ?? "").trim();
-      const { feature } = await loadAuthorizedFeature(userId, id);
-      const review = await runFeatureAiReview({
-        title: feature.title,
-        rawRequest: feature.rawRequest,
-        prd: feature.prd?.content ?? null,
-        taskTitles: feature.tasks?.map((t) => t.title) ?? [],
-      });
-      const nextStatus = review.pass ? "human_review" : "fix_needed";
-      await updateFeatureStatus(id, nextStatus);
-      await updateFeatureMetadata(id, {
-        lastAiReview: {
-          at: new Date().toISOString(),
-          pass: review.pass,
-          summary: review.summary,
-          findings: review.findings,
-        },
-      });
-      await appendFeatureActivity(id, {
-        kind: "ai_review",
-        title: review.pass ? "AI review passed" : "AI review — fixes needed",
-        detail: review.summary,
-        actor: "agent",
-      });
+      const { feature, ws } = await loadAuthorizedFeature(userId, id);
+      const result = await runFeatureAiReviewWithOptionalPr(id, ws.organization.id);
       actions.push({
         kind: "ai_review",
         title: `AI review: ${feature.title}`,
-        detail: review.pass ? "Passed — ready for human review" : "Fixes needed",
+        detail: result.pass ? "Passed — ready for human review" : "Fixes needed",
         href: `/requests?id=${id}`,
-        lines: review.findings.slice(0, 5),
       });
-      return JSON.stringify({ featureId: id, status: nextStatus, review });
+      return JSON.stringify({ featureId: id, ...result });
     }
 
     case "request_human_review": {

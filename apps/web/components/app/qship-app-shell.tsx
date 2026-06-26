@@ -16,6 +16,7 @@ import {
   X,
   Sun,
   Rocket,
+  CreditCard,
 } from "lucide-react";
 
 import { QshipWordmark, QshipLogoMark } from "~/components/qship/qship-logo";
@@ -30,6 +31,7 @@ const NAV = [
   { label: "Requests", href: "/requests", icon: Rocket },
   { label: "Agent", href: "/agent", icon: Bot },
   { label: "Analytics", href: "/analytics", icon: BarChart2 },
+  { label: "Billing", href: "/billing", icon: CreditCard },
 ];
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {
@@ -37,6 +39,7 @@ const PAGE_META: Record<string, { title: string; sub: string }> = {
   "/requests": { title: "Feature Requests", sub: "Submit, triage, and ship product work" },
   "/agent": { title: "ShipFlow Agent", sub: "PRD, tasks, reviews — with human oversight" },
   "/analytics": { title: "Analytics", sub: "Delivery pipeline and agent activity" },
+  "/billing": { title: "Billing", sub: "Plans, AI credits, and Razorpay checkout" },
   "/settings": { title: "Settings", sub: "Workspace, GitHub, and approvals" },
 };
 

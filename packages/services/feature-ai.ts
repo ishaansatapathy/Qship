@@ -87,6 +87,20 @@ export type FeatureAiReview = {
   severity: "low" | "medium" | "high";
 };
 
+export type PrReviewIssue = {
+  severity: "blocking" | "non_blocking";
+  category: string;
+  title: string;
+  description: string;
+  filePath?: string;
+  lineNumber?: string;
+  requirementRef?: string;
+};
+
+export type PrAiReviewResult = FeatureAiReview & {
+  issues: PrReviewIssue[];
+};
+
 export async function generateFeatureTasks(input: {
   title: string;
   rawRequest: string;
@@ -151,4 +165,61 @@ Be constructive and specific to the feature — not generic advice.`,
   );
 
   return parseJson<FeatureAiReview>(content);
+}
+
+export async function runPrAiReview(input: {
+  title: string;
+  rawRequest: string;
+  prd?: PrdContent | null;
+  taskTitles?: string[];
+  diffText: string;
+  prTitle?: string;
+  changedFiles?: string[];
+}) {
+  if (!isOpenAiConfigured()) {
+    throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured. Set OPENAI_API_KEY.");
+  }
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a senior engineer reviewing a pull request against product requirements.
+Return JSON with keys:
+- summary (1-2 sentences)
+- findings (array of short strings — legacy flat list)
+- recommendation (next step for the team)
+- pass (boolean — true only if no blocking issues and requirements are met)
+- severity (low|medium|high)
+- issues (array of { severity: "blocking"|"non_blocking", category, title, description, filePath?, lineNumber?, requirementRef? })
+
+Evaluate PRD fit, acceptance criteria, security, edge cases, and code quality from the diff.
+Be specific — cite files when possible.`,
+      },
+      {
+        role: "user",
+        content: [
+          `Feature: ${input.title}`,
+          `Request: ${input.rawRequest}`,
+          input.prTitle ? `PR title: ${input.prTitle}` : "",
+          input.changedFiles?.length ? `Changed files: ${input.changedFiles.join(", ")}` : "",
+          input.prd ? `PRD: ${JSON.stringify(input.prd, null, 2)}` : "PRD: not available",
+          input.taskTitles?.length ? `Tasks: ${input.taskTitles.join("; ")}` : "",
+          "",
+          "=== PULL REQUEST DIFF ===",
+          input.diffText || "(empty diff)",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      },
+    ],
+    { jsonObject: true, temperature: 0.1 },
+  );
+
+  const parsed = parseJson<PrAiReviewResult>(content);
+  return {
+    ...parsed,
+    issues: parsed.issues ?? [],
+    findings: parsed.findings ?? [],
+  };
 }

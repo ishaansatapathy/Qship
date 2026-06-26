@@ -6,12 +6,18 @@ import {
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
+  replaceFeatureTasks,
   saveFeaturePrd,
   updateFeatureMetadata,
   updateFeatureStatus,
   assertFeatureInUserWorkspace,
+  appendFeatureActivity,
 } from "@repo/services/feature-request";
-import { generateFeaturePrd, triageFeatureRequest } from "@repo/services/feature-ai";
+import { generateFeaturePrd, generateFeatureTasks, triageFeatureRequest } from "@repo/services/feature-ai";
+import { createFeaturePullRequest } from "@repo/services/github/pr";
+import { runFeatureAiReviewWithOptionalPr } from "@repo/services/github/pr-review";
+import { getGithubConnectionForUser } from "@repo/services/github/installation";
+import { listAiReviewsForFeature, markFeatureShipped, recordHumanApproval } from "@repo/services/review";
 import { isOpenAiConfigured } from "@repo/services/ai/openai";
 import { ServiceError } from "@repo/services/errors";
 import { FEATURE_STATUSES } from "@repo/services/workflow";
@@ -266,6 +272,146 @@ export const featureRouter = router({
           input.id,
           input.status as (typeof FEATURE_STATUSES)[number],
         );
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  generateTasks: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/tasks",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Generate engineering tasks from PRD",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        if (!feature.prd?.content) {
+          throw new ServiceError("PRECONDITION_FAILED", "Generate a PRD before creating tasks");
+        }
+        const drafts = await generateFeatureTasks({
+          title: feature.title,
+          rawRequest: feature.rawRequest,
+          prd: feature.prd.content,
+        });
+        const tasks = await replaceFeatureTasks(input.id, drafts);
+        await updateFeatureStatus(input.id, "planning");
+        await appendFeatureActivity(input.id, {
+          kind: "tasks",
+          title: "Engineering tasks generated",
+          detail: `${tasks.length} task(s)`,
+          actor: "agent",
+        });
+        return { featureId: input.id, tasks };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  runAiReview: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/ai-review",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Run AI review (uses PR diff when linked)",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { ws, feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        const result = await runFeatureAiReviewWithOptionalPr(feature.id, ws.organization.id);
+        return result;
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  createPullRequest: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/pull-request",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Open a GitHub PR linked to this feature (branch shipflow/<uuid>)",
+      },
+    })
+    .input(z.object({ id: z.string().min(1), repositoryId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { ws } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        const gh = await getGithubConnectionForUser(ctx.user.id);
+        if (!gh.connected || !gh.installationId) {
+          throw new ServiceError("PRECONDITION_FAILED", "Connect GitHub in Settings first");
+        }
+        return createFeaturePullRequest({
+          organizationId: ws.organization.id,
+          installationId: gh.installationId,
+          featureId: input.id,
+          repositoryId: input.repositoryId,
+        });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  approve: protectedProcedure
+    .input(z.object({ id: z.string().min(1), notes: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return recordHumanApproval({
+          featureRequestId: input.id,
+          reviewerUserId: ctx.user.id,
+          decision: "approved",
+          notes: input.notes,
+        });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  reject: protectedProcedure
+    .input(z.object({ id: z.string().min(1), notes: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return recordHumanApproval({
+          featureRequestId: input.id,
+          reviewerUserId: ctx.user.id,
+          decision: "changes_requested",
+          notes: input.notes,
+        });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  ship: protectedProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return markFeatureShipped(input.id, ctx.user.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  listReviews: protectedProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return listAiReviewsForFeature(input.id);
       } catch (error) {
         mapServiceError(error);
       }

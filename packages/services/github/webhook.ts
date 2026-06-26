@@ -4,6 +4,7 @@ import { featureRequests, organizations, pullRequests, repositories } from "@rep
 import { logger } from "@repo/logger";
 
 import { appendFeatureActivity } from "../feature-request";
+import { runPullRequestAiReview } from "./pr-review";
 
 const FEATURE_BRANCH = /^shipflow\/([0-9a-f-]{36})$/i;
 const FEATURE_TAG = /ShipFlow-Feature:\s*([0-9a-f-]{36})/i;
@@ -125,6 +126,15 @@ export async function processGithubPullRequestWebhook(payload: GithubPullRequest
       detail: `${pr.title ?? `#${pr.number}`} · ${repoMeta.full_name}`,
       actor: "system",
     });
+
+    if (action === "synchronize" || action === "opened" || action === "reopened") {
+      void runPullRequestAiReview(prId).catch((error) => {
+        logger.warn("GitHub webhook: auto review failed", {
+          featureId: feature.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
   }
 
   return {

@@ -5,9 +5,13 @@ import { toast } from "sonner";
 import {
   ArrowRight,
   CheckCircle2,
+  ExternalLink,
+  GitBranch,
+  ListTodo,
   Loader2,
   Plus,
   Rocket,
+  ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
@@ -172,22 +176,78 @@ function FeatureDetailPanel({
 }) {
   const utils = trpc.useUtils();
   const detail = trpc.feature.get.useQuery({ id: featureId });
+  const repos = trpc.github.listRepositories.useQuery({});
+
+  const invalidate = async () => {
+    await utils.feature.get.invalidate({ id: featureId });
+    await utils.feature.delivery.invalidate({ id: featureId });
+    await utils.feature.list.invalidate();
+    await utils.feature.pipelineSummary.invalidate();
+  };
+
   const generatePrd = trpc.feature.generatePrd.useMutation({
     onSuccess: async () => {
-      await utils.feature.get.invalidate({ id: featureId });
-      await utils.feature.delivery.invalidate({ id: featureId });
-      await utils.feature.list.invalidate();
+      await invalidate();
       toast.success("PRD generated");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const generateTasks = trpc.feature.generateTasks.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      toast.success("Engineering tasks generated");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const runAiReview = trpc.feature.runAiReview.useMutation({
+    onSuccess: async (result) => {
+      await invalidate();
+      if (!result.ok) {
+        toast.error("AI review could not run — connect GitHub or link a PR");
+        return;
+      }
+      toast.success(result.pass ? "AI review passed" : "AI review — fixes needed");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const createPr = trpc.feature.createPullRequest.useMutation({
+    onSuccess: async (result) => {
+      await invalidate();
+      toast.success(`PR #${result.number} opened`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const approve = trpc.feature.approve.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      toast.success("Approved for release");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const reject = trpc.feature.reject.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      toast.success("Changes requested — back to fix loop");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const ship = trpc.feature.ship.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      toast.success("Feature marked as shipped");
     },
     onError: (e) => toast.error(e.message),
   });
 
   const advanceStatus = trpc.feature.updateStatus.useMutation({
     onSuccess: async () => {
-      await utils.feature.get.invalidate({ id: featureId });
-      await utils.feature.delivery.invalidate({ id: featureId });
-      await utils.feature.list.invalidate();
-      await utils.feature.pipelineSummary.invalidate();
+      await invalidate();
       toast.success("Status updated");
     },
     onError: (e) => toast.error(e.message),
@@ -206,6 +266,10 @@ function FeatureDetailPanel({
   const feature = detail.data;
   const triage = getTriage(feature);
   const prd = feature.prd?.content;
+  const tasks = feature.tasks ?? [];
+  const linkedPr = feature.pullRequests?.[0];
+  const latestReview = feature.aiReviews?.[0];
+  const firstRepo = repos.data?.[0];
 
   return (
     <aside className="qship-req-detail">
@@ -276,7 +340,65 @@ function FeatureDetailPanel({
               </>
             )}
           </button>
-        ) : (
+        ) : tasks.length === 0 ? (
+          <button
+            type="button"
+            className="qship-btn-accent"
+            disabled={generateTasks.isPending}
+            onClick={() => generateTasks.mutate({ id: feature.id })}
+          >
+            {generateTasks.isPending ? (
+              <>
+                <Loader2 size={14} className="qship-spin" /> Generating tasks…
+              </>
+            ) : (
+              <>
+                <ListTodo size={14} /> Generate engineering tasks
+              </>
+            )}
+          </button>
+        ) : null}
+
+        {prd && tasks.length > 0 && !linkedPr && firstRepo ? (
+          <button
+            type="button"
+            className="qship-btn-ghost"
+            disabled={createPr.isPending}
+            onClick={() => createPr.mutate({ id: feature.id, repositoryId: firstRepo.id })}
+          >
+            {createPr.isPending ? (
+              <>
+                <Loader2 size={14} className="qship-spin" /> Opening PR…
+              </>
+            ) : (
+              <>
+                <GitBranch size={14} /> Open GitHub PR
+              </>
+            )}
+          </button>
+        ) : null}
+
+        {(linkedPr || prd) &&
+        ["planning", "in_development", "pr_open", "fix_needed", "ai_review"].includes(feature.status) ? (
+          <button
+            type="button"
+            className="qship-btn-ghost"
+            disabled={runAiReview.isPending}
+            onClick={() => runAiReview.mutate({ id: feature.id })}
+          >
+            {runAiReview.isPending ? (
+              <>
+                <Loader2 size={14} className="qship-spin" /> Reviewing…
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={14} /> {feature.status === "fix_needed" ? "Re-run AI review" : "Run AI review"}
+              </>
+            )}
+          </button>
+        ) : null}
+
+        {prd && feature.status === "prd_ready" ? (
           <button
             type="button"
             className="qship-btn-ghost"
@@ -285,28 +407,94 @@ function FeatureDetailPanel({
           >
             Move to planning
           </button>
-        )}
+        ) : null}
 
         {feature.status === "human_review" ? (
+          <>
+            <button
+              type="button"
+              className="qship-btn-accent"
+              disabled={approve.isPending}
+              onClick={() => {
+                if (!window.confirm("Approve this feature for release?")) return;
+                approve.mutate({ id: feature.id });
+              }}
+            >
+              <CheckCircle2 size={14} /> Approve for ship
+            </button>
+            <button
+              type="button"
+              className="qship-btn-ghost"
+              disabled={reject.isPending}
+              onClick={() => reject.mutate({ id: feature.id, notes: "Changes requested from Requests UI" })}
+            >
+              Request changes
+            </button>
+          </>
+        ) : null}
+
+        {feature.status === "approved" ? (
           <button
             type="button"
             className="qship-btn-accent"
-            disabled={advanceStatus.isPending}
+            disabled={ship.isPending}
             onClick={() => {
-              if (
-                !window.confirm(
-                  "Approve this feature for release? This marks it ready to ship in the pipeline.",
-                )
-              ) {
-                return;
-              }
-              advanceStatus.mutate({ id: feature.id, status: "approved" });
+              if (!window.confirm("Mark this feature as shipped to production?")) return;
+              ship.mutate({ id: feature.id });
             }}
           >
-            <CheckCircle2 size={14} /> Approve for ship
+            <Rocket size={14} /> Mark shipped
           </button>
         ) : null}
       </div>
+
+      {linkedPr ? (
+        <section className="qship-req-prd">
+          <h3>
+            <GitBranch size={14} /> Pull request
+          </h3>
+          <a href={linkedPr.url} target="_blank" rel="noreferrer" className="qship-req-rec">
+            #{linkedPr.githubPrNumber} {linkedPr.title} <ExternalLink size={12} />
+          </a>
+          {linkedPr.repository ? (
+            <p style={{ fontSize: 12, opacity: 0.7 }}>{linkedPr.repository.fullName}</p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {tasks.length ? (
+        <section className="qship-req-prd">
+          <h3>
+            <ListTodo size={14} /> Engineering tasks ({tasks.length})
+          </h3>
+          <ul>
+            {tasks.map((t) => (
+              <li key={t.id}>
+                <strong>{t.title}</strong> · {t.status}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {latestReview ? (
+        <section className="qship-req-prd">
+          <h3>
+            <ShieldCheck size={14} /> AI review · iteration {latestReview.iteration}
+          </h3>
+          <p>{latestReview.summary}</p>
+          {latestReview.issues?.length ? (
+            <ul>
+              {latestReview.issues.map((issue) => (
+                <li key={issue.id}>
+                  [{issue.severity}] {issue.title}
+                  {issue.filePath ? ` · ${issue.filePath}` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       {prd ? (
         <section className="qship-req-prd">
