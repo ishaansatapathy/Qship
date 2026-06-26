@@ -1,0 +1,883 @@
+"use client";
+
+import Link from "next/link";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import {
+  Bot,
+  Calendar,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  Paperclip,
+  PenLine,
+  Search,
+  Sparkles,
+  ListChecks,
+  Square,
+} from "lucide-react";
+
+import { trpc } from "~/trpc/client";
+import type { RouterOutputs } from "@repo/trpc/client";
+import { AgentMentionInput } from "~/components/app/agent-mention-input";
+import { AgentContextPicker } from "~/components/app/agent-context-picker";
+import { AgentFocusChip, type AgentFocusState } from "~/components/app/agent-focus-chip";
+import { AgentSessionSidebar } from "~/components/app/agent-session-sidebar";
+import { SkeletonList } from "~/components/app/skeleton-list";
+import { QueryErrorState } from "~/components/app/query-error-state";
+import {
+  dismissBriefThread,
+  dismissBriefThreadFromQueueItem,
+  dismissBriefThreadsFromAgentActions,
+} from "~/lib/brief-dismissals";
+import { useDemoAiGuard } from "~/components/app/demo-limit-modal";
+import { useQueueIntegrationGate } from "~/components/app/connect-required-modal";
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type ActionCard = RouterOutputs["agent"]["chat"]["actions"][number];
+
+type ToolMemoryEntry = {
+  at: string;
+  tool: string;
+  summary: string;
+  threadId?: string;
+  eventId?: string;
+  query?: string;
+};
+
+const SUGGESTIONS = [
+  {
+    label: "Pipeline summary",
+    icon: Sparkles,
+    prompt: "Give me a summary of our feature delivery pipeline — what's submitted, in delivery, and awaiting approval?",
+  },
+  {
+    label: "Submit feature idea",
+    icon: PenLine,
+    prompt:
+      "I want to submit a feature: add bulk export for customer reports in CSV format. Create the request and run AI triage.",
+  },
+  {
+    label: "List open requests",
+    icon: ListChecks,
+    prompt: "List our recent feature requests and highlight anything that needs attention.",
+  },
+  {
+    label: "Generate PRD",
+    icon: Bot,
+    prompt: "Find the most recent submitted feature request and generate a PRD for it.",
+  },
+  {
+    label: "GitHub status",
+    icon: Search,
+    prompt: "Is GitHub connected to our workspace? List linked repositories if any.",
+  },
+];
+
+function actionIcon(kind: ActionCard["kind"]) {
+  switch (kind) {
+    case "email_queued":
+      return Mail;
+    case "calendar_queued":
+      return Calendar;
+    case "queue_list":
+      return ListChecks;
+    case "inbox_ranked":
+      return Sparkles;
+    default:
+      return Search;
+  }
+}
+
+type AgentDeepLink = {
+  prompt: string;
+  threadId: string;
+  eventId: string;
+};
+
+function readAgentDeepLink(searchParams: ReturnType<typeof useSearchParams>): AgentDeepLink {
+  const fromRouter: AgentDeepLink = {
+    prompt: searchParams.get("prompt")?.trim() ?? "",
+    threadId: searchParams.get("thread")?.trim() ?? "",
+    eventId: searchParams.get("event")?.trim() ?? "",
+  };
+  if (fromRouter.prompt) return fromRouter;
+  if (typeof window === "undefined") return fromRouter;
+  const params = new URLSearchParams(window.location.search);
+  const prompt = params.get("prompt")?.trim() ?? "";
+  if (!prompt) return fromRouter;
+  return {
+    prompt,
+    threadId: params.get("thread")?.trim() ?? "",
+    eventId: params.get("event")?.trim() ?? "",
+  };
+}
+
+function agentWelcomeCopy(opts: {
+  agentAutoApprove: boolean;
+  settingsReady: boolean;
+}) {
+  if (!opts.settingsReady) {
+    return "Ask in plain language — e.g. triage a feature request, generate a PRD, or check GitHub status. Loading approval settings…";
+  }
+
+  if (opts.agentAutoApprove) {
+    return (
+      <>
+        Ask in plain language — e.g. &quot;Generate a PRD for our latest feature request&quot; or
+        &quot;Summarize the delivery pipeline&quot;.
+        <strong> Auto-approve is on</strong> for agent actions — PRDs and reviews run immediately when safe.
+      </>
+    );
+  }
+
+  return (
+    <>
+      Ask in plain language — e.g. &quot;Triage open feature requests&quot; or &quot;Draft a PRD for SSO support&quot;.
+      <strong> Queue first</strong> is on: sensitive actions land in{" "}
+      <strong>Release approvals</strong> until you sign off.
+    </>
+  );
+}
+
+function ActionPanel({
+  actions,
+  agentAutoApprove,
+  onQueueResolved,
+  userEmail,
+}: {
+  actions: ActionCard[];
+  agentAutoApprove: boolean;
+  onQueueResolved?: () => void;
+  userEmail?: string | null;
+}) {
+  const utils = trpc.useUtils();
+  const { checkBeforeApprove, showRequirementFromError, modal: connectModal } =
+    useQueueIntegrationGate(userEmail);
+  const pendingQueue = trpc.queue.list.useQuery({ status: "pending" });
+  const approve = trpc.queue.approve.useMutation({
+    onSuccess: async (item) => {
+      dismissBriefThreadFromQueueItem(item);
+      await utils.queue.list.invalidate();
+      await utils.queue.pendingCount.invalidate();
+      await utils.ai.dailyBrief.invalidate();
+      onQueueResolved?.();
+      toast.success("Approved from Agent panel");
+    },
+    onError: (e) => {
+      void utils.queue.list.invalidate();
+      if (!showRequirementFromError(e.message)) {
+        toast.error(e.message);
+      }
+    },
+  });
+  const dismiss = trpc.queue.dismiss.useMutation({
+    onSuccess: async () => {
+      await utils.queue.list.invalidate();
+      await utils.queue.pendingCount.invalidate();
+      onQueueResolved?.();
+      toast.success("Dismissed from Agent panel");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  if (actions.length === 0) {
+    return (
+      <div className="qship-agent-pane">
+        <div className="qship-agent-pane-head">
+          <CheckCircle2 size={14} style={{ opacity: 0.55 }} />
+          Actions
+        </div>
+        <div className="qship-agent-feed" style={{ justifyContent: "center" }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--qship-muted)", lineHeight: 1.55, textAlign: "center" }}>
+            {agentAutoApprove ? (
+              <>
+                Agent PRDs, reviews, and ship steps can run immediately when{" "}
+                <strong style={{ color: "var(--qship-text)" }}>Auto-approve</strong> is on in Settings.
+              </>
+            ) : (
+              <>
+                Sensitive agent actions go to{" "}
+                <strong style={{ color: "var(--qship-text)" }}>Release approvals</strong> for your sign-off first.
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const latest = actions.find((a) => a.kind === "inbox_ranked" || a.kind === "inbox_search") ?? actions[actions.length - 1]!;
+  const queuedAction = [...actions]
+    .reverse()
+    .find(
+      (a) =>
+        (a.kind === "email_queued" || a.kind === "calendar_queued") &&
+        a.disposition === "queued" &&
+        a.queueItemId,
+    );
+  const pendingIds = new Set((pendingQueue.data?.items ?? []).map((item: { id: string }) => item.id));
+  const queuedItem = pendingQueue.data?.items.find(
+    (item: { id: string }) => item.id === queuedAction?.queueItemId,
+  );
+  const queueItemStillPending = Boolean(
+    queuedAction?.queueItemId && pendingIds.has(queuedAction.queueItemId),
+  );
+  const Icon = actionIcon(latest.kind);
+
+  const handleApproveQueued = () => {
+    if (!queuedAction?.queueItemId) return;
+    const kind =
+      queuedItem?.kind ??
+      (queuedAction.kind === "calendar_queued" ? "calendar_invite" : "email_send");
+    if (!checkBeforeApprove(kind)) return;
+    approve.mutate({ id: queuedAction.queueItemId });
+  };
+
+  return (
+    <>
+    <div className="qship-agent-pane">
+      <div className="qship-agent-pane-head">
+        <Icon size={14} style={{ opacity: 0.7 }} />
+        {latest.title}
+        {latest.href ? (
+          <Link href={latest.href} className="qship-mono-tag" style={{ marginLeft: "auto" }}>
+            Open →
+          </Link>
+        ) : null}
+      </div>
+      <div className="qship-agent-feed">
+        {latest.detail ? (
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--qship-muted)" }}>{latest.detail}</p>
+        ) : null}
+        {latest.lines?.map((line) => (
+          <div key={line} className="qship-agent-log-row" style={{ alignItems: "flex-start" }}>
+            <span style={{ whiteSpace: "pre-wrap", lineHeight: 1.45, color: "var(--qship-text)", fontFamily: "inherit", fontSize: 12.5 }}>
+              {line}
+            </span>
+          </div>
+        ))}
+        {queuedAction &&
+        queuedAction.disposition === "queued" ? (
+          <div className="qship-inbox-banner" style={{ marginTop: 4 }}>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5 }}>
+              {queueItemStillPending
+                ? "Waiting in Queue — approve here or review all items."
+                : "This item was already processed — open Queue for details."}
+            </p>
+            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              {queueItemStillPending && queuedAction.queueItemId ? (
+                <>
+                  <button
+                    type="button"
+                    className="qship-btn-accent"
+                    style={{ fontSize: 12, padding: "6px 12px" }}
+                    disabled={approve.isPending || dismiss.isPending}
+                    onClick={handleApproveQueued}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    className="qship-btn-ghost"
+                    style={{ fontSize: 12, padding: "6px 12px" }}
+                    disabled={approve.isPending || dismiss.isPending}
+                    onClick={() => dismiss.mutate({ id: queuedAction.queueItemId! })}
+                  >
+                    Dismiss
+                  </button>
+                </>
+              ) : null}
+              <Link href="/queue" className="qship-inbox-loadmore" style={{ display: "inline-flex" }}>
+                Open Queue
+              </Link>
+            </div>
+          </div>
+        ) : null}
+        {(latest.kind === "email_queued" || latest.kind === "calendar_queued") &&
+        latest.disposition === "sent" ? (
+          <div className="qship-inbox-banner" style={{ marginTop: 4, borderColor: "rgba(52, 211, 153, 0.25)" }}>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: "#34d399" }}>
+              Sent immediately — auto-approve is on for this action type.
+            </p>
+          </div>
+        ) : null}
+        {actions.length > 1 ? (
+          <div className="qship-agent-log" style={{ padding: 0, marginTop: 8 }}>
+            <span style={{ fontSize: 11, color: "var(--qship-dim)", fontFamily: "var(--qship-mono)" }}>
+              {actions.length} actions this turn
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+    {connectModal}
+    </>
+  );
+}
+
+function AgentPageContent() {
+  const searchParams = useSearchParams();
+  const [linkParamsReady, setLinkParamsReady] = useState(false);
+  const [deepLink, setDeepLink] = useState<AgentDeepLink>({
+    prompt: "",
+    threadId: "",
+    eventId: "",
+  });
+
+  useLayoutEffect(() => {
+    setDeepLink(readAgentDeepLink(searchParams));
+    setLinkParamsReady(true);
+  }, [searchParams]);
+
+  const urlPrompt = deepLink.prompt;
+  const urlThreadId = deepLink.threadId;
+  const urlEventId = deepLink.eventId;
+  const isDeepLink = Boolean(urlPrompt);
+
+  const [input, setInput] = useState("");
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [toolMemory, setToolMemory] = useState<ToolMemoryEntry[]>([]);
+  const [lastActions, setLastActions] = useState<ActionCard[]>([]);
+  const [isPending, setIsPending] = useState(false);
+  const [streamStatus, setStreamStatus] = useState<string | null>(null);
+  const [focus, setFocus] = useState<AgentFocusState>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+
+  const feedRef = useRef<HTMLDivElement>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const promptHandled = useRef(false);
+  const deepLinkHandled = useRef(false);
+  const deepLinkLockRef = useRef(false);
+  const sessionBootstrapping = useRef(false);
+
+  const utils = trpc.useUtils();
+  const sessionsQuery = trpc.agent.listSessions.useQuery({ limit: 30 });
+  const sessionQuery = trpc.agent.getSession.useQuery(
+    { id: activeSessionId! },
+    { enabled: Boolean(activeSessionId), staleTime: 0 },
+  );
+  const createSession = trpc.agent.createSession.useMutation();
+  const updateSession = trpc.agent.updateSession.useMutation();
+
+  const status = trpc.agent.status.useQuery({});
+  const approvalDefaults = trpc.settings.getApprovalDefaults.useQuery({}, {
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const meQuery = trpc.auth.me.useQuery({});
+
+  const agentAutoApprove = approvalDefaults.data?.autoApproveAgentEmail ?? false;
+  const approvalSettingsReady = !approvalDefaults.isLoading && approvalDefaults.data !== undefined;
+  const ready = status.data?.ready === true;
+
+  const { isDemo: isDemoUser, tryFeature, modal: demoModal } = useDemoAiGuard(meQuery.data?.email, "agent");
+
+  // Brief / inbox deep-links: reset session bootstrap when URL params change.
+  useEffect(() => {
+    if (!urlPrompt) return;
+    promptHandled.current = false;
+    deepLinkHandled.current = false;
+    deepLinkLockRef.current = true;
+    setSessionReady(false);
+    sessionBootstrapping.current = false;
+  }, [urlPrompt, urlThreadId, urlEventId]);
+
+  const applySession = useCallback((session: NonNullable<RouterOutputs["agent"]["getSession"]>) => {
+    setMessages(session.messages);
+    setToolMemory(session.toolMemory);
+    setFocus({
+      threadId: session.focus.threadId,
+      eventId: session.focus.eventId,
+      threadLabel: session.focus.threadLabel,
+      eventLabel: session.focus.eventLabel,
+    });
+  }, []);
+
+  const startNewChat = useCallback(async (opts?: { focus?: AgentFocusState; title?: string | null }) => {
+    const session = await createSession.mutateAsync({
+      title: opts?.title ?? null,
+      focus: opts?.focus,
+    });
+    setActiveSessionId(session.id);
+    setMessages([]);
+    setToolMemory([]);
+    setLastActions([]);
+    setFocus(opts?.focus ?? {});
+    await utils.agent.listSessions.invalidate();
+    return session.id;
+  }, [createSession, utils.agent.listSessions]);
+
+  useEffect(() => {
+    if (!linkParamsReady || sessionReady || sessionsQuery.isLoading || sessionBootstrapping.current) return;
+
+    sessionBootstrapping.current = true;
+    void (async () => {
+      try {
+        if (isDeepLink && !deepLinkHandled.current) {
+          deepLinkHandled.current = true;
+          deepLinkLockRef.current = true;
+          await startNewChat({
+            focus: {
+              threadId: urlThreadId || undefined,
+              eventId: urlEventId || undefined,
+            },
+            title: urlPrompt.slice(0, 72) || null,
+          });
+          await utils.agent.listSessions.invalidate();
+          return;
+        }
+
+        const sessions = sessionsQuery.data ?? [];
+        if (sessions.length > 0) {
+          setActiveSessionId(sessions[0]!.id);
+        } else {
+          await startNewChat();
+        }
+      } finally {
+        setSessionReady(true);
+        sessionBootstrapping.current = false;
+      }
+    })();
+  }, [isDeepLink, linkParamsReady, sessionReady, sessionsQuery.data, sessionsQuery.isLoading, startNewChat, urlEventId, urlThreadId, urlPrompt, utils.agent.listSessions]);
+
+  useEffect(() => {
+    if (!sessionReady || !activeSessionId || sessionsQuery.isLoading || createSession.isPending) return;
+    if (sessionBootstrapping.current) return;
+    // Don't hijack the fresh deep-link session before auto-prompt runs.
+    if (deepLinkLockRef.current && !promptHandled.current) return;
+    const sessions = sessionsQuery.data ?? [];
+    if (sessions.some((s: { id: string }) => s.id === activeSessionId)) return;
+    if (sessions.length > 0) {
+      setActiveSessionId(sessions[0]!.id);
+      return;
+    }
+    sessionBootstrapping.current = true;
+    void startNewChat().finally(() => {
+      sessionBootstrapping.current = false;
+    });
+  }, [activeSessionId, createSession.isPending, sessionReady, sessionsQuery.data, sessionsQuery.isLoading, startNewChat]);
+
+  useEffect(() => {
+    if (!activeSessionId || sessionQuery.isLoading || isPending) return;
+    if (!sessionQuery.data) return;
+    if (deepLinkLockRef.current) return;
+    applySession(sessionQuery.data);
+  }, [activeSessionId, applySession, isPending, sessionQuery.data, sessionQuery.isLoading]);
+
+  useEffect(() => {
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, isPending, streamStatus]);
+
+  useEffect(() => {
+    return () => streamAbortRef.current?.abort();
+  }, []);
+
+  const persistFocus = async (nextFocus: AgentFocusState) => {
+    if (!activeSessionId) return;
+    const hasFocus = Boolean(nextFocus.threadId || nextFocus.eventId);
+    await updateSession.mutateAsync({
+      id: activeSessionId,
+      focus: hasFocus
+        ? {
+            threadId: nextFocus.threadId,
+            eventId: nextFocus.eventId,
+            threadLabel: nextFocus.threadLabel,
+            eventLabel: nextFocus.eventLabel,
+          }
+        : null,
+    });
+    await utils.agent.getSession.invalidate({ id: activeSessionId });
+  };
+
+  const stopStream = () => {
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setIsPending(false);
+    setStreamStatus(null);
+    toast.message("Stopped.");
+  };
+
+  const send = (text: string): boolean => {
+    const message = text.trim();
+    if (!message || isPending || !activeSessionId) return false;
+    if (!ready) {
+      toast.message("Add OPENAI_API_KEY to enable ShipFlow Agent.");
+      return false;
+    }
+
+    if (isDemoUser && !tryFeature()) return false;
+
+    streamAbortRef.current?.abort();
+    const abortController = new AbortController();
+    streamAbortRef.current = abortController;
+
+    setInput("");
+    setLastActions([]);
+    setStreamStatus(null);
+    const hasFocus = Boolean(focus.threadId || focus.eventId);
+    const history = hasFocus ? messages.slice(-4) : messages.slice(-12);
+    setMessages((prev) => [...prev, { role: "user", content: message }]);
+    setIsPending(true);
+
+    fetch(`/agent/stream`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "x-thread-csrf": "1" },
+      body: JSON.stringify({
+        message,
+        sessionId: activeSessionId,
+        history,
+        toolMemory,
+        userEmail: meQuery.data?.email,
+        focusCleared: !hasFocus,
+        focusThreadId: focus.threadId,
+        focusEventId: focus.eventId,
+        focusThreadLabel: focus.threadLabel,
+        focusEventLabel: focus.eventLabel,
+      }),
+      signal: abortController.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok || !res.body) {
+          const err = await res.json().catch(() => ({ error: "Agent request failed" }));
+          throw new Error((err as { error?: string }).error ?? "Agent request failed");
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          let currentEvent = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              const dataStr = line.slice(6).trim();
+              try {
+                const data = JSON.parse(dataStr) as Record<string, unknown>;
+                if (currentEvent === "status") {
+                  setStreamStatus(String(data.label ?? "Working…"));
+                } else if (currentEvent === "token") {
+                  const tokenText = String(data.text ?? "");
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (last?.role === "assistant") {
+                      return [...prev.slice(0, -1), { role: "assistant", content: last.content + tokenText }];
+                    }
+                    return [...prev, { role: "assistant", content: tokenText }];
+                  });
+                } else if (currentEvent === "complete") {
+                  const reply = String(data.reply ?? "");
+                  const actions = (data.actions as ActionCard[]) ?? [];
+                  const nextToolMemory = (data.toolMemory as ToolMemoryEntry[]) ?? toolMemory;
+                  const focusCleared = Boolean(data.focusCleared);
+
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (last?.role === "assistant") {
+                      return [...prev.slice(0, -1), { role: "assistant", content: reply }];
+                    }
+                    return [...prev, { role: "assistant", content: reply }];
+                  });
+                  setLastActions(actions);
+                  setToolMemory(nextToolMemory);
+                  if (focusCleared) {
+                    setFocus({});
+                  }
+                  setStreamStatus(null);
+                  dismissBriefThreadsFromAgentActions(actions);
+
+                  const focusedThreadId = focus.threadId ?? urlThreadId;
+                  if (
+                    focusedThreadId &&
+                    actions.some(
+                      (a) =>
+                        a.kind === "email_queued" ||
+                        (a.kind === "thread" && a.href?.includes(urlThreadId)),
+                    )
+                  ) {
+                    dismissBriefThread(focusedThreadId);
+                  }
+
+                  void utils.agent.listSessions.invalidate();
+                  void utils.agent.getSession.invalidate({ id: activeSessionId });
+                  void utils.queue.pendingCount.invalidate();
+                  void utils.ai.dailyBrief.invalidate();
+                } else if (currentEvent === "error") {
+                  throw new Error(String(data.message ?? "Agent error"));
+                }
+              } catch (parseErr) {
+                if (parseErr instanceof SyntaxError) continue;
+                throw parseErr;
+              }
+              currentEvent = "";
+            }
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (err instanceof Error && err.name === "AbortError") return;
+        toast.error(err instanceof Error ? err.message : "Agent request failed");
+      })
+      .finally(() => {
+        if (streamAbortRef.current === abortController) {
+          streamAbortRef.current = null;
+        }
+        setIsPending(false);
+        setStreamStatus(null);
+      });
+
+    return true;
+  };
+
+  useEffect(() => {
+    if (promptHandled.current) return;
+    if (!linkParamsReady || !urlPrompt || !sessionReady || !activeSessionId || isPending) return;
+    if (!ready) return;
+    if (send(urlPrompt)) {
+      promptHandled.current = true;
+      deepLinkLockRef.current = false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkParamsReady, urlPrompt, ready, isPending, sessionReady, activeSessionId]);
+
+  const preparingDeepLink =
+    isDeepLink &&
+    linkParamsReady &&
+    !promptHandled.current &&
+    !isPending &&
+    messages.length === 0;
+
+  const handleSelectSession = (id: string) => {
+    if (id === activeSessionId || isPending) return;
+    streamAbortRef.current?.abort();
+    setActiveSessionId(id);
+    setLastActions([]);
+  };
+
+  const handleNewChat = async () => {
+    if (isPending) return;
+    await startNewChat();
+  };
+
+  const handleClearFocus = async () => {
+    const next = {};
+    setFocus(next);
+    await persistFocus(next);
+  };
+
+  const handleAttachFocus = async (next: AgentFocusState) => {
+    setFocus(next);
+    await persistFocus(next);
+  };
+
+  return (
+    <div className="qship-app-page">
+      {demoModal}
+      <div className="qship-agent-layout">
+        <AgentSessionSidebar
+          activeSessionId={activeSessionId}
+          onSelectSession={handleSelectSession}
+          onNewChat={() => void handleNewChat()}
+          disabled={isPending || createSession.isPending}
+        />
+
+        <div className="qship-agent-page">
+          <div className="qship-agent-pane">
+            <div className="qship-agent-pane-head">
+              <Bot size={14} style={{ opacity: 0.7 }} />
+              ShipFlow Agent
+              <span className="qship-mono-tag" style={{ marginLeft: "auto" }}>
+                {approvalSettingsReady
+                  ? agentAutoApprove
+                    ? "Auto-approve · agent"
+                    : "Queue first · agent"
+                  : ready
+                    ? status.data?.model ?? "gpt-4o-mini"
+                    : "OpenAI required"}
+              </span>
+              {isPending ? (
+                <button
+                  type="button"
+                  className="qship-btn-ghost"
+                  style={{ fontSize: 11, padding: "3px 8px", marginLeft: 6 }}
+                  onClick={stopStream}
+                  title="Stop current request"
+                >
+                  <Square size={11} style={{ marginRight: 4, verticalAlign: -1 }} />
+                  Stop
+                </button>
+              ) : null}
+            </div>
+
+            <div className="qship-agent-feed" ref={feedRef}>
+              {status.isError ? (
+                <QueryErrorState
+                  title="Agent unavailable"
+                  message={status.error?.message ?? "Could not reach the agent service"}
+                  onRetry={() => void status.refetch()}
+                />
+              ) : null}
+              {sessionsQuery.isError ? (
+                <QueryErrorState
+                  title="Sessions unavailable"
+                  message={sessionsQuery.error?.message ?? "Could not load chat sessions"}
+                  onRetry={() => void sessionsQuery.refetch()}
+                />
+              ) : null}
+              {(status.isLoading || !linkParamsReady) && messages.length === 0 && !preparingDeepLink ? (
+                <SkeletonList count={3} />
+              ) : null}
+              {preparingDeepLink ? (
+                <div className="qship-rotator-bubble qship-agent-msg" style={{ fontSize: 13 }}>
+                  <Loader2 size={13} className="qship-spin" />
+                  <span style={{ color: "var(--qship-muted)", fontStyle: "italic" }}>
+                    Preparing context from overview…
+                  </span>
+                </div>
+              ) : null}
+              {messages.length === 0 && !status.isLoading && linkParamsReady && !preparingDeepLink ? (
+                <div
+                  className="qship-rotator-bubble"
+                  data-approval={approvalSettingsReady ? (agentAutoApprove ? "on" : "off") : undefined}
+                  style={{ fontSize: 13, maxWidth: "100%" }}
+                >
+                  <Bot size={13} style={{ opacity: 0.6, flexShrink: 0 }} />
+                  <span>{agentWelcomeCopy({ agentAutoApprove, settingsReady: approvalSettingsReady })}</span>
+                </div>
+              ) : null}
+
+              {messages.map((msg, i) => (
+                <div
+                  key={`${msg.role}-${i}`}
+                  className="qship-rotator-bubble qship-agent-msg"
+                  data-user={msg.role === "user" ? "true" : undefined}
+                  style={{
+                    alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                    maxWidth: "88%",
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {msg.role === "assistant" ? <Bot size={13} style={{ opacity: 0.55, flexShrink: 0 }} /> : null}
+                  <span style={{ whiteSpace: "pre-wrap" }}>
+                    {typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)}
+                  </span>
+                </div>
+              ))}
+
+              {isPending ? (
+                <div className="qship-rotator-bubble qship-agent-msg" style={{ fontSize: 13 }}>
+                  <Loader2 size={13} className="qship-spin" />
+                  <span style={{ color: "var(--qship-muted)", fontStyle: "italic" }}>
+                    {streamStatus ?? "Thinking…"}
+                  </span>
+                  <button
+                    type="button"
+                    className="qship-btn-ghost"
+                    style={{ fontSize: 11, padding: "4px 10px", marginLeft: "auto" }}
+                    onClick={stopStream}
+                  >
+                    Stop
+                  </button>
+                </div>
+              ) : null}
+
+              {!isPending && messages.length === 0 ? (
+                <div className="qship-agent-suggest">
+                  {SUGGESTIONS.map((s) => (
+                    <button key={s.label} type="button" onClick={() => send(s.prompt)} disabled={!ready}>
+                      <s.icon size={13} />
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                send(input);
+              }}
+            >
+              <div className="qship-agent-composer-wrap">
+                <div className="qship-agent-focus-row">
+                  <AgentFocusChip focus={focus} onClear={() => void handleClearFocus()} disabled={isPending} />
+                  <button
+                    type="button"
+                    className="qship-agent-attach-btn"
+                    onClick={() => setPickerOpen((v) => !v)}
+                    disabled={isPending}
+                  >
+                    <Paperclip size={12} />
+                    Attach
+                  </button>
+                </div>
+                <AgentContextPicker
+                  open={pickerOpen}
+                  onClose={() => setPickerOpen(false)}
+                  onSelect={(next) => void handleAttachFocus(next)}
+                  disabled={isPending}
+                />
+                <AgentMentionInput
+                  value={input}
+                  onChange={setInput}
+                  onSubmit={() => send(input)}
+                  disabled={isPending}
+                  placeholder={
+                    ready
+                      ? "Ask ShipFlow Agent… e.g. triage requests or generate a PRD"
+                      : "Set OPENAI_API_KEY to chat with the agent"
+                  }
+                />
+              </div>
+            </form>
+          </div>
+
+          <ActionPanel
+            actions={lastActions}
+            agentAutoApprove={agentAutoApprove}
+            onQueueResolved={() => setLastActions([])}
+            userEmail={meQuery.data?.email}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentPageFallback() {
+  return (
+    <div className="qship-app-page">
+      <div className="qship-agent-layout" style={{ padding: 24 }}>
+        <SkeletonList count={4} />
+      </div>
+    </div>
+  );
+}
+
+export default function AgentPage() {
+  return (
+    <Suspense fallback={<AgentPageFallback />}>
+      <AgentPageContent />
+    </Suspense>
+  );
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@repo/auth",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    ".": "./index.ts",
+    "./client": "./client.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/database": "workspace:*",
+    "@repo/services": "workspace:*",
+    "better-auth": "^1.2.8",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "dotenv-cli": "^11.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

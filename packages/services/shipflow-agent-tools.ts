@@ -1,0 +1,337 @@
+/**
+ * ShipFlow domain tools — shared by the Agent (OpenAI tool loop) and MCP server.
+ * Feature delivery pipeline + GitHub workspace tools.
+ */
+
+import type { OpenAiToolDefinition } from "./ai/openai-tools";
+import type { AgentActionCard } from "./ai/agent";
+import { ServiceError } from "./errors";
+import {
+  createFeatureRequest,
+  getFeatureRequest,
+  getPipelineSummary,
+  getWorkspaceProjectForUser,
+  listFeatureRequests,
+  saveFeaturePrd,
+  updateFeatureMetadata,
+  updateFeatureStatus,
+} from "./feature-request";
+import { generateFeaturePrd, triageFeatureRequest } from "./feature-ai";
+import {
+  getGithubConnectionForUser,
+  listGithubRepositoriesForUser,
+  syncGithubInstallationForUser,
+} from "./github/installation";
+import { FEATURE_STATUSES } from "./workflow";
+
+export type ShipflowToolContext = {
+  userId: string;
+  actions: AgentActionCard[];
+};
+
+export type McpToolDef = {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+};
+
+export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
+  {
+    name: "get_workspace",
+    description: "Get the authenticated user's ShipFlow workspace (organization + project).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "list_feature_requests",
+    description: "List feature requests in the workspace pipeline, newest first.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Max results (1–50, default 20)" },
+      },
+    },
+  },
+  {
+    name: "get_feature_request",
+    description: "Get a single feature request with PRD, tasks, and clarifications.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "create_feature_request",
+    description: "Submit a new employee feature request to the delivery pipeline.",
+    inputSchema: {
+      type: "object",
+      required: ["title", "rawRequest"],
+      properties: {
+        title: { type: "string", description: "Short title (min 3 chars)" },
+        rawRequest: { type: "string", description: "Full request description (min 10 chars)" },
+        runTriage: { type: "boolean", description: "Run AI triage after create (default true)" },
+      },
+    },
+  },
+  {
+    name: "triage_feature_request",
+    description: "Run AI triage on an existing feature request (priority, effort, questions).",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "generate_feature_prd",
+    description: "Generate an AI PRD for a feature request and mark it prd_ready.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "update_feature_status",
+    description: "Move a feature request to a new pipeline status.",
+    inputSchema: {
+      type: "object",
+      required: ["id", "status"],
+      properties: {
+        id: { type: "string" },
+        status: { type: "string", enum: [...FEATURE_STATUSES] },
+      },
+    },
+  },
+  {
+    name: "get_pipeline_summary",
+    description: "Counts of features by pipeline stage (submitted, in delivery, awaiting approval, shipped).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "github_connection_status",
+    description: "Check whether GitHub App is connected for the workspace.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "list_github_repositories",
+    description: "List GitHub repositories linked to the workspace after GitHub App install.",
+    inputSchema: { type: "object", properties: {} },
+  },
+];
+
+export const SHIPFLOW_AGENT_TOOLS: OpenAiToolDefinition[] = SHIPFLOW_MCP_TOOLS.map((tool) => ({
+  type: "function" as const,
+  function: {
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.inputSchema,
+  },
+}));
+
+function featureSummary(row: {
+  id: string;
+  title: string;
+  status: string;
+  rawRequest: string;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const triage = row.metadata?.triage as Record<string, unknown> | undefined;
+  return {
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    excerpt: row.rawRequest.slice(0, 200),
+    priority: triage?.priority ?? null,
+    category: triage?.category ?? null,
+  };
+}
+
+export async function executeShipflowTool(
+  ctx: ShipflowToolContext,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const { userId, actions } = ctx;
+
+  switch (name) {
+    case "get_workspace": {
+      const ws = await getWorkspaceProjectForUser(userId);
+      if (!ws) {
+        return JSON.stringify({ error: "No workspace — join or create one first" });
+      }
+      return JSON.stringify({
+        organizationId: ws.organization.id,
+        organizationName: ws.organization.name,
+        projectId: ws.project.id,
+        projectName: ws.project.name,
+        role: ws.role,
+      });
+    }
+
+    case "list_feature_requests": {
+      const ws = await getWorkspaceProjectForUser(userId);
+      if (!ws) return JSON.stringify({ error: "No workspace found", requests: [] });
+      const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 50);
+      const rows = await listFeatureRequests(ws.project.id);
+      const items = rows.slice(0, limit).map(featureSummary);
+      actions.push({
+        kind: "feature_list",
+        title: "Feature requests",
+        detail: `${items.length} request(s)`,
+        href: "/requests",
+        lines: items.map((r) => `${r.title} · ${r.status}${r.priority ? ` · ${r.priority}` : ""}`),
+      });
+      return JSON.stringify({ requests: items, count: items.length });
+    }
+
+    case "get_feature_request": {
+      const id = String(args.id ?? "").trim();
+      if (!id) return JSON.stringify({ error: "id is required" });
+      const row = await getFeatureRequest(id);
+      actions.push({
+        kind: "feature_detail",
+        title: row.title,
+        detail: row.status,
+        href: `/requests?id=${row.id}`,
+      });
+      return JSON.stringify({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        rawRequest: row.rawRequest,
+        metadata: row.metadata,
+        hasPrd: Boolean(row.prd),
+        taskCount: row.tasks?.length ?? 0,
+      });
+    }
+
+    case "create_feature_request": {
+      const title = String(args.title ?? "").trim();
+      const rawRequest = String(args.rawRequest ?? "").trim();
+      if (title.length < 3 || rawRequest.length < 10) {
+        return JSON.stringify({ error: "title (min 3) and rawRequest (min 10) are required" });
+      }
+      const ws = await getWorkspaceProjectForUser(userId);
+      if (!ws) return JSON.stringify({ error: "Join a workspace before submitting requests" });
+
+      let row = await createFeatureRequest({
+        organizationId: ws.organization.id,
+        projectId: ws.project.id,
+        title,
+        rawRequest,
+        createdByUserId: userId,
+        source: "api",
+      });
+
+      const runTriage = args.runTriage !== false;
+      if (runTriage) {
+        const triage = await triageFeatureRequest({ title: row.title, rawRequest: row.rawRequest });
+        row = await updateFeatureMetadata(row.id, { triage });
+      }
+
+      actions.push({
+        kind: "feature_created",
+        title: row.title,
+        detail: row.status,
+        href: "/requests",
+      });
+      return JSON.stringify({ ...featureSummary(row), triage: row.metadata?.triage ?? null });
+    }
+
+    case "triage_feature_request": {
+      const id = String(args.id ?? "").trim();
+      if (!id) return JSON.stringify({ error: "id is required" });
+      const feature = await getFeatureRequest(id);
+      const triage = await triageFeatureRequest({
+        title: feature.title,
+        rawRequest: feature.rawRequest,
+      });
+      const row = await updateFeatureMetadata(id, { triage });
+      return JSON.stringify({ id, triage, status: row.status });
+    }
+
+    case "generate_feature_prd": {
+      const id = String(args.id ?? "").trim();
+      if (!id) return JSON.stringify({ error: "id is required" });
+      const feature = await getFeatureRequest(id);
+      await updateFeatureStatus(id, "prd_generating");
+      const content = await generateFeaturePrd({
+        title: feature.title,
+        rawRequest: feature.rawRequest,
+      });
+      const prd = await saveFeaturePrd(id, content);
+      await updateFeatureStatus(id, "prd_ready");
+      actions.push({
+        kind: "feature_detail",
+        title: `PRD: ${feature.title}`,
+        detail: "prd_ready",
+        href: "/requests",
+      });
+      return JSON.stringify({ featureId: id, status: "prd_ready", prd: { version: prd.version, content } });
+    }
+
+    case "update_feature_status": {
+      const id = String(args.id ?? "").trim();
+      const status = String(args.status ?? "").trim();
+      if (!id || !status) return JSON.stringify({ error: "id and status are required" });
+      if (!(FEATURE_STATUSES as readonly string[]).includes(status)) {
+        return JSON.stringify({ error: `Invalid status. Allowed: ${FEATURE_STATUSES.join(", ")}` });
+      }
+      const row = await updateFeatureStatus(id, status as (typeof FEATURE_STATUSES)[number]);
+      return JSON.stringify(featureSummary(row));
+    }
+
+    case "get_pipeline_summary": {
+      const ws = await getWorkspaceProjectForUser(userId);
+      if (!ws) return JSON.stringify({ error: "No workspace found" });
+      const summary = await getPipelineSummary(ws.project.id);
+      actions.push({
+        kind: "pipeline_summary",
+        title: "Pipeline summary",
+        detail: `${summary.total} total · ${summary.needsAttention} need attention`,
+        href: "/requests",
+        lines: [
+          `Submitted: ${summary.submitted}`,
+          `In delivery: ${summary.inDelivery}`,
+          `Awaiting approval: ${summary.awaitingApproval}`,
+          `Shipped: ${summary.shipped}`,
+        ],
+      });
+      return JSON.stringify(summary);
+    }
+
+    case "github_connection_status": {
+      await syncGithubInstallationForUser(userId).catch(() => undefined);
+      const status = await getGithubConnectionForUser(userId);
+      return JSON.stringify(status);
+    }
+
+    case "list_github_repositories": {
+      await syncGithubInstallationForUser(userId).catch(() => undefined);
+      const repos = await listGithubRepositoriesForUser(userId);
+      actions.push({
+        kind: "github_repos",
+        title: "GitHub repositories",
+        detail: `${repos.length} repo(s)`,
+        href: "/settings",
+        lines: repos.slice(0, 8).map((r) => r.fullName),
+      });
+      return JSON.stringify({
+        repositories: repos.map((r) => ({
+          id: r.id,
+          fullName: r.fullName,
+          defaultBranch: r.defaultBranch,
+        })),
+        count: repos.length,
+      });
+    }
+
+    default:
+      throw new ServiceError("NOT_FOUND", `Unknown ShipFlow tool: ${name}`);
+  }
+}
+
+export function isShipflowTool(name: string): boolean {
+  return SHIPFLOW_MCP_TOOLS.some((t) => t.name === name);
+}
