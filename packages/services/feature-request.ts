@@ -249,3 +249,205 @@ export async function replaceFeatureTasks(
     .returning();
   return rows;
 }
+
+export type FeatureActivityKind =
+  | "submitted"
+  | "triage"
+  | "prd"
+  | "tasks"
+  | "ai_review"
+  | "status"
+  | "clarification"
+  | "human_review";
+
+export type FeatureActivityEntry = {
+  id: string;
+  at: string;
+  kind: FeatureActivityKind;
+  title: string;
+  detail?: string;
+  actor: "user" | "agent" | "system";
+};
+
+export async function appendFeatureActivity(
+  featureRequestId: string,
+  event: {
+    kind: FeatureActivityKind;
+    title: string;
+    detail?: string;
+    actor?: "user" | "agent" | "system";
+    at?: string;
+  },
+) {
+  const existing = await getFeatureRequest(featureRequestId);
+  const prior = (existing.metadata?.activity as FeatureActivityEntry[] | undefined) ?? [];
+  const entry: FeatureActivityEntry = {
+    id: crypto.randomUUID(),
+    at: event.at ?? new Date().toISOString(),
+    kind: event.kind,
+    title: event.title,
+    detail: event.detail,
+    actor: event.actor ?? "system",
+  };
+  await updateFeatureMetadata(featureRequestId, {
+    activity: [...prior, entry].slice(-50),
+  });
+  return entry;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  submitted: "Submitted",
+  clarifying: "Clarifying",
+  prd_generating: "Generating PRD",
+  prd_ready: "PRD ready",
+  planning: "Planning",
+  in_development: "In development",
+  pr_open: "PR open",
+  ai_review: "AI review",
+  fix_needed: "Fixes needed",
+  human_review: "Awaiting approval",
+  approved: "Approved",
+  shipped: "Shipped",
+  rejected: "Rejected",
+};
+
+function nextStepForStatus(status: string, hasPrd: boolean, taskCount: number): string {
+  switch (status) {
+    case "submitted":
+      return "Run AI triage or generate a PRD.";
+    case "clarifying":
+      return "Answer clarifying questions, then generate the PRD.";
+    case "prd_ready":
+      return "Break the PRD into engineering tasks.";
+    case "planning":
+      return "Move to development when tasks are assigned.";
+    case "in_development":
+    case "pr_open":
+      return "Run an AI review when the implementation is ready.";
+    case "fix_needed":
+      return "Address review findings, then re-run AI review.";
+    case "human_review":
+      return "A teammate should approve before ship.";
+    case "approved":
+      return "Mark as shipped when deployed.";
+    default:
+      if (!hasPrd) return "Generate a PRD to define scope.";
+      if (taskCount === 0) return "Generate engineering tasks from the PRD.";
+      return "Continue delivery on the current stage.";
+  }
+}
+
+export async function getFeatureDeliveryView(featureId: string, userId?: string) {
+  if (userId) {
+    await assertFeatureInUserWorkspace(userId, featureId);
+  }
+  const feature = await getFeatureRequest(featureId);
+  const triage = getTriageFromMetadata(feature.metadata);
+  const logged = (feature.metadata?.activity as FeatureActivityEntry[] | undefined) ?? [];
+  const lastReview = feature.metadata?.lastAiReview as
+    | { at?: string; pass?: boolean; summary?: string; findings?: string[] }
+    | undefined;
+
+  const timeline: FeatureActivityEntry[] = [
+    {
+      id: "created",
+      at: feature.createdAt.toISOString(),
+      kind: "submitted",
+      title: "Feature submitted",
+      detail: feature.title,
+      actor: "user",
+    },
+  ];
+
+  if (triage && !logged.some((e) => e.kind === "triage")) {
+    timeline.push({
+      id: "triage",
+      at: feature.updatedAt.toISOString(),
+      kind: "triage",
+      title: "AI triage completed",
+      detail: triage.priority ? `Priority ${triage.priority} · ${triage.impactSummary}` : triage.impactSummary,
+      actor: "agent",
+    });
+  }
+
+  if (feature.prd) {
+    timeline.push({
+      id: `prd-${feature.prd.id}`,
+      at: feature.prd.createdAt.toISOString(),
+      kind: "prd",
+      title: "PRD generated",
+      detail: `${feature.prd.content.goals?.length ?? 0} goals · ${feature.prd.content.userStories?.length ?? 0} user stories`,
+      actor: "agent",
+    });
+  }
+
+  if (feature.tasks?.length) {
+    const latestTask = feature.tasks.reduce((a, b) =>
+      new Date(a.updatedAt) > new Date(b.updatedAt) ? a : b,
+    );
+    timeline.push({
+      id: "tasks-batch",
+      at: latestTask.updatedAt.toISOString(),
+      kind: "tasks",
+      title: "Engineering tasks created",
+      detail: `${feature.tasks.length} task(s) — ${feature.tasks.filter((t) => t.status === "done").length} done`,
+      actor: "agent",
+    });
+  }
+
+  for (const msg of feature.clarifications ?? []) {
+    timeline.push({
+      id: msg.id,
+      at: msg.createdAt.toISOString(),
+      kind: "clarification",
+      title: msg.role === "user" ? "Clarification from user" : "Agent note",
+      detail: msg.content.slice(0, 160),
+      actor: msg.role === "user" ? "user" : "agent",
+    });
+  }
+
+  if (lastReview?.at && !logged.some((e) => e.kind === "ai_review" && e.at === lastReview.at)) {
+    timeline.push({
+      id: `review-${lastReview.at}`,
+      at: lastReview.at,
+      kind: "ai_review",
+      title: lastReview.pass ? "AI review passed" : "AI review — fixes needed",
+      detail: lastReview.summary,
+      actor: "agent",
+    });
+  }
+
+  timeline.push(...logged);
+
+  timeline.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  const statusLabel = STATUS_LABELS[feature.status] ?? feature.status;
+  const taskCount = feature.tasks?.length ?? 0;
+  const hasPrd = Boolean(feature.prd);
+  const nextStep = nextStepForStatus(feature.status, hasPrd, taskCount);
+
+  const summaryParts = [
+    `"${feature.title}" is at ${statusLabel}.`,
+    hasPrd
+      ? `PRD covers ${feature.prd!.content.goals?.length ?? 0} goals and ${feature.prd!.content.acceptanceCriteria?.length ?? 0} acceptance criteria.`
+      : "No PRD yet.",
+    taskCount > 0 ? `${taskCount} engineering task(s) on the board.` : "No engineering tasks yet.",
+    lastReview?.summary ? `Latest AI review: ${lastReview.summary}` : null,
+    `Suggested next step: ${nextStep}`,
+  ].filter(Boolean);
+
+  return {
+    featureId: feature.id,
+    title: feature.title,
+    status: feature.status,
+    statusLabel,
+    summary: summaryParts.join(" "),
+    nextStep,
+    timeline,
+    counts: {
+      tasks: taskCount,
+      clarifications: feature.clarifications?.length ?? 0,
+      goals: feature.prd?.content.goals?.length ?? 0,
+    },
+  };
+}

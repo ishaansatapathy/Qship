@@ -878,7 +878,11 @@ export function buildSystemPromptFor(userEmail?: string, approval?: ApprovalDefa
     autoApproveAgent,
     autoApproveShip,
     "",
-    "Be concise, professional, and action-oriented. No fluff.",
+    "HUMAN-IN-THE-LOOP (required):",
+    "- Before calling generate_feature_prd, generate_feature_tasks, run_ai_review, request_human_review, or update_feature_status (especially approved/shipped/rejected): explain what you will do in plain language and ask the user to confirm.",
+    "- Only proceed after the user says yes / go ahead / do it — unless they already explicitly asked you to perform that exact action in the same message.",
+    "- After actions complete, mention they can open Requests to see the full delivery timeline and summary.",
+    "",
     userEmail ? `Signed-in user: ${userEmail}.` : "",
   ]
     .filter(Boolean)

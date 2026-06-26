@@ -15,6 +15,7 @@ import {
 import type { RouterOutputs } from "@repo/trpc/client";
 import { trpc } from "~/trpc/client";
 import { SkeletonList } from "~/components/app/skeleton-list";
+import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
 
 type FeatureRow = RouterOutputs["feature"]["list"][number];
 type FeatureDetail = RouterOutputs["feature"]["get"];
@@ -174,6 +175,7 @@ function FeatureDetailPanel({
   const generatePrd = trpc.feature.generatePrd.useMutation({
     onSuccess: async () => {
       await utils.feature.get.invalidate({ id: featureId });
+      await utils.feature.delivery.invalidate({ id: featureId });
       await utils.feature.list.invalidate();
       toast.success("PRD generated");
     },
@@ -183,6 +185,7 @@ function FeatureDetailPanel({
   const advanceStatus = trpc.feature.updateStatus.useMutation({
     onSuccess: async () => {
       await utils.feature.get.invalidate({ id: featureId });
+      await utils.feature.delivery.invalidate({ id: featureId });
       await utils.feature.list.invalidate();
       await utils.feature.pipelineSummary.invalidate();
       toast.success("Status updated");
@@ -215,6 +218,8 @@ function FeatureDetailPanel({
 
       <h2 className="qship-req-detail-title">{feature.title}</h2>
       <p className="qship-req-detail-body">{feature.rawRequest}</p>
+
+      <FeatureDeliveryPanel featureId={feature.id} />
 
       {triage ? (
         <section className="qship-req-triage">
@@ -250,7 +255,16 @@ function FeatureDetailPanel({
             type="button"
             className="qship-btn-accent"
             disabled={generatePrd.isPending}
-            onClick={() => generatePrd.mutate({ id: feature.id })}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Generate a PRD with AI? You'll be able to review it on the timeline before moving forward.",
+                )
+              ) {
+                return;
+              }
+              generatePrd.mutate({ id: feature.id });
+            }}
           >
             {generatePrd.isPending ? (
               <>
@@ -278,7 +292,16 @@ function FeatureDetailPanel({
             type="button"
             className="qship-btn-accent"
             disabled={advanceStatus.isPending}
-            onClick={() => advanceStatus.mutate({ id: feature.id, status: "approved" })}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Approve this feature for release? This marks it ready to ship in the pipeline.",
+                )
+              ) {
+                return;
+              }
+              advanceStatus.mutate({ id: feature.id, status: "approved" });
+            }}
           >
             <CheckCircle2 size={14} /> Approve for ship
           </button>

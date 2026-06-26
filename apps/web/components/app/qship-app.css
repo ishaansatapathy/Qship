@@ -5883,3 +5883,139 @@
   }
 }
 
+/* Feature delivery timeline + summary */
+.qship-delivery-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--qship-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.qship-delivery-panel[data-compact="true"] {
+  padding: 12px 14px;
+  gap: 10px;
+}
+
+.qship-delivery-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.qship-delivery-panel-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.qship-delivery-status {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--qship-dim);
+  font-family: var(--qship-mono);
+}
+
+.qship-delivery-compact-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--qship-text);
+}
+
+.qship-delivery-summary p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--qship-muted);
+}
+
+.qship-delivery-next {
+  margin-top: 8px !important;
+  color: var(--qship-text) !important;
+}
+
+.qship-delivery-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.qship-delivery-event {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.qship-delivery-event:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.qship-delivery-event-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6b6f;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.qship-delivery-event[data-kind="ai_review"] .qship-delivery-event-dot {
+  background: #a78bfa;
+}
+
+.qship-delivery-event[data-kind="prd"] .qship-delivery-event-dot,
+.qship-delivery-event[data-kind="tasks"] .qship-delivery-event-dot {
+  background: #38bdf8;
+}
+
+.qship-delivery-event[data-kind="human_review"] .qship-delivery-event-dot {
+  background: #34d399;
+}
+
+.qship-delivery-event-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.qship-delivery-event-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.qship-delivery-event-top strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.qship-delivery-event-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--qship-dim);
+  font-family: var(--qship-mono);
+  white-space: nowrap;
+}
+
+.qship-delivery-event-body p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--qship-muted);
+}
+
+.qship-agent-delivery-wrap {
+  margin: 0 0 12px;
+}
+

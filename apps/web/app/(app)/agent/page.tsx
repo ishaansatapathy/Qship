@@ -26,6 +26,8 @@ import type { RouterOutputs } from "@repo/trpc/client";
 import { AgentMentionInput } from "~/components/app/agent-mention-input";
 import { AgentContextPicker } from "~/components/app/agent-context-picker";
 import { AgentFocusChip, type AgentFocusState } from "~/components/app/agent-focus-chip";
+import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
+import { fromFeatureFocusId, isFeatureFocusId } from "~/lib/shipflow-focus";
 import { AgentSessionSidebar } from "~/components/app/agent-session-sidebar";
 import { SkeletonList } from "~/components/app/skeleton-list";
 import { QueryErrorState } from "~/components/app/query-error-state";
@@ -149,24 +151,22 @@ function agentWelcomeCopy(opts: {
   settingsReady: boolean;
 }) {
   if (!opts.settingsReady) {
-    return "Ask in plain language — e.g. triage a feature request, generate a PRD, or check GitHub status. Loading approval settings…";
+    return "Ask about your pipeline, attach a feature, or request a PRD. I confirm with you before big steps. Loading approval settings…";
   }
 
   if (opts.agentAutoApprove) {
     return (
       <>
-        Ask in plain language — e.g. &quot;Generate a PRD for our latest feature request&quot; or
-        &quot;Summarize the delivery pipeline&quot;.
-        <strong> Auto-approve is on</strong> for agent actions — PRDs and reviews run immediately when safe.
+        Attach a feature with 📎 to see its delivery timeline. I&apos;ll explain planned actions and ask before
+        generating PRDs, tasks, or reviews unless you already said go ahead.
       </>
     );
   }
 
   return (
     <>
-      Ask in plain language — e.g. &quot;Triage open feature requests&quot; or &quot;Draft a PRD for SSO support&quot;.
-      <strong> Queue first</strong> is on: sensitive actions land in{" "}
-      <strong>Release approvals</strong> until you sign off.
+      Attach a feature with 📎 to see timeline + summary. I&apos;ll ask before PRDs, tasks, reviews, or status changes —
+      nothing ships without your OK.
     </>
   );
 }
@@ -882,6 +882,15 @@ function AgentPageContent() {
                   onSelect={(next) => void handleAttachFocus(next)}
                   disabled={isPending}
                 />
+                {isFeatureFocusId(focus.threadId) ? (
+                  <div className="qship-agent-delivery-wrap">
+                    <FeatureDeliveryPanel
+                      featureId={fromFeatureFocusId(focus.threadId!)}
+                      compact
+                      showOpenLink
+                    />
+                  </div>
+                ) : null}
                 <AgentMentionInput
                   value={input}
                   onChange={setInput}
