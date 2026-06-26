@@ -949,7 +949,7 @@
   font-size: 14px;
 }
 
-/* ── Rotator — "What else can Thread do?" (phrase highlight + preview) ── */
+/* ── Rotator — "What else can ShipFlow do?" (phrase highlight + preview) ── */
 .qship-rotator {
   display: grid;
   grid-template-columns: minmax(300px, 0.9fr) 1.1fr;

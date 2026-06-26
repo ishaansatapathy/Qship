@@ -43,8 +43,8 @@ async function sendVerificationEmail(email: string, verificationToken: string) {
   const verifyUrl = `${env.CLIENT_URL}/verify-email/${verificationToken}`;
   await sendEmail({
     email,
-    subject: "Verify your Thread account",
-    html: `<p>Welcome to Thread! <a href="${verifyUrl}">Verify your email</a></p>`,
+    subject: "Verify your ShipFlow account",
+    html: `<p>Welcome to ShipFlow! <a href="${verifyUrl}">Verify your email</a></p>`,
     text: `Verify your account: ${verifyUrl}`,
   });
 }
@@ -158,7 +158,7 @@ class AuthService {
 
     await sendEmail({
       email: user.email,
-      subject: "Your Thread verification code",
+      subject: "Your ShipFlow verification code",
       html: `<p>Your two-factor authentication code is: <strong>${otp}</strong></p>`,
       text: `Your 2FA code is: ${otp}`,
     });
@@ -393,7 +393,7 @@ class AuthService {
     if (input.method === "otp") {
       await sendEmail({
         email: user.email,
-        subject: "Your Thread password reset code",
+        subject: "Your ShipFlow password reset code",
         html: `<p>Your password reset code is: <strong>${otp}</strong></p>`,
         text: `Your password reset code is: ${otp}`,
       });
@@ -401,7 +401,7 @@ class AuthService {
       const resetUrl = `${env.CLIENT_URL}/reset-password/${resetToken}?email=${encodeURIComponent(user.email)}`;
       await sendEmail({
         email: user.email,
-        subject: "Reset your Thread password",
+        subject: "Reset your ShipFlow password",
         html: `<p>Reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
         text: `Reset your password: ${resetUrl}`,
       });

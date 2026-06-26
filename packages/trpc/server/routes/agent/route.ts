@@ -12,7 +12,18 @@ import { isOpenAiConfigured } from "@repo/services/ai/openai";
 import { mapServiceError, protectedProcedure, router } from "../../trpc";
 
 export const agentRouter = router({
-  status: protectedProcedure.input(zodUndefinedModel).query(() => ({
+  status: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/agent/status",
+        tags: ["Agent"],
+        protect: true,
+        summary: "AI agent configuration status (OpenAI key, model)",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(() => ({
     configured: isOpenAiConfigured(),
     model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
     ready: isAgentConfigured(),

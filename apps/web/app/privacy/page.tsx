@@ -2,70 +2,64 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Thread",
-  description: "How Thread handles your data.",
+  title: "Privacy Policy — ShipFlow",
+  description: "How ShipFlow (Qship) handles your data.",
 };
 
 export default function PrivacyPage() {
   return (
     <main className="qship-privacy">
       <Link href="/" className="qship-privacy-back">
-        ← Back to Thread
+        ← Back to ShipFlow
       </Link>
 
       <h1 className="qship-privacy-title">Privacy Policy</h1>
       <p className="qship-privacy-updated">Last updated: June 2026</p>
 
       <Section title="Overview">
-        Thread (&quot;the app&quot;) is an AI-powered email and calendar management tool. We are
-        committed to protecting your privacy. This policy explains what data we access, how we use
-        it, and how it is stored.
+        ShipFlow (&quot;the app&quot;, built as Qship) is an AI-assisted product delivery platform
+        for software teams. We are committed to protecting your privacy. This policy explains what
+        data we collect, how we use it, and how it is stored.
       </Section>
 
-      <Section title="Data We Access">
-        <p>When you connect your Google account, Thread requests access to:</p>
+      <Section title="Data We Collect">
         <ul>
           <li>
-            <strong>Gmail</strong> — to read, send, and manage your email threads on your behalf.
+            <strong>Account data</strong> — name, email, and workspace membership when you sign up
+            (email/password or Google OAuth via BetterAuth).
           </li>
           <li>
-            <strong>Google Calendar</strong> — to view, create, and update calendar events on your
-            behalf.
+            <strong>Feature delivery data</strong> — feature requests, PRDs, engineering tasks,
+            clarifications, pipeline status, and delivery timeline events you create in the app.
+          </li>
+          <li>
+            <strong>GitHub integration data</strong> — when you connect a GitHub App installation, we
+            store installation metadata and linked repository names to support the delivery workflow.
+          </li>
+          <li>
+            <strong>Agent sessions</strong> — chat history and tool memory for the ShipFlow Agent,
+            tied to your account.
           </li>
         </ul>
-        <p>
-          These permissions are granted via Google OAuth 2.0 and can be revoked at any time from
-          your{" "}
-          <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">
-            Google Account settings
-          </a>
-          .
-        </p>
       </Section>
 
       <Section title="How We Use Your Data">
         <ul>
-          <li>To generate your AI Daily Brief and smart context summaries.</li>
-          <li>To suggest replies, meeting prep notes, and follow-up reminders.</li>
-          <li>To display your inbox and calendar within the app.</li>
-          <li>To queue and approve email and calendar actions on your behalf.</li>
+          <li>To run the feature delivery pipeline (triage, PRD generation, task breakdown, reviews).</li>
+          <li>To power the ShipFlow Agent and MCP tools scoped to your workspace.</li>
+          <li>To connect and sync GitHub repositories you authorize.</li>
+          <li>To authenticate you and secure your session.</li>
         </ul>
         <p>
-          We do <strong>not</strong> sell, share, or use your email or calendar data for advertising
-          purposes.
+          We do <strong>not</strong> sell your data or use it for advertising.
         </p>
       </Section>
 
-      <Section title="Data Storage">
+      <Section title="AI Processing">
         <p>
-          Thread caches a limited snapshot of your recent threads and events in a secure database to
-          provide fast, offline-capable views. This cache is tied to your account and deleted when
-          you disconnect your Google account.
-        </p>
-        <p>
-          AI processing (summaries, suggestions) is performed via the OpenAI API. Email content
-          sent to OpenAI is used solely to generate responses for you and is not retained by OpenAI
-          beyond the API request per their{" "}
+          AI features (triage, PRD, tasks, agent chat, pre-ship review) are processed via the OpenAI
+          API when you configure an API key. Content sent to OpenAI is used to generate responses for
+          you and is handled per OpenAI&apos;s{" "}
           <a
             href="https://openai.com/policies/api-data-usage-policies"
             target="_blank"
@@ -77,16 +71,27 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
+      <Section title="Data Storage">
+        <p>
+          Application data is stored in a PostgreSQL database tied to your account and workspace.
+          Session cookies are httpOnly. GitHub webhook payloads are verified and processed; we do not
+          store raw webhook secrets in the database.
+        </p>
+      </Section>
+
       <Section title="Third-Party Services">
         <ul>
           <li>
-            <strong>Google APIs</strong> — Gmail and Calendar access via OAuth 2.0.
+            <strong>Google OAuth</strong> — optional sign-in (BetterAuth).
           </li>
           <li>
-            <strong>OpenAI</strong> — AI summaries and suggestions.
+            <strong>GitHub</strong> — optional GitHub App for repository linking.
           </li>
           <li>
-            <strong>Vercel</strong> — Hosting and deployment.
+            <strong>OpenAI</strong> — AI triage, PRD, agent, and review features.
+          </li>
+          <li>
+            <strong>Hosting</strong> — deployment provider (e.g. Vercel, Railway) for web and API.
           </li>
         </ul>
       </Section>
@@ -94,22 +99,16 @@ export default function PrivacyPage() {
       <Section title="Your Rights">
         <p>You may at any time:</p>
         <ul>
-          <li>Disconnect your Google account from the Settings page.</li>
-          <li>Request deletion of your cached data by contacting us.</li>
-          <li>
-            Revoke Google permissions from{" "}
-            <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">
-              myaccount.google.com/permissions
-            </a>
-            .
-          </li>
+          <li>Disconnect GitHub from the Settings page.</li>
+          <li>Request deletion of your account data by contacting us.</li>
+          <li>Revoke Google OAuth from your Google Account permissions if you used Google sign-in.</li>
         </ul>
       </Section>
 
       <Section title="Contact">
         <p>
-          For any privacy-related questions, please contact us at{" "}
-          <a href="mailto:privacy@thread-web.vercel.app">privacy@thread-web.vercel.app</a>.
+          For privacy questions, contact{" "}
+          <a href="mailto:privacy@qship.dev">privacy@qship.dev</a>.
         </p>
       </Section>
     </main>

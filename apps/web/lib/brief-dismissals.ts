@@ -1,6 +1,6 @@
 /** Tracks brief items the user already acted on today (client-side until Gmail sync catches up). */
 
-const STORAGE_KEY = "thread_brief_dismissed_v1";
+const STORAGE_KEY = "qship_brief_dismissed_v1";
 
 type DismissedMap = Record<string, number>;
 
