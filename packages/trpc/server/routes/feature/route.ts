@@ -2,6 +2,7 @@ import { z, zodUndefinedModel } from "../../schema";
 import {
   createFeatureRequest,
   getFeatureRequest,
+  getFeatureDeliveryView,
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
@@ -73,6 +74,14 @@ export const featureRouter = router({
   get: protectedProcedure.input(z.object({ id: z.string().min(1) })).query(async ({ input }) => {
     try {
       return await getFeatureRequest(input.id);
+    } catch (error) {
+      mapServiceError(error);
+    }
+  }),
+
+  delivery: protectedProcedure.input(z.object({ id: z.string().min(1) })).query(async ({ ctx, input }) => {
+    try {
+      return await getFeatureDeliveryView(input.id, ctx.user.id);
     } catch (error) {
       mapServiceError(error);
     }

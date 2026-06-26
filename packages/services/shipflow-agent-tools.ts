@@ -8,6 +8,7 @@ import type { AgentActionCard } from "./ai/agent";
 import { ServiceError } from "./errors";
 import {
   addClarificationMessage,
+  appendFeatureActivity,
   assertFeatureInUserWorkspace,
   createFeatureRequest,
   getFeatureRequest,
@@ -287,7 +288,20 @@ export async function executeShipflowTool(
       if (runTriage) {
         const triage = await triageFeatureRequest({ title: row.title, rawRequest: row.rawRequest });
         row = await updateFeatureMetadata(row.id, { triage });
+        await appendFeatureActivity(row.id, {
+          kind: "triage",
+          title: "AI triage completed",
+          detail: triage.priority ? `Priority ${triage.priority}` : undefined,
+          actor: "agent",
+        });
       }
+
+      await appendFeatureActivity(row.id, {
+        kind: "submitted",
+        title: "Feature submitted via agent",
+        detail: row.title,
+        actor: "agent",
+      });
 
       actions.push({
         kind: "feature_created",
@@ -306,6 +320,12 @@ export async function executeShipflowTool(
         rawRequest: feature.rawRequest,
       });
       const row = await updateFeatureMetadata(id, { triage });
+      await appendFeatureActivity(id, {
+        kind: "triage",
+        title: "AI triage re-run",
+        detail: triage.priority ? `Priority ${triage.priority}` : undefined,
+        actor: "agent",
+      });
       return JSON.stringify({ id, triage, status: row.status });
     }
 
@@ -319,6 +339,12 @@ export async function executeShipflowTool(
       });
       const prd = await saveFeaturePrd(id, content);
       await updateFeatureStatus(id, "prd_ready");
+      await appendFeatureActivity(id, {
+        kind: "prd",
+        title: "PRD generated",
+        detail: `${content.goals?.length ?? 0} goals · ${content.userStories?.length ?? 0} user stories`,
+        actor: "agent",
+      });
       actions.push({
         kind: "feature_detail",
         title: `PRD: ${feature.title}`,
@@ -341,6 +367,12 @@ export async function executeShipflowTool(
       });
       const tasks = await replaceFeatureTasks(id, drafts);
       await updateFeatureStatus(id, "planning");
+      await appendFeatureActivity(id, {
+        kind: "tasks",
+        title: "Engineering tasks generated",
+        detail: `${tasks.length} task(s)`,
+        actor: "agent",
+      });
       actions.push({
         kind: "feature_tasks",
         title: `Tasks: ${feature.title}`,
@@ -379,6 +411,20 @@ export async function executeShipflowTool(
       });
       const nextStatus = review.pass ? "human_review" : "fix_needed";
       await updateFeatureStatus(id, nextStatus);
+      await updateFeatureMetadata(id, {
+        lastAiReview: {
+          at: new Date().toISOString(),
+          pass: review.pass,
+          summary: review.summary,
+          findings: review.findings,
+        },
+      });
+      await appendFeatureActivity(id, {
+        kind: "ai_review",
+        title: review.pass ? "AI review passed" : "AI review — fixes needed",
+        detail: review.summary,
+        actor: "agent",
+      });
       actions.push({
         kind: "ai_review",
         title: `AI review: ${feature.title}`,
@@ -401,6 +447,12 @@ export async function executeShipflowTool(
         });
       }
       const row = await updateFeatureStatus(id, "human_review");
+      await appendFeatureActivity(id, {
+        kind: "human_review",
+        title: "Sent for human approval",
+        detail: note || undefined,
+        actor: "agent",
+      });
       actions.push({
         kind: "feature_detail",
         title: `Awaiting approval: ${feature.title}`,
@@ -419,6 +471,11 @@ export async function executeShipflowTool(
       }
       await loadAuthorizedFeature(userId, id);
       const row = await updateFeatureStatus(id, status as (typeof FEATURE_STATUSES)[number]);
+      await appendFeatureActivity(id, {
+        kind: "status",
+        title: `Status → ${status}`,
+        actor: "agent",
+      });
       return JSON.stringify(featureSummary(row));
     }
 
