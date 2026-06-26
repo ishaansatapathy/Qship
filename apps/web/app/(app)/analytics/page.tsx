@@ -54,10 +54,9 @@ export default function AnalyticsPage() {
   const summary = trpc.feature.pipelineSummary.useQuery({}, { staleTime: 60_000, refetchInterval: 60_000 });
   const observability = trpc.observability.summary.useQuery({}, { staleTime: 30_000, refetchInterval: 30_000 });
   const github = trpc.github.connectionStatus.useQuery({});
-  const queueStats = trpc.queue.stats.useQuery({}, { staleTime: 60_000 });
 
   const data = summary.data;
-  const timeline = queueStats.data?.timeline ?? [];
+  const timeline = observability.data?.deliveryTimeline ?? [];
 
   return (
     <div className="qship-app-page">
@@ -89,7 +88,7 @@ export default function AnalyticsPage() {
             </div>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--qship-text)" }}>
               {github.data?.connected
-                ? `Connected${github.data.repositoryCount ? ` · ${github.data.repositoryCount} repos` : ""}`
+                ? `Connected${github.data.repositoryCount ? ` · ${github.data.repositoryCount} repos` : ""}${(observability.data?.pullRequests ?? 0) > 0 ? ` · ${observability.data?.pullRequests} PRs` : ""}`
                 : "Not connected"}
             </span>
           </div>
@@ -99,7 +98,7 @@ export default function AnalyticsPage() {
               <span style={{ fontSize: 11, fontFamily: "var(--qship-mono)", textTransform: "uppercase" }}>Agent</span>
             </div>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--qship-text)" }}>
-              {observability.data?.mcpToolCalls ?? 0} MCP tool calls
+              {observability.data?.mcpToolCalls ?? 0} tool calls · {observability.data?.agentSessions ?? 0} sessions
             </span>
           </div>
         </div>
@@ -110,16 +109,16 @@ export default function AnalyticsPage() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <CheckCircle2 size={13} style={{ opacity: 0.6 }} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--qship-text)" }}>14-day approval activity</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--qship-text)" }}>14-day delivery activity</span>
           </div>
 
-          {queueStats.isLoading ? (
+          {observability.isLoading ? (
             <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--qship-muted)", fontSize: 13 }}>
               Loading…
             </div>
           ) : timeline.length === 0 ? (
             <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--qship-muted)", fontSize: 13 }}>
-              No approval activity yet — agent actions will appear here when queued.
+              No delivery updates yet — submit a feature request to start the pipeline.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={180}>
@@ -160,8 +159,8 @@ export default function AnalyticsPage() {
                 />
                 <Area
                   type="monotone"
-                  dataKey="queued"
-                  name="Queued"
+                  dataKey="updates"
+                  name="Pipeline updates"
                   stroke="#ff6b6f"
                   strokeWidth={1.5}
                   fill="url(#colorQueued)"
@@ -169,8 +168,8 @@ export default function AnalyticsPage() {
                 />
                 <Area
                   type="monotone"
-                  dataKey="approved"
-                  name="Approved"
+                  dataKey="shipped"
+                  name="Shipped / approved"
                   stroke="#34d399"
                   strokeWidth={1.5}
                   fill="url(#colorApproved)"

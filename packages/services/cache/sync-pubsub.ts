@@ -6,7 +6,7 @@ export type SyncPubSubEvent = {
   at: string;
 };
 
-const SYNC_CHANNEL = "thread:sync-events";
+const SYNC_CHANNEL = "qship:sync-events";
 
 type SyncListener = (event: SyncPubSubEvent) => void;
 

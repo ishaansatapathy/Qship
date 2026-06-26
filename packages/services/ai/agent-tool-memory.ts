@@ -2,7 +2,7 @@ export type AgentToolMemoryEntry = {
   at: string;
   tool: string;
   summary: string;
-  threadId?: string;
+  contextId?: string;
   eventId?: string;
   query?: string;
 };
@@ -18,11 +18,6 @@ const MEMORY_TOOLS = new Set([
   "generate_feature_tasks",
   "run_ai_review",
   "list_github_repositories",
-  "search_inbox",
-  "list_inbox",
-  "get_thread",
-  "summarize_thread",
-  "rank_inbox",
   "list_calendar_events",
   "get_calendar_event",
   "list_queue",
@@ -58,7 +53,7 @@ export function summarizeToolResult(
 
   const at = new Date().toISOString();
   const data = safeParseJson(rawResult);
-  const threadId = typeof args.threadId === "string" ? args.threadId.trim() : undefined;
+  const contextId = typeof args.contextId === "string" ? args.contextId.trim() : undefined;
   const eventId = typeof args.eventId === "string" ? args.eventId.trim() : undefined;
   const query = typeof args.query === "string" ? args.query.trim() : undefined;
   const featureId = typeof args.id === "string" ? args.id.trim() : undefined;
@@ -144,74 +139,6 @@ export function summarizeToolResult(
       return { at, tool: toolName, summary: clip(`Found ${count} linked GitHub repo(s)`) };
     }
 
-    case "search_inbox":
-    case "list_inbox": {
-      const count = typeof data?.count === "number" ? data.count : undefined;
-      const threads = Array.isArray(data?.threads) ? data.threads : [];
-      const topSubjects = threads
-        .slice(0, 3)
-        .map((t) => {
-          if (!t || typeof t !== "object") return "";
-          const row = t as Record<string, unknown>;
-          const subject = typeof row.subject === "string" ? row.subject.trim() : "";
-          const from = typeof row.fromName === "string" ? row.fromName : typeof row.from === "string" ? row.from : "";
-          return subject ? `${subject}${from ? ` (${from})` : ""}` : "";
-        })
-        .filter(Boolean);
-      const summary = query
-        ? `Searched inbox for "${query}" — ${count ?? threads.length} thread(s)${topSubjects.length ? `: ${topSubjects.join("; ")}` : ""}`
-        : `Listed ${count ?? threads.length} recent inbox thread(s)${topSubjects.length ? `: ${topSubjects.join("; ")}` : ""}`;
-      return { at, tool: toolName, summary: clip(summary), query };
-    }
-
-    case "get_thread": {
-      const thread =
-        data?.thread && typeof data.thread === "object" ? (data.thread as Record<string, unknown>) : null;
-      const subject = typeof thread?.subject === "string" ? thread.subject.trim() : "Thread";
-      const from =
-        typeof thread?.fromName === "string"
-          ? thread.fromName
-          : typeof thread?.from === "string"
-            ? thread.from
-            : "";
-      return {
-        at,
-        tool: toolName,
-        summary: clip(`Read thread "${subject}"${from ? ` from ${from}` : ""}`),
-        threadId,
-      };
-    }
-
-    case "summarize_thread": {
-      const subject = typeof data?.subject === "string" ? data.subject.trim() : "Thread";
-      const next = typeof data?.nextStep === "string" ? data.nextStep.trim() : "";
-      return {
-        at,
-        tool: toolName,
-        summary: clip(`Summarized "${subject}"${next ? ` — next: ${next}` : ""}`),
-        threadId,
-      };
-    }
-
-    case "rank_inbox": {
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const top = items
-        .slice(0, 3)
-        .map((item) => {
-          if (!item || typeof item !== "object") return "";
-          const row = item as Record<string, unknown>;
-          const subject = typeof row.subject === "string" ? row.subject.trim() : "";
-          const urgency = typeof row.urgency === "string" ? row.urgency : "";
-          return subject ? `${subject} [${urgency}]` : "";
-        })
-        .filter(Boolean);
-      return {
-        at,
-        tool: toolName,
-        summary: clip(`Ranked inbox urgency${top.length ? `: ${top.join("; ")}` : ""}`),
-      };
-    }
-
     case "list_calendar_events": {
       const events = Array.isArray(data?.events) ? data.events : [];
       const top = events
@@ -276,7 +203,7 @@ export function formatToolMemoryForPrompt(entries: AgentToolMemoryEntry[]): stri
 
   const lines = entries.map((e) => {
     const parts = [`- [${e.tool}] ${e.summary}`];
-    if (e.threadId) parts.push(`threadId=${e.threadId}`);
+    if (e.contextId) parts.push(`contextId=${e.contextId}`);
     if (e.eventId) parts.push(`eventId=${e.eventId}`);
     if (e.query) parts.push(`query="${e.query}"`);
     return parts.join(" ");

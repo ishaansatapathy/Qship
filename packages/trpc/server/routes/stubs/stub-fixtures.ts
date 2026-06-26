@@ -1,4 +1,4 @@
-/** Empty demo payloads so legacy dashboard UI type-checks without Thread backend. */
+/** Empty demo payloads so legacy dashboard UI type-checks without Gmail backend. */
 
 export type ConnectionState = "connected" | "missing_credentials" | "not_connected" | "not_configured";
 
@@ -9,14 +9,14 @@ export const emptyDailyBrief = {
     headline: "Review open feature requests",
     detail: "ShipFlow tracks delivery from request → PRD → ship.",
     byTime: "Today",
-    threadId: undefined as string | undefined,
+    contextId: undefined as string | undefined,
     eventId: undefined as string | undefined,
   },
   needsAttention: [] as Array<{
     headline: string;
     detail?: string;
     urgency?: "high" | "medium" | "low";
-    threadId?: string;
+    contextId?: string;
     eventId?: string;
     queueItemId?: string;
   }>,
@@ -24,7 +24,7 @@ export const emptyDailyBrief = {
     headline: string;
     detail?: string;
     urgency?: "high" | "medium" | "low";
-    threadId?: string;
+    contextId?: string;
     eventId?: string;
     queueItemId?: string;
   }>,
@@ -32,7 +32,7 @@ export const emptyDailyBrief = {
     headline: string;
     detail?: string;
     urgency?: "high" | "medium" | "low";
-    threadId?: string;
+    contextId?: string;
     eventId?: string;
     queueItemId?: string;
   }>,
@@ -40,7 +40,7 @@ export const emptyDailyBrief = {
     id: string;
     label: string;
     kind: "reply" | "prepare_meeting" | "follow_up" | "open_queue" | "open_inbox" | "agent";
-    threadId?: string;
+    contextId?: string;
     eventId?: string;
     queueItemId?: string;
     agentPrompt?: string;
@@ -75,14 +75,14 @@ export const emptyAgentSession = {
     at: string;
     tool: string;
     summary: string;
-    threadId?: string;
+    contextId?: string;
     eventId?: string;
     query?: string;
   }>,
   focus: {
-    threadId: undefined as string | undefined,
+    contextId: undefined as string | undefined,
     eventId: undefined as string | undefined,
-    threadLabel: undefined as string | undefined,
+    contextLabel: undefined as string | undefined,
     eventLabel: undefined as string | undefined,
   },
   updatedAt: new Date().toISOString(),
@@ -96,17 +96,17 @@ export function emptyQueueItem(id = "demo-queue-item") {
     preview: "",
     payload: {} as Record<string, unknown>,
     status: "pending" as const,
-    sourceThreadId: undefined as string | undefined,
+    sourceFocusId: undefined as string | undefined,
     createdAt: new Date().toISOString(),
     resolvedAt: null as string | null,
     errorMessage: null as string | null,
   };
 }
 
-export const emptyThreadContext = {
+export const emptyMailContext = {
   summary: "",
   bullets: [] as string[],
-  whyMatters: "No thread context in ShipFlow demo mode.",
+  whyMatters: "No mail context in ShipFlow demo mode.",
   nextAction: "Open Requests or submit a new feature request.",
   isFollowUpNeeded: false,
   followUpSuggestion: undefined as string | undefined,
@@ -120,15 +120,15 @@ export const emptyMeetingPrep = {
   agenda: "No agenda provided.",
   talkingPoints: [] as string[],
   risks: [] as string[],
-  relatedThreads: [] as Array<{ threadId: string; subject: string; snippet: string }>,
+  relatedMail: [] as Array<{ id: string; subject: string; snippet: string }>,
 };
 
 export const emptyRankResult = {
   rankedIds: [] as string[],
   items: [] as Array<{
-    threadId: string;
+    id: string;
     urgency: "high" | "medium" | "low" | "noise";
     reason: string;
   }>,
-  summary: "No threads to rank in ShipFlow demo mode.",
+  summary: "No inbox items to rank in ShipFlow demo mode.",
 };

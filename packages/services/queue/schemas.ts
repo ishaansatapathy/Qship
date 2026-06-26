@@ -16,7 +16,7 @@ export const emailQueuePayloadSchema = z.object({
   to: singleRecipientSchema,
   subject: safeEmailSubjectSchema,
   body: emailBodySchema,
-  threadId: z.string().optional(),
+  contextId: z.string().optional(),
   /** Optional CC recipient (single address for now — comma-separated multi not yet supported). */
   cc: z.string().email().optional(),
   /** Optional BCC recipient (kept server-side; never shown in previews to the user). */

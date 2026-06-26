@@ -1,6 +1,6 @@
 /* ============================================================
    Qship App Shell — authenticated workspace
-   Inherits theme tokens from .qship-page (see thread.css)
+   Inherits theme tokens from .qship-page (see qship.css)
    ============================================================ */
 
 .qship-app {
@@ -1102,7 +1102,7 @@
   color: var(--qship-muted);
 }
 
-.qship-inbox-thread {
+.qship-inbox-mail {
   margin-top: 14px;
   border: 1px solid var(--qship-line);
   border-radius: 12px;
@@ -3510,7 +3510,7 @@
 }
 
 /* ── Mobile-first enhancements ─────────────────────────────────────────────── */
-/* On mobile when a thread is selected: hide list, show reading pane full-width. */
+/* On mobile when a conversation is selected: hide list, show reading pane full-width. */
 @media (max-width: 880px) {
   .qship-inbox[data-selected="true"] .qship-inbox-list {
     display: none;

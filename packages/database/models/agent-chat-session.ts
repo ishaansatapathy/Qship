@@ -11,7 +11,7 @@ export type AgentSessionToolMemoryEntry = {
   at: string;
   tool: string;
   summary: string;
-  threadId?: string;
+  contextId?: string;
   eventId?: string;
   query?: string;
 };
@@ -24,9 +24,9 @@ export const agentChatSessionsTable = pgTable("agent_chat_sessions", {
   title: varchar("title", { length: 120 }),
   messages: jsonb("messages").$type<AgentSessionMessage[]>().notNull().default([]),
   toolMemory: jsonb("tool_memory").$type<AgentSessionToolMemoryEntry[]>().notNull().default([]),
-  focusThreadId: varchar("focus_thread_id", { length: 128 }),
+  focusContextId: varchar("focus_context_id", { length: 128 }),
   focusEventId: varchar("focus_event_id", { length: 256 }),
-  focusThreadLabel: varchar("focus_thread_label", { length: 200 }),
+  focusContextLabel: varchar("focus_context_label", { length: 200 }),
   focusEventLabel: varchar("focus_event_label", { length: 200 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

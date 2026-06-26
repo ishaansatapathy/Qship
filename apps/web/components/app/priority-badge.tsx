@@ -1,7 +1,6 @@
 "use client";
 
-import { categoryLabel, urgencyDisplay } from "~/lib/priority-display";
-import type { InboxPriorityCategory, InboxUrgency } from "@repo/services/ai/inbox-priority";
+import { categoryLabel, urgencyDisplay, type InboxPriorityCategory, type InboxUrgency } from "~/lib/priority-display";
 
 type Props = {
   urgency: InboxUrgency;

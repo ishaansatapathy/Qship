@@ -77,8 +77,8 @@ export function AgentContextPicker({ open, onClose, onSelect, disabled }: AgentC
               disabled={disabled}
               onClick={() => {
                 onSelect({
-                  threadId: toFeatureFocusId(row.id),
-                  threadLabel: row.title,
+                  contextId: toFeatureFocusId(row.id),
+                  contextLabel: row.title,
                 });
                 onClose();
               }}

@@ -18,7 +18,7 @@ export type EmailQueuePayload = {
   to: string;
   subject: string;
   body: string;
-  threadId?: string;
+  contextId?: string;
   cc?: string;
   bcc?: string;
 };
@@ -76,7 +76,7 @@ export type QueueItem = {
   title: string;
   preview?: string;
   payload: Record<string, unknown>;
-  sourceThreadId?: string;
+  sourcecontextId?: string;
   status: QueueItemStatus;
   errorMessage?: string;
   createdAt: string;
@@ -117,7 +117,7 @@ export interface QueueService {
       bundle: MeetingBundlePayload;
       title?: string;
       preview?: string;
-      sourceThreadId?: string;
+      sourcecontextId?: string;
     },
     opts?: QueueEnqueueOptions,
   ): Promise<QueueItem>;

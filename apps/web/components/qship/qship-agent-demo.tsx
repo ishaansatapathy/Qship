@@ -14,7 +14,7 @@ type Scenario = {
 };
 
 function SkelBar({ w, strong = false }: { w: string; strong?: boolean }) {
-  return <span className="thread-skel-bar" style={{ width: w, opacity: strong ? 0.8 : undefined }} />;
+  return <span className="qship-skel-bar" style={{ width: w, opacity: strong ? 0.8 : undefined }} />;
 }
 
 const SCENARIOS: Scenario[] = [

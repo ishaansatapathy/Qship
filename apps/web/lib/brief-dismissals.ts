@@ -1,97 +1,81 @@
-/** Tracks brief items the user already acted on today (client-side until Gmail sync catches up). */
+const STORAGE_KEY = "qship_brief_dismissals_v1";
 
-const STORAGE_KEY = "qship_brief_dismissed_v1";
-
-type DismissedMap = Record<string, number>;
-
-function startOfTodayMs() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-function readMap(): DismissedMap {
+function readStore(): Record<string, number> {
+  if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as DismissedMap;
-    const dayStart = startOfTodayMs();
-    const kept: DismissedMap = {};
-    for (const [id, ts] of Object.entries(parsed)) {
-      if (typeof ts === "number" && ts >= dayStart) kept[id] = ts;
-    }
-    return kept;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed as Record<string, number>;
   } catch {
     return {};
   }
 }
 
-function writeMap(map: DismissedMap) {
+function writeStore(store: Record<string, number>) {
+  if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch {
-    // private mode / quota
+    // ignore quota / private mode
   }
 }
 
-export function getDismissedBriefThreadIds(): Set<string> {
-  return new Set(Object.keys(readMap()));
+/** Brief items the user acted on — hide from Needs attention until server syncs. */
+export function getDismissedBriefFocusIds(): Set<string> {
+  return new Set(Object.keys(readStore()));
 }
 
-/** Call when user opens inbox/agent/queue for a brief thread — hide until Gmail reflects the action. */
-export function dismissBriefThread(threadId: string) {
-  const id = threadId.trim();
+export function dismissBriefFocus(focusId: string) {
+  const id = focusId.trim();
   if (!id) return;
-  const map = readMap();
-  map[id] = Date.now();
-  writeMap(map);
+  const store = readStore();
+  store[id] = Date.now();
+  writeStore(store);
 }
 
-/** Drop dismissals for threads the server no longer flags (reply synced in Gmail). */
-export function pruneBriefDismissals(stillActiveThreadIds: Set<string>) {
-  const map = readMap();
+export function pruneBriefDismissals(stillActiveFocusIds: Set<string>) {
+  const store = readStore();
   let changed = false;
-  for (const id of Object.keys(map)) {
-    if (!stillActiveThreadIds.has(id)) {
-      delete map[id];
+  for (const id of Object.keys(store)) {
+    if (!stillActiveFocusIds.has(id)) {
+      delete store[id];
       changed = true;
     }
   }
-  if (changed) writeMap(map);
+  if (changed) writeStore(store);
 }
 
-function threadIdFromHref(href?: string): string | undefined {
+function focusIdFromHref(href?: string): string | undefined {
   if (!href) return undefined;
-  const match = href.match(/[?&]thread=([^&]+)/);
-  if (!match?.[1]) return undefined;
-  return decodeURIComponent(match[1]);
+  const match = href.match(/[?&]focus=([^&]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
-/** After agent/queue acts on a thread, hide it from Needs attention until Gmail syncs. */
-export function dismissBriefThreadsFromAgentActions(
-  actions: Array<{ kind: string; href?: string; threadId?: string }>,
+export function dismissBriefFocusFromAgentActions(
+  actions: Array<{ kind: string; href?: string; contextId?: string }>,
 ) {
   const ids = new Set<string>();
   for (const action of actions) {
-    if (action.threadId) ids.add(action.threadId);
-    const fromHref = threadIdFromHref(action.href);
+    if (action.contextId) ids.add(action.contextId);
+    const fromHref = focusIdFromHref(action.href);
     if (fromHref) ids.add(fromHref);
-    if (action.kind === "email_queued" && action.threadId) ids.add(action.threadId);
+    if (action.kind === "email_queued" && action.contextId) ids.add(action.contextId);
   }
-  for (const id of ids) dismissBriefThread(id);
+  for (const id of ids) dismissBriefFocus(id);
 }
 
-export function dismissBriefThreadFromQueueItem(item: {
-  sourceThreadId?: string;
-  kind: string;
-  payload: Record<string, unknown>;
+export function dismissBriefFocusFromQueueItem(item: {
+  sourceFocusId?: string;
+  payload?: Record<string, unknown>;
 }) {
-  if (item.sourceThreadId) {
-    dismissBriefThread(item.sourceThreadId);
+  if (item.sourceFocusId) {
+    dismissBriefFocus(item.sourceFocusId);
     return;
   }
-  if (item.kind === "email_send" || item.kind === "email_draft" || item.kind === "meeting_bundle") {
-    const threadId = item.payload.threadId;
-    if (typeof threadId === "string" && threadId.trim()) dismissBriefThread(threadId);
+  if (item.payload && typeof item.payload === "object") {
+    const focusId = item.payload.contextId;
+    if (typeof focusId === "string" && focusId.trim()) dismissBriefFocus(focusId);
   }
 }

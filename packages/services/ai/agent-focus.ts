@@ -1,27 +1,27 @@
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 
 export type AgentFocus = {
-  threadId?: string;
+  contextId?: string;
   eventId?: string;
 };
 
 export async function buildFocusSystemAppendix(
   tenantId: string,
   focus: AgentFocus | undefined,
-  userEmail?: string,
+  _userEmail?: string,
 ): Promise<string> {
-  if (!focus?.threadId?.trim() && !focus?.eventId?.trim()) return "";
+  if (!focus?.contextId?.trim() && !focus?.eventId?.trim()) return "";
 
   const lines = [
     "",
     "═══ CURRENT USER FOCUS (highest priority — overrides older chat topics) ═══",
   ];
 
-  if (focus.threadId?.trim()) {
-    const threadId = focus.threadId.trim();
+  if (focus.contextId?.trim()) {
+    const contextId = focus.contextId.trim();
 
-    if (threadId.startsWith("feature:")) {
-      const featureId = threadId.slice("feature:".length);
+    if (contextId.startsWith("feature:")) {
+      const featureId = contextId.slice("feature:".length);
       try {
         const { assertFeatureInUserWorkspace } = await import("../feature-request");
         const { feature } = await assertFeatureInUserWorkspace(tenantId, featureId);
@@ -46,24 +46,12 @@ export async function buildFocusSystemAppendix(
       return lines.filter(Boolean).join("\n");
     }
 
-    // Legacy email thread focus — only when inbox service is available
-    try {
-      const { summarizeThread } = await import("./summarize-thread");
-      const summary = await summarizeThread({ tenantId, threadId, userEmail });
-      lines.push(
-        "Type: EMAIL THREAD (legacy)",
-        `threadId: ${threadId}`,
-        `subject: ${summary.subject}`,
-        `summary: ${summary.summary}`,
-      );
-    } catch {
-      lines.push("Type: EMAIL THREAD (legacy)", `threadId: ${threadId}`);
-    }
+    lines.push("Type: WORKSPACE CONTEXT", `contextId: ${contextId}`);
   }
 
   if (focus.eventId?.trim()) {
     const eventId = focus.eventId.trim();
-    lines.push("", "Type: CALENDAR EVENT (legacy)", `eventId: ${eventId}`);
+    lines.push("", "Type: CALENDAR EVENT", `eventId: ${eventId}`);
   }
 
   return lines.filter(Boolean).join("\n");

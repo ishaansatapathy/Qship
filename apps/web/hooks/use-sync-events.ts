@@ -24,8 +24,8 @@ export function useSyncEvents() {
       try {
         const data = JSON.parse(message.data) as { type?: string };
         if (data.type === "inbox_updated") {
-          void utilsRef.current.inbox.listThreads.invalidate();
-          void utilsRef.current.inbox.listCachedThreads.invalidate();
+          void utilsRef.current.inbox.listMail.invalidate();
+          void utilsRef.current.inbox.listCachedMail.invalidate();
         } else if (data.type === "calendar_updated") {
           void utilsRef.current.calendar.listEvents.invalidate();
         }

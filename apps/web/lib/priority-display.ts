@@ -1,4 +1,11 @@
-import type { InboxPriorityCategory, InboxUrgency } from "@repo/services/ai/inbox-priority";
+export type InboxUrgency = "critical" | "high" | "medium" | "low" | "noise";
+export type InboxPriorityCategory =
+  | "reply_needed"
+  | "deadline"
+  | "meeting"
+  | "billing"
+  | "fyi"
+  | "promo";
 
 export type PriorityDisplay = {
   label: string;
@@ -38,7 +45,7 @@ const URGENCY_DISPLAY: Record<InboxUrgency, PriorityDisplay> = {
     label: "Low",
     shortLabel: "Low",
     tone: "low",
-    color: "var(--thread-dim)",
+    color: "var(--qship-dim)",
     bg: "rgba(148, 163, 184, 0.06)",
     border: "rgba(148, 163, 184, 0.16)",
   },
@@ -46,7 +53,7 @@ const URGENCY_DISPLAY: Record<InboxUrgency, PriorityDisplay> = {
     label: "Low relevance",
     shortLabel: "FYI",
     tone: "muted",
-    color: "var(--thread-dim)",
+    color: "var(--qship-dim)",
     bg: "rgba(148, 163, 184, 0.05)",
     border: "rgba(148, 163, 184, 0.12)",
   },
@@ -94,7 +101,7 @@ export function formatPrioritySummary(summary: {
     if (visible > 0) {
       return `Nothing urgent · ${visible} worth a look${hidden > 0 ? ` · ${hidden} low-relevance hidden` : ""}`;
     }
-    return `${summary.total} threads analyzed — inbox is clear.`;
+    return `${summary.total} messages analyzed — inbox is clear.`;
   }
 
   if (hidden > 0) parts.push(`${hidden} low-relevance hidden`);

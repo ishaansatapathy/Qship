@@ -3,7 +3,7 @@ import { env } from "../env";
 import { getMigrationDatabaseUrl, isNeonDatabase } from "../pg";
 
 async function main() {
-  console.log("Thread DB check");
+  console.log("Qship DB check");
   console.log(`  DATABASE_URL host: ${maskHost(env.DATABASE_URL)}`);
 
   await pingDatabase();

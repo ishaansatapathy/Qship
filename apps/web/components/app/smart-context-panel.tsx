@@ -15,17 +15,17 @@ import {
 import { trpc } from "~/trpc/client";
 
 interface Props {
-  threadId: string;
-  onOpenThread?: (id: string) => void;
+  contextId: string;
+  onOpenMail?: (id: string) => void;
 }
 
-export function SmartContextPanel({ threadId, onOpenThread }: Props) {
+export function SmartContextPanel({ contextId, onOpenMail }: Props) {
   const router = useRouter();
 
-  const ctx = trpc.ai.threadContext.useQuery(
-    { threadId },
+  const ctx = trpc.ai.mailContext.useQuery(
+    { contextId },
     {
-      enabled: Boolean(threadId),
+      enabled: Boolean(contextId),
       staleTime: 5 * 60 * 1000,
     },
   );
@@ -109,19 +109,19 @@ export function SmartContextPanel({ threadId, onOpenThread }: Props) {
       ) : null}
 
       {/* Related emails */}
-      {d.relatedThreads.length > 0 ? (
+      {d.relatedMail?.length > 0 ? (
         <div className="scp-block">
           <p className="scp-label">
             <Mail size={11} style={{ verticalAlign: -1, marginRight: 4 }} />
             Related emails
           </p>
           <ul className="scp-list">
-            {d.relatedThreads.map((t) => (
+            {d.relatedMail.map((t) => (
               <li key={t.id}>
                 <button
                   type="button"
                   className="scp-list-item"
-                  onClick={() => onOpenThread?.(t.id)}
+                  onClick={() => onOpenMail?.(t.id)}
                   title={`Open: ${t.subject}`}
                 >
                   <span className="scp-list-subject">{t.subject}</span>
@@ -212,7 +212,7 @@ export function SmartContextPanel({ threadId, onOpenThread }: Props) {
           {contactQuery.data.recentTopics.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
               {contactQuery.data.recentTopics.map((topic) => (
-                <span key={topic} className="thread-topic-chip">
+                <span key={topic} className="qship-topic-chip">
                   {topic}
                 </span>
               ))}

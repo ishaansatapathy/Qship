@@ -163,7 +163,7 @@ export function enrichShipflowOpenApi(
               summary: "Start agent chat",
               value: {
                 message: "Summarize my pipeline and triage the Slack notification feature request.",
-                focusThreadId: "feature:<uuid>",
+                focusContextId: "feature:<uuid>",
               },
             },
           },

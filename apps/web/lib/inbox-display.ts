@@ -69,7 +69,7 @@ export function decodeHtmlEntities(text: string): string {
 }
 
 /** Subject line for list rows — skips placeholder values from older cache rows. */
-export function listThreadSubject(subject?: string, snippet?: string) {
+export function listMailSubject(subject?: string, snippet?: string) {
   const trimmed = subject?.trim();
   if (trimmed && trimmed !== "No subject") return trimmed;
   return snippet?.trim() || "No subject";
@@ -87,9 +87,9 @@ export function replyTargetForMessage(
   return from;
 }
 
-export function sortThreadsByRank<T extends { id: string }>(threads: T[], rankedIds: string[]) {
+export function sortMailByRank<T extends { id: string }>(items: T[], rankedIds: string[]) {
   const order = new Map(rankedIds.map((id, index) => [id, index]));
-  return [...threads].sort((left, right) => {
+  return [...items].sort((left, right) => {
     const leftIndex = order.get(left.id) ?? Number.MAX_SAFE_INTEGER;
     const rightIndex = order.get(right.id) ?? Number.MAX_SAFE_INTEGER;
     return leftIndex - rightIndex;

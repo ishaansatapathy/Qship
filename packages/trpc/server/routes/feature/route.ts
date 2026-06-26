@@ -9,6 +9,7 @@ import {
   saveFeaturePrd,
   updateFeatureMetadata,
   updateFeatureStatus,
+  assertFeatureInUserWorkspace,
 } from "@repo/services/feature-request";
 import { generateFeaturePrd, triageFeatureRequest } from "@repo/services/feature-ai";
 import { isOpenAiConfigured } from "@repo/services/ai/openai";
@@ -105,7 +106,9 @@ export const featureRouter = router({
       try {
         const ws = await getWorkspaceProjectForUser(ctx.user.id);
         const projectId = input?.projectId ?? ws?.project.id;
-        if (!projectId) return [];
+        if (!projectId || !ws || projectId !== ws.project.id) {
+          return [];
+        }
         return listFeatureRequests(projectId);
       } catch (error) {
         mapServiceError(error);
@@ -123,13 +126,14 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ input }) => {
-    try {
-      return await getFeatureRequest(input.id);
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
+    .query(async ({ ctx, input }) => {
+      try {
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return feature;
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
 
   delivery: protectedProcedure
     .meta({
@@ -175,13 +179,20 @@ export const featureRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const ws = await getWorkspaceProjectForUser(ctx.user.id);
-        if (!ws && (!input.organizationId || !input.projectId)) {
+        if (!ws) {
           throw new ServiceError("FORBIDDEN", "Join a workspace before submitting requests");
         }
 
+        if (input.organizationId && input.organizationId !== ws.organization.id) {
+          throw new ServiceError("FORBIDDEN", "Cannot create requests in another organization");
+        }
+        if (input.projectId && input.projectId !== ws.project.id) {
+          throw new ServiceError("FORBIDDEN", "Cannot create requests in another project");
+        }
+
         const row = await createFeatureRequest({
-          organizationId: input.organizationId ?? ws!.organization.id,
-          projectId: input.projectId ?? ws!.project.id,
+          organizationId: ws.organization.id,
+          projectId: ws.project.id,
           title: input.title,
           rawRequest: input.rawRequest,
           createdByUserId: ctx.user.id,
@@ -213,9 +224,9 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        const feature = await getFeatureRequest(input.id);
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         await updateFeatureStatus(input.id, "prd_generating");
 
         const content = await generateFeaturePrd({
@@ -248,8 +259,9 @@ export const featureRouter = router({
         status: z.enum(FEATURE_STATUSES as unknown as [string, ...string[]]),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return updateFeatureStatus(
           input.id,
           input.status as (typeof FEATURE_STATUSES)[number],

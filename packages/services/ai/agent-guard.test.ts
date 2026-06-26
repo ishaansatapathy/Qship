@@ -18,7 +18,7 @@ describe("detectInjectionAttempt", () => {
     const safe = [
       "Can you summarise my latest emails?",
       "Schedule a meeting for tomorrow at 3pm",
-      "Draft a reply to the investor thread",
+      "Draft a reply to the investor update",
       "What's on my calendar this week?",
       "Send an email to John about the Q3 report",
       // Common phrases that should NOT trip the mass-send regex

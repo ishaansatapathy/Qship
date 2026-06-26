@@ -1,4 +1,4 @@
-/** ShipFlow domain + BetterAuth schema (no Thread/Gmail tables). */
+/** ShipFlow domain + BetterAuth schema. */
 export * from "./models/auth";
 export * from "./models/organization";
 export * from "./models/project";

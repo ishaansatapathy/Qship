@@ -340,7 +340,7 @@ export function QshipHero() {
 
   return (
 
-    <section className="thread-hero">
+    <section className="qship-hero">
 
       <div className="qship-grid-bg" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
 
@@ -350,7 +350,7 @@ export function QshipHero() {
 
         <div className="qship-frame">
 
-          <div className="qship-hero-body thread-fade-up">
+          <div className="qship-hero-body qship-fade-up">
 
             <h1 className="qship-headline" data-hero-font="minecraft">
 

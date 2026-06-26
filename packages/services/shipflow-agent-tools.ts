@@ -533,7 +533,7 @@ export function isShipflowTool(name: string): boolean {
   return SHIPFLOW_MCP_TOOLS.some((t) => t.name === name);
 }
 
-/** Prefix for feature-request focus stored in session focusThreadId. */
+/** Prefix for feature-request focus stored in session focusContextId. */
 export const FEATURE_FOCUS_PREFIX = "feature:";
 
 export function isFeatureFocusId(value: string | undefined): boolean {

@@ -69,17 +69,17 @@ export function ConnectRequiredModal({
       onClick={onClose}
     >
       <div
-        className="qship-demo-expired-card thread-connect-gate-card"
+        className="qship-demo-expired-card qship-connect-gate-card"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="thread-connect-gate-icon" data-service={requirement}>
+        <div className="qship-connect-gate-icon" data-service={requirement}>
           <Icon size={22} />
         </div>
         <h2 className="qship-demo-expired-title">{copy.title}</h2>
         <p className="qship-demo-expired-body">{copy.body}</p>
-        <p className="thread-connect-gate-note">
+        <p className="qship-connect-gate-note">
           {isDemoUser
-            ? "Nothing was sent. Don't connect Gmail on demo@thread.dev — it replaces sample inbox data."
+            ? "Demo mode uses sample pipeline data. Sign in with your workspace to connect GitHub and run live delivery flows."
             : "Nothing was sent. Your queued item is unchanged."}
         </p>
         <div className="qship-demo-expired-ctas">
@@ -119,7 +119,7 @@ export function ConnectRequiredModal({
             className="qship-demo-expired-btn qship-demo-expired-btn--ghost"
             onClick={onClose}
           >
-            Stay in Queue
+            Stay on page
           </button>
         </div>
         <button type="button" className="qship-demo-expired-close" aria-label="Close" onClick={onClose}>
