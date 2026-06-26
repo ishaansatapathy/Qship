@@ -1,0 +1,73 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "globalEnv": [
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET",
+    "GITHUB_APP_ID",
+    "GITHUB_APP_PRIVATE_KEY",
+    "GITHUB_APP_SLUG",
+    "GITHUB_WEBHOOK_SECRET",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "SHIPFLOW_MCP_API_KEY",
+    "SHIPFLOW_MCP_USER_ID",
+    "JWT_REFRESH_SECRET",
+    "CLIENT_URL",
+    "BASE_URL",
+    "API_INTERNAL_URL",
+    "NODE_ENV",
+    "BREVO_API_KEY",
+    "EMAIL_FROM",
+    "EMAIL_SENDER_NAME",
+    "EMAIL_PROVIDER",
+    "SEED_USER_EMAIL",
+    "SEED_DEMO_PASSWORD",
+    "VITEST",
+    "OPENAPI_DOCS_SECRET",
+    "PUBLIC_OPENAPI_DOCS",
+    "REDIS_URL",
+    "RATE_LIMIT_REQUIRE_REDIS",
+    "PORT",
+    "CRON_SECRET",
+    "DEMO_LOGIN_ENABLED",
+    "DEMO_USER_EMAIL",
+    "DEMO_USER_PASSWORD",
+    "HEALTH_CHECK_DATABASE",
+    "REQUIRE_TURNSTILE_IN_PROD",
+    "E2E_API_URL",
+    "E2E_BASE_URL",
+    "E2E_RUN_AUTH_SMOKE",
+    "CI"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "check-types": {
+      "dependsOn": ["^check-types"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:generate": {},
+    "db:migrate": {},
+    "db:seed": {},
+    "test": {
+      "dependsOn": ["^test"]
+    }
+  }
+}

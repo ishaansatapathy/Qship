@@ -1,0 +1,220 @@
+import { z, zodUndefinedModel } from "../../schema";
+
+import { isAgentConfigured, runAgentChat } from "@repo/services/ai/agent";
+import {
+  createAgentSession,
+  deleteAgentSession,
+  getAgentSession,
+  listAgentSessions,
+  updateAgentSession,
+} from "@repo/services/ai/agent-sessions";
+import { isOpenAiConfigured } from "@repo/services/ai/openai";
+import { mapServiceError, protectedProcedure, router } from "../../trpc";
+
+export const agentRouter = router({
+  status: protectedProcedure.input(zodUndefinedModel).query(() => ({
+    configured: isOpenAiConfigured(),
+    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    ready: isAgentConfigured(),
+  })),
+
+  chat: protectedProcedure
+    .input(
+      z.object({
+        message: z.string().min(1).max(4000),
+        sessionId: z.string().uuid().optional(),
+        history: z
+          .array(
+            z.object({
+              role: z.enum(["user", "assistant"]),
+              content: z.string(),
+            }),
+          )
+          .optional(),
+        toolMemory: z
+          .array(
+            z.object({
+              at: z.string(),
+              tool: z.string(),
+              summary: z.string(),
+              threadId: z.string().optional(),
+              eventId: z.string().optional(),
+              query: z.string().optional(),
+            }),
+          )
+          .optional(),
+        userEmail: z.string().email().optional(),
+        focusThreadId: z.string().optional(),
+        focusEventId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        let history = input.history;
+        let toolMemory = input.toolMemory;
+        let focus = {
+          threadId: input.focusThreadId,
+          eventId: input.focusEventId,
+        };
+
+        if (input.sessionId) {
+          const session = await getAgentSession(ctx.user.id, input.sessionId);
+          if (!session) {
+            throw new Error("Session not found");
+          }
+          history = session.messages;
+          toolMemory = session.toolMemory;
+          if (!input.focusThreadId && !input.focusEventId) {
+            focus = {
+              threadId: session.focus.threadId,
+              eventId: session.focus.eventId,
+            };
+          }
+        }
+
+        const result = await runAgentChat(ctx.user.id, {
+          message: input.message,
+          history,
+          toolMemory,
+          userEmail: input.userEmail ?? ctx.user.email,
+          focus,
+        });
+
+        if (input.sessionId) {
+          await updateAgentSession(ctx.user.id, input.sessionId, {
+            messages: [
+              ...(history ?? []),
+              { role: "user", content: input.message },
+              { role: "assistant", content: result.reply },
+            ],
+            toolMemory: result.toolMemory ?? toolMemory,
+          });
+        }
+
+        return {
+          reply: result.reply,
+          actions: result.actions,
+          toolMemory: result.toolMemory,
+          focusCleared: result.focusCleared,
+        };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  listSessions: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(50).optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      try {
+        const rows = await listAgentSessions(ctx.user.id, input?.limit ?? 30);
+        return rows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          messageCount: row.messageCount,
+          focusThreadLabel: row.focusThreadLabel,
+          focusEventLabel: row.focusEventLabel,
+          updatedAt: row.updatedAt.toISOString(),
+        }));
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  getSession: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const session = await getAgentSession(ctx.user.id, input.id);
+        if (!session) return null;
+        return {
+          id: session.id,
+          title: session.title,
+          messages: session.messages,
+          toolMemory: session.toolMemory,
+          focus: session.focus,
+          updatedAt: session.updatedAt.toISOString(),
+        };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  createSession: protectedProcedure
+    .input(
+      z
+        .object({
+          title: z.string().nullable().optional(),
+          focus: z
+            .object({
+              threadId: z.string().optional(),
+              eventId: z.string().optional(),
+              threadLabel: z.string().optional(),
+              eventLabel: z.string().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const session = await createAgentSession(ctx.user.id, {
+          title: input?.title,
+          focus: input?.focus,
+        });
+        return {
+          id: session.id,
+          title: session.title,
+          focus: session.focus,
+        };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  updateSession: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        title: z.string().optional(),
+        focus: z
+          .object({
+            threadId: z.string().optional(),
+            eventId: z.string().optional(),
+            threadLabel: z.string().optional(),
+            eventLabel: z.string().optional(),
+          })
+          .nullable()
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const session = await updateAgentSession(ctx.user.id, input.id, {
+          title: input.title,
+          focus: input.focus,
+        });
+        if (!session) return null;
+        return {
+          id: session.id,
+          title: session.title,
+          messages: session.messages,
+          toolMemory: session.toolMemory,
+          focus: session.focus,
+          updatedAt: session.updatedAt.toISOString(),
+        };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  deleteSession: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const deleted = await deleteAgentSession(ctx.user.id, input.id);
+        return { deleted };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+});

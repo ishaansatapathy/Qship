@@ -1,0 +1,56 @@
+{
+
+  "extends": ["@repo/typescript-config/node.json"],
+
+  "compilerOptions": {
+
+    "declaration": false,
+
+    "declarationMap": false
+
+  },
+
+  "include": [
+
+    "index.ts",
+
+    "errors.ts",
+
+    "workflow.ts",
+
+    "feature-request.ts",
+
+    "organization.ts",
+
+    "constants.ts",
+
+    "env.ts",
+
+    "feature-ai.ts",
+
+    "shipflow-agent-tools.ts",
+    "ensure-agent-services.ts",
+
+    "github/**/*.ts",
+
+    "ai/**/*.ts",
+
+    "inbox/**/*.ts",
+
+    "queue/**/*.ts",
+
+    "calendar/**/*.ts",
+
+    "settings/**/*.ts",
+
+    "contacts/**/*.ts",
+
+    "cache/**/*.ts"
+
+  ],
+
+  "exclude": ["node_modules"]
+
+}
+
+
