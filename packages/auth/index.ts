@@ -25,9 +25,14 @@ export const auth = betterAuth({
   secret: requiredEnv("BETTER_AUTH_SECRET", process.env.JWT_SECRET),
   baseURL: requiredEnv("BETTER_AUTH_URL", process.env.CLIENT_URL ?? "http://localhost:3000"),
   trustedOrigins: [
-    process.env.CLIENT_URL ?? "http://localhost:3000",
-    process.env.BASE_URL ?? "http://localhost:8000",
-  ].filter(Boolean),
+    process.env.BETTER_AUTH_URL,
+    process.env.CLIENT_URL,
+    process.env.BASE_URL,
+    "http://localhost:3000",
+    "http://localhost:8000",
+  ]
+    .map((o) => o?.trim().replace(/\/$/, ""))
+    .filter((o, i, arr): o is string => Boolean(o) && arr.indexOf(o) === i),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,

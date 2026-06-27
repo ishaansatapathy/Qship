@@ -1,7 +1,7 @@
 # Qship — ShipFlow AI
 
 > **Judge / Evaluator?** → **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** · **[DEMO.md](./DEMO.md)** · **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**  
-> **Deploy:** **[DEPLOY.md](./DEPLOY.md)** — `qship.ishaandev.co.in` + `api.qship.ishaandev.co.in`
+> **Deploy:** Code is ready — **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** (your Vercel + Hostinger steps) · Full reference: **[DEPLOY.md](./DEPLOY.md)**
 
 AI-assisted **product delivery platform** — move features from **request → PRD → tasks → code → AI review → human approval → ship**.
 
