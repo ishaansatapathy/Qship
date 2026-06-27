@@ -119,6 +119,7 @@ Recording*
 *.zip
 
 *.ttf
+!apps/web/app/fonts/QshipHero.ttf
 
 *.otf
 
