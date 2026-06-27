@@ -21,7 +21,7 @@ Related: [`README.md`](README.md) · [`DEMO.md`](DEMO.md) · [`JUDGE_WALKTHROUGH
 Next.js (web)  ──tRPC/REST──►  Express API  ──Octokit──►  GitHub App
      │                              │
      │                              ├── Postgres (features, PRDs, sessions)
-     │                              ├── MCP (14 tools)
+     │                              ├── MCP (19 tools)
      │                              └── OpenAI (triage, PRD, review)
      └── SSE /agent/stream ◄────────┘
 ```
@@ -33,7 +33,7 @@ Next.js (web)  ──tRPC/REST──►  Express API  ──Octokit──►  Gi
 | Auth | BetterAuth — email/password + Google OAuth |
 | Database | PostgreSQL + Drizzle ORM |
 | AI | OpenAI gpt-4o-mini (configurable via `OPENAI_MODEL`) |
-| MCP | MCP 2024-11-05 — 14 ShipFlow tools |
+| MCP | MCP 2024-11-05 — 19 ShipFlow tools |
 
 ### Monorepo layout
 
@@ -96,7 +96,22 @@ Documented in Scalar with tag groups, intro markdown, MCP appendix, and curl sam
 | GET | `/feature/requests/{id}/delivery` | Timeline + summary + next step |
 | POST | `/feature/requests` | Create (+ optional triage) |
 | POST | `/feature/requests/{id}/prd` | Generate PRD |
-| PATCH | `/feature/requests/{id}/status` | Update status |
+| GET | `/feature/intake-summary` | Counts by intake channel |
+| POST | `/feature/intake` | Multi-channel intake (email, support, call) |
+| POST | `/feature/requests/{id}/tasks` | Generate engineering tasks |
+| POST | `/feature/requests/{id}/ai-review` | Run AI review (uses PR diff when linked) |
+| POST | `/feature/requests/{id}/pull-request` | Open GitHub PR (branch shipflow/{id}) |
+| GET | `/feature/task-board` | All tasks for Kanban |
+| PATCH | `/feature/tasks/{id}/status` | Move Kanban task column |
+| PATCH | `/feature/requests/{id}/status` | Update pipeline status |
+
+### Billing
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/billing/summary` | Plan tier, credits, Razorpay status |
+| POST | `/billing/checkout` | Create Razorpay order or demo upgrade |
+| POST | `/billing/confirm-payment` | Verify Razorpay signature after checkout |
 
 ### GitHub
 
@@ -146,7 +161,7 @@ submitted → clarifying → prd_generating → prd_ready → planning → plan_
 
 ---
 
-## 5. MCP (14 tools)
+## 5. MCP (19 tools)
 
 **Endpoint:** `POST /mcp` (JSON-RPC 2.0)
 
@@ -179,6 +194,11 @@ submitted → clarifying → prd_generating → prd_ready → planning → plan_
 | `get_pipeline_summary` | Stage counts |
 | `github_connection_status` | GitHub connected? |
 | `list_github_repositories` | Linked repos |
+| `check_existing_capability` | Duplicate / education check |
+| `intake_from_channel` | Email, support, call intake |
+| `list_ai_reviews` | AI review iterations + issues |
+| `get_feature_delivery` | Timeline + summary + next step |
+| `update_engineering_task_status` | Kanban column move |
 
 **CI parity:** `packages/services/ai/tool-parity.test.ts`
 
@@ -196,7 +216,7 @@ curl -s -X POST http://localhost:8000/mcp \
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /agent/stream` | SSE streaming chat with 14 ShipFlow tools |
+| `POST /agent/stream` | SSE streaming chat with 19 ShipFlow tools |
 
 Rate limit: **20 requests/min/user**.
 
@@ -249,7 +269,9 @@ Migrations: `packages/database/drizzle/` · Seed: `pnpm db:seed`
 | `/docs` | GET | Scalar UI |
 | `/mcp` | POST | MCP JSON-RPC |
 | `/agent/stream` | POST | Agent SSE |
+| `/webhooks/intake` | POST | Multi-channel feature intake |
 | `/webhooks/github` | POST | GitHub App events |
+| `/webhooks/razorpay` | POST | Razorpay payment events |
 | `/trpc/*` | * | tRPC (primary client transport) |
 
 ---
@@ -297,5 +319,5 @@ pnpm dev
 | MCP manifest | `mcp-server.json` |
 | Demo script | `DEMO.md` |
 | Walkthrough | `JUDGE_WALKTHROUGH.md` |
-| Video script | `docs/DEMO_VIDEO_SCRIPT.md` |
+| Submission pack | `HACKATHON_SUBMISSION.md` |
 | CI | `.github/workflows/ci.yml` |

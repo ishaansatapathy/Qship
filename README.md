@@ -1,6 +1,6 @@
 # Qship — ShipFlow AI
 
-> **Judge / Evaluator?** → Start with **[DEMO.md](./DEMO.md)** for a 3-minute walkthrough, live curl examples, the MCP integration map, and the scoring checklist.
+> **Judge / Evaluator?** → **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** (one-pager + rubric) · **[DEMO.md](./DEMO.md)** (full walkthrough) · **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** (3-min timed path)
 
 AI-assisted **product delivery platform** — move features from **request → PRD → tasks → code → AI review → human approval → ship**.
 
@@ -24,7 +24,7 @@ Built for the **ChaiCode hackathon** as a production-style **tRPC monorepo SaaS*
 | Email | `demo@qship.dev` |
 | Password | `DemoPass123!` |
 
-Full script: **[DEMO.md](./DEMO.md)** · Timed walkthrough: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** · Video: **[docs/DEMO_VIDEO_SCRIPT.md](./docs/DEMO_VIDEO_SCRIPT.md)**
+Full guide: **[DEMO.md](./DEMO.md)** · Timed walkthrough: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
 
 ---
 
@@ -38,14 +38,14 @@ Full script: **[DEMO.md](./DEMO.md)** · Timed walkthrough: **[JUDGE_WALKTHROUGH
 | **PRD generation** | Structured PRD (goals, stories, AC) | `generate_feature_prd` |
 | **Task breakdown** | Engineering tasks from PRD | `generate_feature_tasks` |
 | **Delivery timeline** | Activity log + summary + next step | `feature.delivery` |
-| **ShipFlow Agent** | Streaming copilot, 14 tools, sessions | `/agent/stream` |
-| **MCP server** | JSON-RPC for Cursor/Claude | `POST /mcp` — 14 tools |
+| **ShipFlow Agent** | Streaming copilot, 19 tools, sessions | `/agent/stream` |
+| **MCP server** | JSON-RPC for Cursor/Claude | `POST /mcp` — 19 tools |
 | **GitHub App** | Connect org, list repos, webhooks | `github.*`, Octokit |
 | **AI pre-ship review** | Review PRD + tasks before release | `run_ai_review` |
 | **Human approval gate** | `human_review` → `approved` → `shipped` | UI + agent tool |
 | **Scalar API docs** | Production-grade Scalar judge documentation | `/docs` |
 
-**Agent tools: 14** · **MCP tools: 14** (CI parity test verified)
+**Agent tools: 19** · **MCP tools: 19** (CI parity test verified)
 
 ---
 
@@ -74,7 +74,7 @@ Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review
 │                    Express API (apps/api)                    │
 │  ├── /trpc          — Type-safe tRPC procedures             │
 │  ├── /api           — REST (trpc-to-openapi)                  │
-│  ├── /mcp           — MCP 2024-11 / JSON-RPC 2.0 (14 tools)  │
+│  ├── /mcp           — MCP 2024-11 / JSON-RPC 2.0 (19 tools)  │
 │  ├── /agent/stream  — SSE streaming agent                   │
 │  ├── /webhooks/github — GitHub App events (HMAC)            │
 │  ├── /health        — Liveness                              │
@@ -114,7 +114,7 @@ Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review
 | Database | PostgreSQL + Drizzle ORM |
 | GitHub | GitHub App + Octokit + webhooks |
 | AI | OpenAI via Vercel AI SDK patterns |
-| MCP | MCP 2024-11-05 — 14 ShipFlow tools |
+| MCP | MCP 2024-11-05 — 19 ShipFlow tools |
 
 ---
 
@@ -204,11 +204,11 @@ pnpm db:studio        # Drizzle Studio
 
 ## MCP server
 
-ShipFlow exposes an MCP endpoint at **`POST /mcp`** with **14 tools** (feature pipeline + GitHub).
+ShipFlow exposes an MCP endpoint at **`POST /mcp`** with **19 tools** (feature pipeline + GitHub + intake + Kanban).
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /mcp` | ShipFlow domain tools (14) — features, review, GitHub |
+| `POST /mcp` | ShipFlow domain tools (19) — features, review, intake, Kanban, GitHub |
 
 Configure Cursor/Claude using **`mcp-server.json`**:
 
@@ -244,7 +244,7 @@ Available at **http://localhost:8000/docs** — Scalar UI with:
 - Judge quick-start intro panel
 - Architecture + delivery loop diagram
 - Tag groups (Feature Requests, GitHub, Agent, MCP)
-- MCP tool appendix (14 tools)
+- MCP tool appendix (19 tools)
 - Reference paths: `/mcp`, `/agent/stream`, `/webhooks/github`, `/ready`
 - curl code samples
 
@@ -310,7 +310,7 @@ Demo account: 3 agent AI runs per browser session (configurable via `NEXT_PUBLIC
 | [DEMO.md](./DEMO.md) | Judge demo guide + curl + scoring |
 | [DOCS.md](./DOCS.md) | Full technical reference |
 | [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | 3-minute timed path |
-| [docs/DEMO_VIDEO_SCRIPT.md](./docs/DEMO_VIDEO_SCRIPT.md) | 5-min video recording script |
+| [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | One-pager + rubric map |
 | [mcp-server.json](./mcp-server.json) | MCP client manifest |
 | [SOCIAL_POST.md](./SOCIAL_POST.md) | LinkedIn/X post draft |
 
@@ -321,7 +321,7 @@ Demo account: 3 agent AI runs per browser session (configurable via `NEXT_PUBLIC
 - [x] Monorepo + tRPC + BetterAuth
 - [x] ShipFlow database schema + migrations
 - [x] Feature requests + AI triage + PRD
-- [x] ShipFlow Agent (14 tools) + MCP parity
+- [x] ShipFlow Agent (19 tools) + MCP parity
 - [x] GitHub App connect + repo sync
 - [x] Delivery timeline + summary UI
 - [x] Scalar docs + judge walkthrough
