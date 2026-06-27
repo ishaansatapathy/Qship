@@ -76,7 +76,6 @@ export default function TasksPage() {
     },
     onSuccess: async () => {
       await utils.feature.taskBoard.invalidate();
-      await utils.feature.delivery.invalidate();
     },
   });
 

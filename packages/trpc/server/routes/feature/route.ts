@@ -20,7 +20,7 @@ import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
 import { listAiReviewsForFeature, markFeatureShipped, recordHumanApproval } from "@repo/services/review";
 import { ServiceError } from "@repo/services/errors";
-import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "@repo/services/workflow";
+import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES, type EngineeringTaskStatus } from "@repo/services/workflow";
 import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 export const featureRouter = router({
@@ -501,9 +501,9 @@ export const featureRouter = router({
             featureStatus: z.string(),
             title: z.string(),
             description: z.string(),
-            status: z.enum(ENGINEERING_TASK_STATUSES),
+            status: z.enum(ENGINEERING_TASK_STATUSES as unknown as [string, ...string[]]),
             sortOrder: z.number(),
-            updatedAt: z.date(),
+            updatedAt: z.coerce.date(),
           }),
         ),
       }),
@@ -532,13 +532,27 @@ export const featureRouter = router({
     .input(
       z.object({
         id: z.string().min(1),
-        status: z.enum(ENGINEERING_TASK_STATUSES),
+        status: z.enum(ENGINEERING_TASK_STATUSES as unknown as [string, ...string[]]),
+      }),
+    )
+    .output(
+      z.object({
+        id: z.string(),
+        featureRequestId: z.string(),
+        title: z.string(),
+        description: z.string(),
+        status: z.enum(ENGINEERING_TASK_STATUSES as unknown as [string, ...string[]]),
+        sortOrder: z.number(),
+        updatedAt: z.coerce.date(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
         const { task } = await assertTaskInUserWorkspace(ctx.user.id, input.id);
-        const row = await updateEngineeringTaskStatus(input.id, input.status);
+        const row = await updateEngineeringTaskStatus(
+          input.id,
+          input.status as EngineeringTaskStatus,
+        );
         await appendFeatureActivity(task.featureRequestId, {
           kind: "tasks",
           title: `Task → ${input.status.replace(/_/g, " ")}`,

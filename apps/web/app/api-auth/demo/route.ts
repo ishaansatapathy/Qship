@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { auth } from "@repo/auth";
-
 function demoErrorRedirect(request: NextRequest, message: string) {
   const signInUrl = new URL("/sign-in", request.url);
   signInUrl.searchParams.set("error", message);
@@ -21,6 +19,7 @@ export async function GET(request: NextRequest) {
     process.env.DEMO_USER_PASSWORD ?? process.env.SEED_DEMO_PASSWORD ?? "DemoPass123!";
 
   try {
+    const { auth } = await import("@repo/auth");
     const result = await auth.api.signInEmail({
       body: { email, password },
       headers: request.headers,
