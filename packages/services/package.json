@@ -17,6 +17,7 @@
     "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.2",
     "redis": "^5.8.2",
+    "inngest": "^3.35.0",
     "zod": "^4.3.5"
   },
   "devDependencies": {

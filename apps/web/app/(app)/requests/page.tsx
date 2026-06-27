@@ -20,6 +20,7 @@ import type { RouterOutputs } from "@repo/trpc/client";
 import { trpc } from "~/trpc/client";
 import { SkeletonList } from "~/components/app/skeleton-list";
 import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
+import { WorkflowProgress } from "~/components/app/workflow-progress";
 
 type FeatureRow = RouterOutputs["feature"]["list"][number];
 type FeatureDetail = RouterOutputs["feature"]["get"];
@@ -188,7 +189,8 @@ function FeatureDetailPanel({
   const generatePrd = trpc.feature.generatePrd.useMutation({
     onSuccess: async () => {
       await invalidate();
-      toast.success("PRD generated");
+      await utils.feature.listWorkflows.invalidate({ featureId });
+      toast.success("PRD generation started — watch workflow progress below");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -196,19 +198,17 @@ function FeatureDetailPanel({
   const generateTasks = trpc.feature.generateTasks.useMutation({
     onSuccess: async () => {
       await invalidate();
-      toast.success("Engineering tasks generated");
+      await utils.feature.listWorkflows.invalidate({ featureId });
+      toast.success("Task generation started");
     },
     onError: (e) => toast.error(e.message),
   });
 
   const runAiReview = trpc.feature.runAiReview.useMutation({
-    onSuccess: async (result) => {
+    onSuccess: async () => {
       await invalidate();
-      if (!result.ok) {
-        toast.error("AI review could not run — connect GitHub or link a PR");
-        return;
-      }
-      toast.success(result.pass ? "AI review passed" : "AI review — fixes needed");
+      await utils.feature.listWorkflows.invalidate({ featureId });
+      toast.success("AI review started");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -284,6 +284,8 @@ function FeatureDetailPanel({
       <p className="qship-req-detail-body">{feature.rawRequest}</p>
 
       <FeatureDeliveryPanel featureId={feature.id} />
+
+      <WorkflowProgress featureId={feature.id} />
 
       {triage ? (
         <section className="qship-req-triage">

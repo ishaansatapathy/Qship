@@ -5,14 +5,23 @@ import { toast } from "sonner";
 
 import { BILLING_PLAN_LIST } from "@repo/services/billing/plans";
 
+import { useRazorpayCheckout } from "~/components/app/use-razorpay-checkout";
 import { trpc } from "~/trpc/client";
 
 export default function BillingPage() {
   const utils = trpc.useUtils();
+  const { ready: razorpayReady, openCheckout } = useRazorpayCheckout();
   const summary = trpc.billing.summary.useQuery(
     {},
     { retry: 1, refetchOnWindowFocus: false },
   );
+  const confirmPayment = trpc.billing.confirmPayment.useMutation({
+    onSuccess: async (result) => {
+      toast.success(`Upgraded to ${result.planName}`);
+      await utils.billing.summary.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const checkout = trpc.billing.createCheckout.useMutation({
     onSuccess: async (result) => {
       if (result.mode === "demo") {
@@ -20,9 +29,37 @@ export default function BillingPage() {
         await utils.billing.summary.invalidate();
         return;
       }
-      toast.message("Razorpay order created", {
-        description: `Order ${result.orderId} — complete payment in Razorpay checkout, then confirm.`,
-      });
+
+      if (!razorpayReady) {
+        toast.error("Razorpay checkout script still loading — try again in a moment.");
+        return;
+      }
+
+      try {
+        await openCheckout({
+          key: result.keyId,
+          amount: result.amount,
+          currency: result.currency,
+          name: "ShipFlow",
+          description: `${result.planName} plan`,
+          order_id: result.orderId,
+          prefill: { name: result.organizationName },
+          theme: { color: "#dc2626" },
+          handler: (response) => {
+            confirmPayment.mutate({
+              planTier: result.planTier as "pro" | "enterprise",
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            });
+          },
+          modal: {
+            ondismiss: () => toast.message("Checkout closed"),
+          },
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not open Razorpay checkout");
+      }
     },
     onError: (e) => toast.error(e.message),
   });
@@ -32,6 +69,7 @@ export default function BillingPage() {
   const activeTier = data?.planTier ?? "free";
   const checkoutReady = summary.isSuccess && Boolean(data);
   const razorpayConfigured = data?.razorpayConfigured ?? false;
+  const paying = checkout.isPending || confirmPayment.isPending;
 
   return (
     <div className="qship-brief-page">
@@ -112,7 +150,7 @@ export default function BillingPage() {
       >
         {plans.map((plan) => {
           const active = plan.id === activeTier;
-          const disabled = !checkoutReady || active || checkout.isPending;
+          const disabled = !checkoutReady || active || paying;
           return (
             <div key={plan.id} className="qship-req-row" style={{ cursor: "default", padding: 20 }}>
               <div className="qship-req-row-top">
@@ -138,7 +176,7 @@ export default function BillingPage() {
                 }
                 onClick={() => checkout.mutate({ planTier: plan.id })}
               >
-                {checkout.isPending ? (
+                {paying ? (
                   <Loader2 size={14} className="qship-spin" />
                 ) : active ? (
                   <>
@@ -148,7 +186,7 @@ export default function BillingPage() {
                   "Connect API to upgrade"
                 ) : (
                   <>
-                    <CreditCard size={14} /> {plan.priceInr === 0 ? "Downgrade" : "Upgrade"}
+                    <CreditCard size={14} /> {plan.priceInr === 0 ? "Downgrade" : "Pay with Razorpay"}
                   </>
                 )}
               </button>
@@ -159,15 +197,15 @@ export default function BillingPage() {
 
       {!razorpayConfigured ? (
         <p className="qship-req-rec" style={{ marginTop: 20 }}>
-          <Sparkles size={14} style={{ verticalAlign: -2 }} /> Razorpay keys not set — upgrades apply
-          instantly in demo mode. Set <code>RAZORPAY_KEY_ID</code> and{" "}
-          <code>RAZORPAY_KEY_SECRET</code> in <code>.env</code> for live checkout (same pattern as{" "}
-          <code>OPENAI_API_KEY</code> on the Agent page).
+          <Sparkles size={14} style={{ verticalAlign: -2 }} /> Razorpay keys not set — paid plans
+          upgrade instantly in <strong>demo mode</strong>. Add <code>RAZORPAY_KEY_ID</code>,{" "}
+          <code>RAZORPAY_KEY_SECRET</code>, and optional <code>RAZORPAY_WEBHOOK_SECRET</code> in{" "}
+          <code>.env</code> for live checkout + webhooks.
         </p>
       ) : (
         <p className="qship-req-rec" style={{ marginTop: 20 }}>
-          <CreditCard size={14} style={{ verticalAlign: -2 }} /> Razorpay is configured — paid
-          upgrades open a secure checkout order.
+          <CreditCard size={14} style={{ verticalAlign: -2 }} /> Razorpay checkout opens in a secure
+          modal. Webhook: <code>POST /webhooks/razorpay</code>
         </p>
       )}
     </div>

@@ -14,8 +14,10 @@ ensureShipflowAgentServices();
 
 import { env } from "./env";
 import { handleGithubWebhook } from "./github-webhook";
+import { handleRazorpayWebhook } from "@repo/services/billing/webhook";
 import { mcpRouter } from "./routes/mcp";
 import { agentStreamRouter } from "./routes/agent-stream";
+import { inngestServe } from "./routes/inngest";
 import { enrichShipflowOpenApi, type OpenApiDocumentWithPaths } from "./openapi-enrichment";
 
 export const app = express();
@@ -43,6 +45,14 @@ app.post(
   express.raw({ type: "application/json" }),
   (req, res) => {
     void handleGithubWebhook(req, res);
+  },
+);
+
+app.post(
+  "/webhooks/razorpay",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    void handleRazorpayWebhook(req, res);
   },
 );
 
@@ -160,5 +170,6 @@ app.use(
 
 app.use("/mcp", mcpRouter);
 app.use("/agent/stream", agentStreamRouter);
+app.use("/api/inngest", inngestServe);
 
 export default app;

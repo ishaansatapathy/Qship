@@ -6,6 +6,10 @@ import { ServiceError } from "../errors";
 import { ensurePersonalWorkspace, getMembershipForUser } from "../organization";
 
 import { BILLING_PLANS, BILLING_PLAN_LIST, type PlanTier } from "./plans";
+import { verifyRazorpayPaymentSignature } from "./razorpay";
+
+export { verifyRazorpayPaymentSignature } from "./razorpay";
+export { handleRazorpayWebhook } from "./webhook";
 
 export { BILLING_PLANS, BILLING_PLAN_LIST, type PlanTier };
 
@@ -86,6 +90,8 @@ export async function upgradeOrganizationPlan(
       keyId,
       planTier,
       planName: plan.name,
+      organizationId: membership.organizationId,
+      organizationName: membership.organization.name,
     };
   }
 
@@ -109,10 +115,20 @@ export async function upgradeOrganizationPlan(
   };
 }
 
-export async function confirmRazorpayUpgrade(userId: string, planTier: PlanTier, paymentId?: string) {
+export async function confirmRazorpayUpgrade(
+  userId: string,
+  planTier: PlanTier,
+  input: { orderId: string; paymentId: string; signature: string },
+) {
   const membership = await getMembershipForUser(userId);
   if (!membership) {
     throw new ServiceError("FORBIDDEN", "Join a workspace before managing billing");
+  }
+
+  if (
+    !verifyRazorpayPaymentSignature(input.orderId, input.paymentId, input.signature)
+  ) {
+    throw new ServiceError("BAD_REQUEST", "Invalid Razorpay payment signature");
   }
 
   const plan = BILLING_PLANS[planTier];
@@ -123,7 +139,7 @@ export async function confirmRazorpayUpgrade(userId: string, planTier: PlanTier,
       aiReviewCredits: String(plan.aiReviewCredits),
       repositoryLimit: String(plan.repositoryLimit),
       billingStatus: "active",
-      razorpayCustomerId: paymentId ?? membership.organization.razorpayCustomerId,
+      razorpayCustomerId: input.paymentId,
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, membership.organization.id));
