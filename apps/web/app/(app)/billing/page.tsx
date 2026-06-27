@@ -5,11 +5,13 @@ import { toast } from "sonner";
 
 import { BILLING_PLAN_LIST } from "@repo/services/billing/plans";
 
+import { useQshipUser } from "~/components/app/use-qship-user";
 import { useRazorpayCheckout } from "~/components/app/use-razorpay-checkout";
 import { trpc } from "~/trpc/client";
 
 export default function BillingPage() {
   const utils = trpc.useUtils();
+  const { user } = useQshipUser();
   const { ready: razorpayReady, openCheckout } = useRazorpayCheckout();
   const summary = trpc.billing.summary.useQuery(
     {},
@@ -43,7 +45,10 @@ export default function BillingPage() {
           name: "ShipFlow",
           description: `${result.planName} plan`,
           order_id: result.orderId,
-          prefill: { name: result.organizationName },
+          prefill: {
+            name: result.organizationName,
+            email: user?.email ?? undefined,
+          },
           theme: { color: "#dc2626" },
           handler: (response) => {
             confirmPayment.mutate({
@@ -204,8 +209,10 @@ export default function BillingPage() {
         </p>
       ) : (
         <p className="qship-req-rec" style={{ marginTop: 20 }}>
-          <CreditCard size={14} style={{ verticalAlign: -2 }} /> Razorpay checkout opens in a secure
-          modal. Webhook: <code>POST /webhooks/razorpay</code>
+          <CreditCard size={14} style={{ verticalAlign: -2 }} /> Razorpay checkout is live. Test card:{" "}
+          <code>4111 1111 1111 1111</code> · OTP <code>123456</code>. Webhook URL (API):{" "}
+          <code>POST /webhooks/razorpay</code> on your API host (e.g.{" "}
+          <code>http://localhost:8000/webhooks/razorpay</code>).
         </p>
       )}
     </div>
