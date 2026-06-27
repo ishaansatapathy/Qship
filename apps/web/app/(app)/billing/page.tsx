@@ -211,8 +211,11 @@ export default function BillingPage() {
         <p className="qship-req-rec" style={{ marginTop: 20 }}>
           <CreditCard size={14} style={{ verticalAlign: -2 }} /> Razorpay checkout is live. Test card:{" "}
           <code>4111 1111 1111 1111</code> · OTP <code>123456</code>. Webhook URL (API):{" "}
-          <code>POST /webhooks/razorpay</code> on your API host (e.g.{" "}
-          <code>http://localhost:8000/webhooks/razorpay</code>).
+          <code>
+            {process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.qship.ishaandev.co.in"}
+            /webhooks/razorpay
+          </code>
+          .
         </p>
       )}
     </div>
