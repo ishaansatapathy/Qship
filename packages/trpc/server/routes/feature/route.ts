@@ -6,16 +6,14 @@ import {
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
-  replaceFeatureTasks,
-  saveFeaturePrd,
   updateFeatureMetadata,
   updateFeatureStatus,
   assertFeatureInUserWorkspace,
-  appendFeatureActivity,
 } from "@repo/services/feature-request";
-import { generateFeaturePrd, generateFeatureTasks, triageFeatureRequest } from "@repo/services/feature-ai";
+import { triageFeatureRequest } from "@repo/services/feature-ai";
+import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration } from "@repo/services/inngest/dispatch";
+import { listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
-import { runFeatureAiReviewWithOptionalPr } from "@repo/services/github/pr-review";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
 import { listAiReviewsForFeature, markFeatureShipped, recordHumanApproval } from "@repo/services/review";
 import { isOpenAiConfigured } from "@repo/services/ai/openai";
@@ -41,7 +39,7 @@ export const featureRouter = router({
       }),
     )
     .query(() => ({
-      statuses: FEATURE_STATUSES,
+      statuses: [...FEATURE_STATUSES],
       coreLoop:
         "Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review → Human Approval → Ship",
     })),
@@ -238,18 +236,19 @@ export const featureRouter = router({
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
-        await updateFeatureStatus(input.id, "prd_generating");
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return dispatchPrdGeneration(input.id, ctx.user.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
 
-        const content = await generateFeaturePrd({
-          title: feature.title,
-          rawRequest: feature.rawRequest,
-        });
-
-        const prd = await saveFeaturePrd(input.id, content);
-        await updateFeatureStatus(input.id, "prd_ready");
-
-        return { featureId: input.id, prd };
+  listWorkflows: protectedProcedure
+    .input(z.object({ featureId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.featureId);
+        return listWorkflowRunsForFeature(input.featureId);
       } catch (error) {
         mapServiceError(error);
       }
@@ -296,24 +295,8 @@ export const featureRouter = router({
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
-        if (!feature.prd?.content) {
-          throw new ServiceError("PRECONDITION_FAILED", "Generate a PRD before creating tasks");
-        }
-        const drafts = await generateFeatureTasks({
-          title: feature.title,
-          rawRequest: feature.rawRequest,
-          prd: feature.prd.content,
-        });
-        const tasks = await replaceFeatureTasks(input.id, drafts);
-        await updateFeatureStatus(input.id, "planning");
-        await appendFeatureActivity(input.id, {
-          kind: "tasks",
-          title: "Engineering tasks generated",
-          detail: `${tasks.length} task(s)`,
-          actor: "agent",
-        });
-        return { featureId: input.id, tasks };
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return dispatchTaskGeneration(input.id, ctx.user.id);
       } catch (error) {
         mapServiceError(error);
       }
@@ -332,9 +315,8 @@ export const featureRouter = router({
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        const { ws, feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
-        const result = await runFeatureAiReviewWithOptionalPr(feature.id, ws.organization.id);
-        return result;
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return dispatchAiReview(input.id, ctx.user.id);
       } catch (error) {
         mapServiceError(error);
       }

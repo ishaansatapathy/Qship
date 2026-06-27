@@ -68,12 +68,18 @@ export const billingRouter = router({
     .input(
       z.object({
         planTier: z.enum(["pro", "enterprise"]),
-        paymentId: z.string().optional(),
+        orderId: z.string().min(1),
+        paymentId: z.string().min(1),
+        signature: z.string().min(1),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        return await confirmRazorpayUpgrade(ctx.user.id, input.planTier as PlanTier, input.paymentId);
+        return await confirmRazorpayUpgrade(ctx.user.id, input.planTier as PlanTier, {
+          orderId: input.orderId,
+          paymentId: input.paymentId,
+          signature: input.signature,
+        });
       } catch (error) {
         mapServiceError(error);
       }

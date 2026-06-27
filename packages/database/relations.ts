@@ -57,7 +57,10 @@ export const featureRequestsRelations = relations(featureRequests, ({ one, many 
     references: [users.id],
   }),
   clarifications: many(clarificationMessages),
-  prd: one(prds),
+  prd: one(prds, {
+    fields: [featureRequests.id],
+    references: [prds.featureRequestId],
+  }),
   tasks: many(engineeringTasks),
   pullRequests: many(pullRequests),
   aiReviews: many(aiReviews),
@@ -89,6 +92,45 @@ export const pullRequestsRelations = relations(pullRequests, ({ one, many }) => 
   aiReviews: many(aiReviews),
 }));
 
+export const prdsRelations = relations(prds, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [prds.featureRequestId],
+    references: [featureRequests.id],
+  }),
+}));
+
+export const clarificationMessagesRelations = relations(clarificationMessages, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [clarificationMessages.featureRequestId],
+    references: [featureRequests.id],
+  }),
+}));
+
+export const engineeringTasksRelations = relations(engineeringTasks, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [engineeringTasks.featureRequestId],
+    references: [featureRequests.id],
+  }),
+}));
+
+export const humanApprovalsRelations = relations(humanApprovals, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [humanApprovals.featureRequestId],
+    references: [featureRequests.id],
+  }),
+  reviewer: one(users, {
+    fields: [humanApprovals.reviewerUserId],
+    references: [users.id],
+  }),
+}));
+
+export const workflowRunsRelations = relations(workflowRuns, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [workflowRuns.featureRequestId],
+    references: [featureRequests.id],
+  }),
+}));
+
 export const aiReviewsRelations = relations(aiReviews, ({ one, many }) => ({
   featureRequest: one(featureRequests, {
     fields: [aiReviews.featureRequestId],
@@ -99,4 +141,11 @@ export const aiReviewsRelations = relations(aiReviews, ({ one, many }) => ({
     references: [pullRequests.id],
   }),
   issues: many(aiReviewIssues),
+}));
+
+export const aiReviewIssuesRelations = relations(aiReviewIssues, ({ one }) => ({
+  aiReview: one(aiReviews, {
+    fields: [aiReviewIssues.aiReviewId],
+    references: [aiReviews.id],
+  }),
 }));

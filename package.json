@@ -8,6 +8,7 @@
     "db:migrate": "dotenv -- turbo db:migrate",
     "db:seed": "dotenv -- turbo db:seed",
     "db:up": "docker compose up -d postgresdb",
+    "inngest:dev": "pnpm dlx inngest-cli@latest dev -u http://localhost:8000/api/inngest",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
