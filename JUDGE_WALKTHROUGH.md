@@ -1,107 +1,116 @@
 # Qship — ShipFlow AI — Judge Walkthrough (~3 minutes)
 
-> **Evaluator?** Start with **[DEMO.md](./DEMO.md)** for the full walkthrough, curl examples, MCP map, and scoring checklist.
+> **Evaluator?** Start with **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** (one-pager) or **[DEMO.md](./DEMO.md)** (full guide + recording path).
 
-| Service | Local | Production (replace when deployed) |
-|---------|-------|----------------------------------|
-| Web app | http://localhost:3000 | `https://your-app.vercel.app` |
-| **Scalar API docs** | http://localhost:8000/docs | `https://your-api.example.com/docs` |
-| OpenAPI JSON | http://localhost:8000/openapi.json | same host `/openapi.json` |
-| MCP server | `POST http://localhost:8000/mcp` | same host `/mcp` |
-| Demo login | http://localhost:3000/api-auth/demo?next=/brief | same path on web host |
+| Service | Local |
+|---------|-------|
+| Web | http://localhost:3000 |
+| **Demo login** | http://localhost:3000/api-auth/demo?next=/brief |
+| **Scalar docs** | http://localhost:8000/docs |
+| OpenAPI JSON | http://localhost:8000/openapi.json |
+| MCP | `POST http://localhost:8000/mcp` |
 
-Full demo script: **`DEMO.md`** · Technical guide: **`DOCS.md`** · Video script: **`docs/DEMO_VIDEO_SCRIPT.md`**
+Full demo script: **`DEMO.md`**
 
 ---
 
-## 1. Scalar docs (30s) — ★ Docs full marks
+## 0. Setup (before judging — 30s)
+
+```bash
+pnpm db:migrate && pnpm db:seed && pnpm dev
+```
+
+`.env`: `DEMO_LOGIN_ENABLED=true`, `OPENAI_API_KEY=sk-...`, `DATABASE_URL=...`
+
+---
+
+## 1. Scalar docs (25s) — ★ Docs
 
 1. Open **http://localhost:8000/docs**
-2. Read the **intro panel** — delivery loop, architecture diagram, demo login table, **14 MCP tools appendix**
-3. Sidebar groups: **Feature Requests**, **GitHub**, **Workspace**, **Agent**, **MCP & Streaming**, **Webhooks**
-4. Expand **Feature Requests → POST /feature/requests** — create a feature with AI triage
-5. Expand **MCP & Streaming → POST /mcp** — JSON-RPC examples + curl code sample
-6. Expand **Health → GET /ready** — readiness probe (CI uses this)
-7. Expand **Webhooks → POST /webhooks/github** — HMAC verification documented
-
-> In dev, Scalar loads automatically. Set `PUBLIC_OPENAPI_DOCS=true` in production.
+2. Intro panel — delivery loop, architecture, **19 MCP tools**
+3. Sidebar groups: **Feature Requests**, **GitHub**, **MCP & Streaming**, **Webhooks**
+4. Expand **Feature Requests → POST /feature/requests** — request example + curl
+5. Expand **Feature Requests → GET /feature/task-board**
+6. Expand **MCP & Streaming → POST /mcp** — JSON-RPC examples + curl
+7. Expand **Health → GET /ready**
 
 ---
 
-## 2. Demo login (15s)
+## 2. Demo login (10s)
 
-1. Ensure seed ran: `pnpm db:seed`
-2. Set `DEMO_LOGIN_ENABLED=true` in `.env`
-3. Open **http://localhost:3000/api-auth/demo?next=/brief**
+**http://localhost:3000/api-auth/demo?next=/brief**
 
-| Field | Value |
-|-------|-------|
 | Email | `demo@qship.dev` |
 | Password | `DemoPass123!` |
 
-Seeded workspace includes **3 sample feature requests** at different pipeline stages.
+---
+
+## 3. Pipeline overview (20s)
+
+1. **`/brief`** — live counts from Postgres
+2. Note **Needs attention** metric
+3. → **`/requests`**
 
 ---
 
-## 3. Pipeline overview (30s)
+## 4. Intake hub (25s) — ★ Multi-channel
 
-1. Open **`/brief`** — pipeline counts (submitted, in delivery, awaiting approval, shipped)
-2. Point at **needs attention** metric
-3. Navigate to **`/requests`** — full feature hub
+1. **`/inbox`**
+2. Email → **Simulate** → **Send to pipeline**
+3. Toast: triage complete · show in Requests
 
-**Scoring signal:** Real DB-backed pipeline, not hardcoded UI.
-
----
-
-## 4. Feature request loop (60s)
-
-1. Open **`/requests`** → select **OAuth login for enterprise customers** (seeded, `prd_ready`)
-2. Show **PRD**, **tasks**, **delivery timeline**, **summary**, **next step**
-3. Click **New request** → submit a short feature → watch **AI triage**
-4. **Generate PRD** → confirm dialog (human-in-the-loop)
-5. Show timeline updating
-
-**Scoring signal:** Core workflow — request → triage → PRD → tasks path.
+**Signal:** Email/support/call intake + webhook-ready (`POST /webhooks/intake`).
 
 ---
 
-## 5. ShipFlow Agent (45s)
+## 5. Feature loop (45s) — ★ Core Workflow
 
-1. Open **`/agent`**
-2. Attach a feature from the picker (focus chip)
-3. Ask: *"What's the pipeline summary? Triage the Slack notification request and suggest next steps."*
-4. Show **streaming**, **action cards**, **session sidebar**
-
-**Scoring signal:** 14 tools, workspace-scoped, SSE streaming, tool memory.
+1. **`/requests`** → **OAuth login…** (seeded, `prd_ready`)
+2. Show PRD, tasks, **delivery timeline**, next step
+3. **Generate PRD with AI** on another request → **confirm dialog** (HITL)
+4. **Open board** → **`/tasks`**
 
 ---
 
-## 6. MCP curl (30s)
+## 6. Kanban (20s)
+
+1. **`/tasks`** — Backlog · To do · In progress · Review · Done
+2. Move a task (e.g. In progress → Review)
+
+**Signal:** PRD → engineering tasks → board · MCP `update_engineering_task_status`.
+
+---
+
+## 7. Agent (40s) — ★ AI Agent
+
+1. **`/agent`** · attach feature (focus chip)
+2. *"Check if CSV export already exists. What's stuck in human review?"*
+3. Streaming + action cards + **19 tools**
+
+---
+
+## 8. Billing (20s) — ★ SaaS
+
+1. **`/billing`** · show plans + credits
+2. **Pay with Razorpay** → Netbanking → Success (test mode)
+
+---
+
+## 9. MCP curl (20s)
 
 ```bash
-# List 14 tools (no auth)
 curl -s -X POST http://localhost:8000/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-
-# Pipeline summary (auth required — session cookie or Bearer MCP key)
-curl -s -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_MCP_KEY" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_pipeline_summary","arguments":{}}}'
 ```
 
-Manifest: **`mcp-server.json`** · CI parity: `packages/services/ai/tool-parity.test.ts`
+**19 tools** · `mcp-server.json` · CI: `tool-parity.test.ts`
 
 ---
 
-## 7. GitHub (optional, 30s)
+## 10. GitHub (optional, 20s)
 
-1. Open **`/settings`**
-2. **Connect GitHub App** → install on org → **Sync repositories**
-3. Scalar: **GET /github/repositories**
-
-**Scoring signal:** Real Octokit integration, org-scoped repos, webhook HMAC.
+**`/settings`** → Connect GitHub App → Sync repos · **Open GitHub PR** on `/requests`
 
 ---
 
@@ -109,25 +118,23 @@ Manifest: **`mcp-server.json`** · CI parity: `packages/services/ai/tool-parity.
 
 | Criterion | Evidence |
 |-----------|----------|
-| **Detailed docs** | Scalar at `/docs` — intro, tag groups, MCP appendix, curl samples |
-| **Core workflow** | `/requests` → triage → PRD → tasks → status |
-| **AI Agent** | `/agent` SSE + 14 tools + feature focus |
-| **MCP** | `POST /mcp` — 14 tools, `mcp-server.json` |
-| **GitHub** | Settings connect + webhook docs |
-| **Human-in-the-loop** | Confirm dialogs on PRD/ship; agent prompt gates sensitive actions |
-| **Production hygiene** | `/health`, `/ready`, BetterAuth, typed tRPC, CI pipeline |
-| **Demo** | One-click login + seeded data + video script |
+| **Detailed docs** | Scalar at `/docs` — tag groups, examples, MCP appendix |
+| **Core workflow** | Intake → triage → PRD → Kanban → review → ship |
+| **MCP** | 19 tools + `mcp-server.json` + CI parity |
+| **AI workflows** | Agent SSE + feature focus + educate-if-exists |
+| **SaaS** | Billing, pipeline overview, multi-tenant workspace |
+| **Production hygiene** | Auth, HITL, webhooks HMAC, OpenAPI from tRPC |
 
 ---
 
-## Hackathon marking alignment
+## Rubric alignment
 
-| Category (max) | Where to look |
-|----------------|---------------|
-| Core Workflow (20) | `/requests`, delivery timeline, status flow |
-| AI Agent (20) | `/agent`, MCP, tool parity test |
-| GitHub (15) | Settings, `/github/*` Scalar routes, webhook |
-| Review & Approval (15) | AI review tool, human_review status, confirm dialogs |
-| tRPC / Engineering (15) | Monorepo, Scalar, CI, types |
-| SaaS UX (10) | Pipeline overview, command palette, demo bar |
-| Demo & Docs (5) | This file + DEMO.md + Scalar + video script |
+| Category (max) | Evidence |
+|----------------|----------|
+| Core Workflow (20) | Intake, Requests, Kanban, status flow |
+| AI Agent (20) | Agent SSE, 19 tools, educate-if-exists, MCP |
+| GitHub (15) | Settings, webhooks, open PR, Scalar routes |
+| Review & Approval (15) | AI review, human_review, confirm dialogs |
+| Engineering (15) | tRPC, Scalar, Neon, 52 tests, monorepo |
+| SaaS UX (10) | Overview, intake, Kanban, billing, Cmd+K |
+| Demo & Docs (5) | HACKATHON_SUBMISSION.md, DEMO.md, this file, Scalar |
