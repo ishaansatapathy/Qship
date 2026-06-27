@@ -8,8 +8,11 @@ const apiInternalUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8000";
 
 const scriptSrc =
   process.env.NODE_ENV === "production"
-    ? "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com"
-    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com";
+    ? "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://checkout.razorpay.com"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://checkout.razorpay.com";
+
+const frameSrc =
+  "frame-src 'self' https://challenges.cloudflare.com https://api.razorpay.com https://checkout.razorpay.com";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -49,7 +52,7 @@ const nextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-src 'self' https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
+              `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; ${frameSrc}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
           },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
