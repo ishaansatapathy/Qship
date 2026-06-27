@@ -404,7 +404,10 @@ function AgentPageContent() {
   const sessionBootstrapping = useRef(false);
 
   const utils = trpc.useUtils();
-  const sessionsQuery = trpc.agent.listSessions.useQuery({ limit: 30 });
+  const sessionsQuery = trpc.agent.listSessions.useQuery(
+    { limit: 30 },
+    { staleTime: 10_000, retry: 1, refetchOnWindowFocus: false },
+  );
   const sessionQuery = trpc.agent.getSession.useQuery(
     { id: activeSessionId! },
     { enabled: Boolean(activeSessionId), staleTime: 0 },
@@ -412,7 +415,7 @@ function AgentPageContent() {
   const createSession = trpc.agent.createSession.useMutation();
   const updateSession = trpc.agent.updateSession.useMutation();
 
-  const status = trpc.agent.status.useQuery({});
+  const status = trpc.agent.status.useQuery({}, { retry: 1, refetchOnWindowFocus: false });
   const approvalDefaults = trpc.settings.getApprovalDefaults.useQuery({}, {
     staleTime: 0,
     refetchOnMount: "always",

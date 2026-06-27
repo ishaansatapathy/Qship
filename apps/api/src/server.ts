@@ -134,13 +134,19 @@ import("@scalar/express-api-reference")
     });
   });
 
-app.use(
-  "/api",
-  createOpenApiExpressMiddleware({
-    router: serverRouter,
-    createContext,
-  }),
-);
+try {
+  app.use(
+    "/api",
+    createOpenApiExpressMiddleware({
+      router: serverRouter,
+      createContext,
+    }),
+  );
+} catch (error) {
+  logger.warn("OpenAPI REST bridge disabled — tRPC still available at /trpc", {
+    message: error instanceof Error ? error.message : String(error),
+  });
+}
 
 app.use(
   "/trpc",

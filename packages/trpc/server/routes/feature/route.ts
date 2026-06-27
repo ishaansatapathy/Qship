@@ -34,11 +34,17 @@ export const featureRouter = router({
       },
     })
     .input(zodUndefinedModel)
+    .output(
+      z.object({
+        statuses: z.array(z.string()),
+        coreLoop: z.string(),
+      }),
+    )
     .query(() => ({
-    statuses: FEATURE_STATUSES,
-    coreLoop:
-      "Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review → Human Approval → Ship",
-  })),
+      statuses: FEATURE_STATUSES,
+      coreLoop:
+        "Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review → Human Approval → Ship",
+    })),
 
   workspace: protectedProcedure
     .meta({
