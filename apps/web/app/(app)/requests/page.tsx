@@ -24,6 +24,7 @@ import { SkeletonList } from "~/components/app/skeleton-list";
 import { StatSkeletonGrid } from "~/components/app/skeleton-panels";
 import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
 import { WorkflowProgress } from "~/components/app/workflow-progress";
+import { QshipConfirmDialog } from "~/components/app/qship-confirm-dialog";
 
 type FeatureRow = RouterOutputs["feature"]["list"][number];
 type FeatureDetail = RouterOutputs["feature"]["get"];
@@ -180,6 +181,13 @@ function FeatureDetailPanel({
   onClose: () => void;
 }) {
   const utils = trpc.useUtils();
+  const [confirm, setConfirm] = useState<{
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+    loading?: boolean;
+  } | null>(null);
   const detail = trpc.feature.get.useQuery({ id: featureId });
   const repos = trpc.github.listRepositories.useQuery({});
 
@@ -353,16 +361,21 @@ function FeatureDetailPanel({
             type="button"
             className="qship-btn-accent"
             disabled={generatePrd.isPending}
-            onClick={() => {
-              if (
-                !window.confirm(
-                  "Generate a PRD with AI? You'll be able to review it on the timeline before moving forward.",
-                )
-              ) {
-                return;
-              }
-              generatePrd.mutate({ id: feature.id });
-            }}
+            onClick={() =>
+              setConfirm({
+                title: "Generate PRD with AI?",
+                description:
+                  "ShipFlow will draft a product requirements document from this request. You can review it on the timeline before moving forward.",
+                confirmLabel: "Generate PRD",
+                onConfirm: () => {
+                  setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
+                  generatePrd.mutate(
+                    { id: feature.id },
+                    { onSettled: () => setConfirm(null) },
+                  );
+                },
+              })
+            }
           >
             {generatePrd.isPending ? (
               <>
@@ -449,10 +462,18 @@ function FeatureDetailPanel({
               type="button"
               className="qship-btn-accent"
               disabled={approve.isPending}
-              onClick={() => {
-                if (!window.confirm("Approve this feature for release?")) return;
-                approve.mutate({ id: feature.id });
-              }}
+              onClick={() =>
+                setConfirm({
+                  title: "Approve for release?",
+                  description:
+                    "This feature passed AI review. Approving moves it to the release queue — you can mark it shipped once deployed.",
+                  confirmLabel: "Approve",
+                  onConfirm: () => {
+                    setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
+                    approve.mutate({ id: feature.id }, { onSettled: () => setConfirm(null) });
+                  },
+                })
+              }
             >
               <CheckCircle2 size={14} /> Approve for ship
             </button>
@@ -472,10 +493,18 @@ function FeatureDetailPanel({
             type="button"
             className="qship-btn-accent"
             disabled={ship.isPending}
-            onClick={() => {
-              if (!window.confirm("Mark this feature as shipped to production?")) return;
-              ship.mutate({ id: feature.id });
-            }}
+            onClick={() =>
+              setConfirm({
+                title: "Mark as shipped?",
+                description:
+                  "This records the feature as live in production and updates pipeline analytics.",
+                confirmLabel: "Mark shipped",
+                onConfirm: () => {
+                  setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
+                  ship.mutate({ id: feature.id }, { onSettled: () => setConfirm(null) });
+                },
+              })
+            }
           >
             <Rocket size={14} /> Mark shipped
           </button>
@@ -500,6 +529,9 @@ function FeatureDetailPanel({
         <section className="qship-req-prd">
           <h3>
             <ListTodo size={14} /> Engineering tasks ({tasks.length})
+            <Link href="/tasks" className="qship-req-board-link">
+              Open board
+            </Link>
           </h3>
           <ul>
             {tasks.map((t) => (
@@ -557,6 +589,16 @@ function FeatureDetailPanel({
           ) : null}
         </section>
       ) : null}
+
+      <QshipConfirmDialog
+        open={Boolean(confirm)}
+        title={confirm?.title ?? ""}
+        description={confirm?.description ?? ""}
+        confirmLabel={confirm?.confirmLabel}
+        loading={confirm?.loading}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => confirm?.onConfirm()}
+      />
     </aside>
   );
 }

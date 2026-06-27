@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Redirect — ShipFlow uses Requests for delivery tracking. */
+/** Redirect legacy calendar route to the engineering Kanban board. */
 export default function CalendarPage() {
-  redirect("/requests");
+  redirect("/tasks");
 }

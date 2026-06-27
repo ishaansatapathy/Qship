@@ -10,6 +10,7 @@ import {
   addClarificationMessage,
   appendFeatureActivity,
   assertFeatureInUserWorkspace,
+  assertTaskInUserWorkspace,
   getFeatureDeliveryView,
   getFeatureRequest,
   getPipelineSummary,
@@ -17,6 +18,7 @@ import {
   listFeatureRequests,
   replaceFeatureTasks,
   saveFeaturePrd,
+  updateEngineeringTaskStatus,
   updateFeatureMetadata,
   updateFeatureStatus,
 } from "./feature-request";
@@ -34,7 +36,7 @@ import {
   listGithubRepositoriesForUser,
   syncGithubInstallationForUser,
 } from "./github/installation";
-import { FEATURE_STATUSES } from "./workflow";
+import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "./workflow";
 
 export type ShipflowToolContext = {
   userId: string;
@@ -223,6 +225,21 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
       type: "object",
       required: ["id"],
       properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "update_engineering_task_status",
+    description: "Move an engineering task on the Kanban board (backlog → todo → in_progress → review → done).",
+    inputSchema: {
+      type: "object",
+      required: ["id", "status"],
+      properties: {
+        id: { type: "string", description: "Engineering task UUID" },
+        status: {
+          type: "string",
+          enum: ["backlog", "todo", "in_progress", "review", "done"],
+        },
+      },
     },
   },
 ];
@@ -652,6 +669,42 @@ export async function executeShipflowTool(
         lines: [delivery.summary, delivery.nextStep],
       });
       return JSON.stringify(delivery);
+    }
+
+    case "update_engineering_task_status": {
+      const id = String(args.id ?? "").trim();
+      const status = String(args.status ?? "").trim();
+      if (!id || !status) return JSON.stringify({ error: "id and status are required" });
+      if (!(ENGINEERING_TASK_STATUSES as readonly string[]).includes(status)) {
+        return JSON.stringify({
+          error: `Invalid status. Allowed: ${ENGINEERING_TASK_STATUSES.join(", ")}`,
+        });
+      }
+      const { task, feature } = await assertTaskInUserWorkspace(userId, id);
+      const row = await updateEngineeringTaskStatus(
+        id,
+        status as (typeof ENGINEERING_TASK_STATUSES)[number],
+      );
+      await appendFeatureActivity(task.featureRequestId, {
+        kind: "tasks",
+        title: `Task → ${status.replace(/_/g, " ")}`,
+        detail: task.title,
+        actor: "agent",
+      });
+      actions.push({
+        kind: "feature_tasks",
+        title: `Task updated: ${task.title}`,
+        detail: status,
+        href: `/tasks`,
+        lines: [`Feature: ${feature.title}`],
+      });
+      return JSON.stringify({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        featureId: task.featureRequestId,
+        featureTitle: feature.title,
+      });
     }
 
     default:

@@ -18,6 +18,7 @@ import {
   Mail,
   Rocket,
   CreditCard,
+  Kanban,
   Inbox,
 } from "lucide-react";
 
@@ -32,6 +33,7 @@ const NAV = [
   { label: "Overview", href: "/brief", icon: Sun },
   { label: "Intake", href: "/inbox", icon: Inbox },
   { label: "Requests", href: "/requests", icon: Rocket },
+  { label: "Tasks", href: "/tasks", icon: Kanban },
   { label: "Agent", href: "/agent", icon: Bot },
   { label: "Analytics", href: "/analytics", icon: BarChart2 },
   { label: "Billing", href: "/billing", icon: CreditCard },
@@ -41,6 +43,7 @@ const PAGE_META: Record<string, { title: string; sub: string }> = {
   "/brief": { title: "Pipeline overview", sub: "Status, focus, and what needs you next" },
   "/inbox": { title: "Intake hub", sub: "Email, support, calls, and in-app feature requests" },
   "/requests": { title: "Feature Requests", sub: "Submit, triage, and ship product work" },
+  "/tasks": { title: "Engineering board", sub: "Kanban view of tasks across all features" },
   "/agent": { title: "ShipFlow Agent", sub: "PRD, tasks, reviews — with human oversight" },
   "/analytics": { title: "Analytics", sub: "Delivery pipeline and agent activity" },
   "/billing": { title: "Billing", sub: "Plans, AI credits, and Razorpay checkout" },

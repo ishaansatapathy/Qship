@@ -16,7 +16,7 @@ export type CapabilityEducation = {
 
 const CAPABILITY_STATUSES = ["shipped", "approved", "prd_ready", "in_development", "pr_open"] as const;
 
-function normalizeTitle(value: string) {
+export function normalizeTitle(value: string) {
   return value
     .trim()
     .toLowerCase()
@@ -25,7 +25,7 @@ function normalizeTitle(value: string) {
     .trim();
 }
 
-function titleSimilarity(a: string, b: string) {
+export function titleSimilarity(a: string, b: string) {
   const na = normalizeTitle(a);
   const nb = normalizeTitle(b);
   if (!na || !nb) return 0;

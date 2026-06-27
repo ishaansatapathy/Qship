@@ -13,7 +13,9 @@ import {
   Keyboard,
   Sun,
   Rocket,
+  Kanban,
   Github,
+  Inbox,
 } from "lucide-react";
 
 type CommandAction = {
@@ -47,6 +49,8 @@ export function QshipCommand({
     return [
       { id: "brief", group: "Navigate", label: "Pipeline overview", icon: Sun, run: go("/brief") },
       { id: "requests", group: "Navigate", label: "Feature requests", icon: Rocket, run: go("/requests") },
+      { id: "tasks", group: "Navigate", label: "Engineering board", icon: Kanban, run: go("/tasks") },
+      { id: "inbox", group: "Navigate", label: "Intake hub", icon: Inbox, run: go("/inbox") },
       { id: "agent", group: "Navigate", label: "ShipFlow Agent", icon: Bot, run: go("/agent") },
       { id: "analytics", group: "Navigate", label: "Analytics", icon: BarChart2, run: go("/analytics") },
       { id: "settings", group: "Navigate", label: "Settings", icon: Settings, run: go("/settings") },
