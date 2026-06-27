@@ -55,7 +55,12 @@ async function bootstrap() {
     expressHandler = app;
     logger.info("Express application loaded");
   } catch (err) {
-    logger.error("Failed to load Express application", { err });
+    logger.error("Failed to load Express application", {
+      err,
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      cause: err instanceof Error ? err.cause : undefined,
+    });
   }
 }
 

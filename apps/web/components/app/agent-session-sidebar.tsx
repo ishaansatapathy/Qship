@@ -40,7 +40,10 @@ export function AgentSessionSidebar({
   disabled,
 }: AgentSessionSidebarProps) {
   const utils = trpc.useUtils();
-  const sessionsQuery = trpc.agent.listSessions.useQuery({ limit: 30 }, { staleTime: 10_000 });
+  const sessionsQuery = trpc.agent.listSessions.useQuery(
+    { limit: 30 },
+    { staleTime: 10_000, retry: 1, refetchOnWindowFocus: false },
+  );
   const deleteSession = trpc.agent.deleteSession.useMutation({
     onSuccess: async () => {
       await utils.agent.listSessions.invalidate();
@@ -69,6 +72,10 @@ export function AgentSessionSidebar({
       <div className="qship-agent-sidebar-list">
         {sessionsQuery.isLoading ? (
           <p className="qship-agent-sidebar-empty">Loading chats…</p>
+        ) : sessionsQuery.isError ? (
+          <p className="qship-agent-sidebar-empty">
+            API unavailable — run <code>pnpm dev</code> and refresh.
+          </p>
         ) : sessions.length === 0 ? (
           <p className="qship-agent-sidebar-empty">No chats yet — start a new conversation.</p>
         ) : (
