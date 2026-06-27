@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import {
   ArrowRight,
   Bot,
@@ -35,6 +35,64 @@ const STATUS_LABELS: Record<string, string> = {
   shipped: "Shipped",
   rejected: "Rejected",
 };
+
+const STATUS_ACCENT: Record<string, string> = {
+  submitted: "#94a3b8",
+  prd_ready: "#38bdf8",
+  human_review: "#fb923c",
+  fix_needed: "#f87171",
+  ai_review: "#a78bfa",
+};
+
+const STATUS_HINT: Record<string, string> = {
+  submitted: "Open & generate PRD",
+  prd_ready: "Review PRD",
+  human_review: "Approve to ship",
+  fix_needed: "Review fixes",
+  ai_review: "View AI review",
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  P0: "#f87171",
+  P1: "#fb923c",
+  P2: "#fbbf24",
+  P3: "#94a3b8",
+};
+
+function getTriage(feature: FeatureRow) {
+  const triage = feature.metadata?.triage as
+    | {
+        priority?: string;
+        category?: string;
+        impactSummary?: string;
+      }
+    | undefined;
+  return triage ?? null;
+}
+
+function dedupeByTitle(rows: FeatureRow[]) {
+  const byTitle = new Map<string, FeatureRow>();
+  for (const row of rows) {
+    const key = row.title.trim().toLowerCase();
+    const existing = byTitle.get(key);
+    if (!existing || new Date(row.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+      byTitle.set(key, row);
+    }
+  }
+  return Array.from(byTitle.values());
+}
+
+function relativeUpdated(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 function greetingForHour() {
   const hour = new Date().getHours();
@@ -77,10 +135,11 @@ export default function BriefPage() {
       "fix_needed",
       "ai_review",
     ]);
-    return rows
-      .filter((row) => attentionStatuses.has(row.status))
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 6);
+    return dedupeByTitle(
+      rows
+        .filter((row) => attentionStatuses.has(row.status))
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    ).slice(0, 5);
   }, [features.data]);
 
   const focus = useMemo(() => {
@@ -177,7 +236,7 @@ export default function BriefPage() {
               <PipelineStat label="In delivery" value={summary.data?.inDelivery ?? 0} accent="#38bdf8" />
               <PipelineStat
                 label="Needs attention"
-                value={summary.data?.needsAttention ?? 0}
+                value={needsAttention.length}
                 accent="#fbbf24"
               />
               <PipelineStat
@@ -236,15 +295,21 @@ export default function BriefPage() {
               </div>
             </section>
 
-            <section className="qship-brief-section">
+            <section className="qship-brief-section qship-brief-section--attention">
               <div className="qship-brief-section-head">
                 <Sparkles size={14} />
                 <h2>Needs attention</h2>
                 {needsAttention.length > 0 ? (
                   <span className="qship-brief-badge">{needsAttention.length}</span>
                 ) : null}
+                {needsAttention.length > 0 ? (
+                  <Link href="/requests" className="qship-brief-section-link">
+                    View all
+                    <ArrowRight size={12} />
+                  </Link>
+                ) : null}
               </div>
-              <div className="qship-brief-section-body">
+              <div className="qship-brief-section-body qship-brief-section-body--attention">
                 {needsAttention.length === 0 ? (
                   <div className="qship-app-empty" style={{ padding: "24px 0" }}>
                     <Rocket size={22} style={{ opacity: 0.35 }} />
@@ -253,25 +318,63 @@ export default function BriefPage() {
                     </p>
                   </div>
                 ) : (
-                  <ul className="qship-req-list">
-                    {needsAttention.map((feature: FeatureRow) => (
-                      <li key={feature.id}>
-                        <Link href="/requests" className="qship-req-row">
-                          <div className="qship-req-row-top">
-                            <span className="qship-req-status-pill">
-                              {STATUS_LABELS[feature.status] ?? feature.status}
+                  <div className="qship-brief-attention-stack">
+                    {needsAttention.map((feature: FeatureRow) => {
+                      const triage = getTriage(feature);
+                      const accent = STATUS_ACCENT[feature.status] ?? "#71717a";
+                      const summary =
+                        triage?.impactSummary?.trim() ||
+                        feature.rawRequest.trim();
+
+                      return (
+                        <Link
+                          key={feature.id}
+                          href={`/requests?id=${encodeURIComponent(feature.id)}`}
+                          className="qship-brief-attention-card"
+                          data-status={feature.status}
+                          style={{ "--attention-accent": accent } as CSSProperties}
+                        >
+                          <div className="qship-brief-attention-card-inner">
+                            <div className="qship-brief-attention-card-head">
+                              <span
+                                className="qship-req-status-pill"
+                                data-accent={feature.status}
+                              >
+                                {STATUS_LABELS[feature.status] ?? feature.status}
+                              </span>
+                              {triage?.priority ? (
+                                <span
+                                  className="qship-brief-attention-priority"
+                                  style={{
+                                    color: PRIORITY_COLORS[triage.priority] ?? "#fafafa",
+                                  }}
+                                >
+                                  {triage.priority}
+                                </span>
+                              ) : null}
+                              {triage?.category ? (
+                                <span className="qship-brief-attention-category">
+                                  {triage.category}
+                                </span>
+                              ) : null}
+                              <span className="qship-brief-attention-time">
+                                {relativeUpdated(feature.updatedAt)}
+                              </span>
+                            </div>
+                            <h3 className="qship-brief-attention-title">{feature.title}</h3>
+                            <p className="qship-brief-attention-desc">
+                              {summary.slice(0, 140)}
+                              {summary.length > 140 ? "…" : ""}
+                            </p>
+                            <span className="qship-brief-attention-cta">
+                              {STATUS_HINT[feature.status] ?? "Open request"}
+                              <ArrowRight size={13} />
                             </span>
                           </div>
-                          <strong>{feature.title}</strong>
-                          <p>{feature.rawRequest.slice(0, 120)}{feature.rawRequest.length > 120 ? "…" : ""}</p>
-                          <span className="qship-req-row-meta">
-                            Updated {new Date(feature.updatedAt).toLocaleDateString()}
-                            <ArrowRight size={13} />
-                          </span>
                         </Link>
-                      </li>
-                    ))}
-                  </ul>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </section>

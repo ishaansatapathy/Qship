@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -530,12 +531,26 @@ function FeatureDetailPanel({
 }
 
 export default function RequestsPage() {
+  return (
+    <Suspense fallback={null}>
+      <RequestsPageContent />
+    </Suspense>
+  );
+}
+
+function RequestsPageContent() {
+  const searchParams = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const workspace = trpc.feature.workspace.useQuery({});
   const summary = trpc.feature.pipelineSummary.useQuery({});
   const features = trpc.feature.list.useQuery({});
+
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (id) setSelectedId(id);
+  }, [searchParams]);
 
   const sorted = useMemo(() => {
     const rows = features.data ?? [];
