@@ -1,6 +1,7 @@
 # Qship — ShipFlow AI
 
-> **Judge / Evaluator?** → **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** (one-pager + rubric) · **[DEMO.md](./DEMO.md)** (full walkthrough) · **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** (3-min timed path)
+> **Judge / Evaluator?** → **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** · **[DEMO.md](./DEMO.md)** · **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**  
+> **Deploy:** **[DEPLOY.md](./DEPLOY.md)** — `qship.ishaandev.co.in` + `api.qship.ishaandev.co.in`
 
 AI-assisted **product delivery platform** — move features from **request → PRD → tasks → code → AI review → human approval → ship**.
 
@@ -17,7 +18,9 @@ Built for the **ChaiCode hackathon** as a production-style **tRPC monorepo SaaS*
 | 1 | `pnpm db:migrate && pnpm db:seed` |
 | 2 | Set `DEMO_LOGIN_ENABLED=true` in `.env` |
 | 3 | Open **http://localhost:3000/api-auth/demo?next=/brief** |
-| 4 | Scalar docs: **http://localhost:8000/docs** |
+| 4 | Scalar docs: **http://localhost:8000/docs** (prod: **https://api.qship.ishaandev.co.in/docs**) |
+
+Production deploy: **[DEPLOY.md](./DEPLOY.md)**
 
 | Field | Value |
 |-------|-------|
