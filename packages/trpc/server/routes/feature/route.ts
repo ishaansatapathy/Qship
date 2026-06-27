@@ -1,22 +1,20 @@
 import { z, zodUndefinedModel } from "../../schema";
 import {
-  createFeatureRequest,
   getFeatureRequest,
   getFeatureDeliveryView,
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
-  updateFeatureMetadata,
   updateFeatureStatus,
   assertFeatureInUserWorkspace,
 } from "@repo/services/feature-request";
-import { triageFeatureRequest } from "@repo/services/feature-ai";
+import { ingestFeatureRequest, getIntakeSummary } from "@repo/services/feature-intake";
+import { checkExistingCapability } from "@repo/services/feature-education";
 import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration } from "@repo/services/inngest/dispatch";
 import { listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
 import { listAiReviewsForFeature, markFeatureShipped, recordHumanApproval } from "@repo/services/review";
-import { isOpenAiConfigured } from "@repo/services/ai/openai";
 import { ServiceError } from "@repo/services/errors";
 import { FEATURE_STATUSES } from "@repo/services/workflow";
 import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
@@ -100,6 +98,36 @@ export const featureRouter = router({
       mapServiceError(error);
     }
   }),
+
+  intakeSummary: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/intake-summary",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Counts of feature requests by intake channel",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(async ({ ctx }) => {
+      try {
+        const ws = await getWorkspaceProjectForUser(ctx.user.id);
+        if (!ws) {
+          return {
+            total: 0,
+            manual: 0,
+            email: 0,
+            support_ticket: 0,
+            customer_call: 0,
+            api: 0,
+          };
+        }
+        return getIntakeSummary(ws.project.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
 
   list: protectedProcedure
     .meta({
@@ -200,24 +228,67 @@ export const featureRouter = router({
           throw new ServiceError("FORBIDDEN", "Cannot create requests in another project");
         }
 
-        const row = await createFeatureRequest({
+        const result = await ingestFeatureRequest({
           organizationId: ws.organization.id,
           projectId: ws.project.id,
           title: input.title,
           rawRequest: input.rawRequest,
           createdByUserId: ctx.user.id,
           source: input.source,
+          runTriage: input.runTriage,
         });
 
-        const shouldTriage = input.runTriage !== false && isOpenAiConfigured();
-        if (!shouldTriage) return row;
+        return result.feature;
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
 
-        const triage = await triageFeatureRequest({
-          title: row.title,
-          rawRequest: row.rawRequest,
+  intakeFromChannel: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/intake",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Intake a feature from email, support ticket, or customer call",
+      },
+    })
+    .input(
+      z.object({
+        source: z.enum(["email", "support_ticket", "customer_call"]),
+        title: z.string().min(3),
+        rawRequest: z.string().min(10),
+        externalId: z.string().optional(),
+        channelMeta: z.record(z.string(), z.unknown()).optional(),
+        runTriage: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const ws = await getWorkspaceProjectForUser(ctx.user.id);
+        if (!ws) {
+          throw new ServiceError("FORBIDDEN", "Join a workspace before submitting requests");
+        }
+
+        const result = await ingestFeatureRequest({
+          organizationId: ws.organization.id,
+          projectId: ws.project.id,
+          title: input.title,
+          rawRequest: input.rawRequest,
+          createdByUserId: ctx.user.id,
+          source: input.source,
+          externalId: input.externalId,
+          channelMeta: input.channelMeta,
+          runTriage: input.runTriage,
         });
 
-        return updateFeatureMetadata(row.id, { triage });
+        return {
+          feature: result.feature,
+          educated: result.educated,
+          education: result.education,
+          triage: result.triage,
+        };
       } catch (error) {
         mapServiceError(error);
       }

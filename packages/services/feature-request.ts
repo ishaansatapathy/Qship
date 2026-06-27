@@ -134,6 +134,7 @@ export async function saveFeaturePrd(featureRequestId: string, content: PrdConte
 
 const ATTENTION_STATUSES = new Set([
   "clarifying",
+  "duplicate_education",
   "fix_needed",
   "human_review",
   "submitted",
@@ -256,6 +257,7 @@ export async function replaceFeatureTasks(
 export type FeatureActivityKind =
   | "submitted"
   | "triage"
+  | "education"
   | "prd"
   | "tasks"
   | "ai_review"
@@ -301,6 +303,7 @@ export async function appendFeatureActivity(
 const STATUS_LABELS: Record<string, string> = {
   submitted: "Submitted",
   clarifying: "Clarifying",
+  duplicate_education: "Already exists",
   prd_generating: "Generating PRD",
   prd_ready: "PRD ready",
   planning: "Planning",
@@ -320,6 +323,8 @@ function nextStepForStatus(status: string, hasPrd: boolean, taskCount: number): 
       return "Run AI triage or generate a PRD.";
     case "clarifying":
       return "Answer clarifying questions, then generate the PRD.";
+    case "duplicate_education":
+      return "Review the existing feature — proceed only if this is genuinely new scope.";
     case "prd_ready":
       return "Break the PRD into engineering tasks.";
     case "planning":

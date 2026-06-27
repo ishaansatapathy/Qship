@@ -65,6 +65,16 @@ export function QshipCommand({
     return actions.filter((a) => a.label.toLowerCase().includes(q) || a.group.toLowerCase().includes(q));
   }, [actions, query]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, CommandAction[]>();
+    for (const action of filtered) {
+      const list = map.get(action.group) ?? [];
+      list.push(action);
+      map.set(action.group, list);
+    }
+    return map;
+  }, [filtered]);
+
   useEffect(() => {
     if (open) {
       setQuery("");
@@ -104,41 +114,50 @@ export function QshipCommand({
 
   if (!open) return null;
 
+  let flatIndex = -1;
+
   return (
-    <div className="qship-cmd-backdrop" onClick={onClose} role="presentation">
-      <div className="qship-cmd" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command palette">
-        <div className="qship-cmd-input-wrap">
-          <Search size={15} />
+    <div className="qship-cmdk-overlay" onClick={onClose} role="presentation">
+      <div className="qship-cmdk" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command palette">
+        <div className="qship-cmdk-input">
+          <Search size={15} style={{ color: "var(--qship-dim)", flexShrink: 0 }} />
           <input
             ref={inputRef}
-            className="qship-cmd-input"
             placeholder="Search commands…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <kbd className="qship-app-kbd">esc</kbd>
         </div>
-        <ul className="qship-cmd-list">
-          {filtered.map((action, i) => (
-            <li key={action.id}>
-              <button
-                type="button"
-                className="qship-cmd-item"
-                data-active={i === active}
-                onMouseEnter={() => setActive(i)}
-                onClick={action.run}
-              >
-                <action.icon size={15} />
-                <span className="qship-cmd-label">{action.label}</span>
-                {action.hint ? <span className="qship-cmd-hint">{action.hint}</span> : null}
-                {i === active ? <CornerDownLeft size={13} className="qship-cmd-enter" /> : null}
-              </button>
-            </li>
+        <div className="qship-cmdk-list">
+          {Array.from(grouped.entries()).map(([group, items]) => (
+            <div key={group}>
+              <div className="qship-cmdk-group">{group}</div>
+              {items.map((action) => {
+                flatIndex += 1;
+                const i = flatIndex;
+                return (
+                  <button
+                    key={action.id}
+                    type="button"
+                    className="qship-cmdk-item"
+                    data-active={i === active}
+                    onMouseEnter={() => setActive(i)}
+                    onClick={action.run}
+                  >
+                    <action.icon size={15} />
+                    <span style={{ flex: 1 }}>{action.label}</span>
+                    {action.hint ? <span className="qship-cmdk-item-hint">{action.hint}</span> : null}
+                    {i === active ? <CornerDownLeft size={13} style={{ opacity: 0.5 }} /> : null}
+                  </button>
+                );
+              })}
+            </div>
           ))}
           {filtered.length === 0 ? (
-            <li className="qship-cmd-empty">No matching commands</li>
+            <div className="qship-cmdk-empty">No matching commands</div>
           ) : null}
-        </ul>
+        </div>
       </div>
     </div>
   );

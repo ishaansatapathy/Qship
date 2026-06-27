@@ -5,6 +5,7 @@ import { Bot, Clock3, Loader2, Sparkles, User } from "lucide-react";
 
 import { trpc } from "~/trpc/client";
 import { SkeletonList } from "~/components/app/skeleton-list";
+import { DeliveryPanelCompactSkeleton } from "~/components/app/skeleton-panels";
 
 function actorLabel(actor: string) {
   if (actor === "agent") return "Agent";
@@ -30,7 +31,7 @@ export function FeatureDeliveryPanel({
   const delivery = trpc.feature.delivery.useQuery({ id: featureId }, { staleTime: 15_000 });
 
   if (delivery.isLoading) {
-    return compact ? null : <SkeletonList count={3} />;
+    return compact ? <DeliveryPanelCompactSkeleton /> : <SkeletonList count={3} />;
   }
 
   if (!delivery.data) return null;
