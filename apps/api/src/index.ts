@@ -1,4 +1,9 @@
 import http from "node:http";
+import path from "node:path";
+import dotenv from "dotenv";
+
+// Always load monorepo root .env (even if dev was started without dotenv-cli).
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const PORT = Number(process.env.PORT ?? 8000);
 
@@ -53,7 +58,13 @@ async function bootstrap() {
   try {
     const { app } = await import("./server");
     expressHandler = app;
-    logger.info("Express application loaded");
+    const { isOpenAiConfigured } = await import("@repo/services/ai/openai");
+    logger.info("Express application loaded", {
+      openaiConfigured: isOpenAiConfigured(),
+    });
+    if (!isOpenAiConfigured()) {
+      logger.warn("OPENAI_API_KEY is not set — ShipFlow Agent will be disabled until you add it to .env and restart");
+    }
   } catch (err) {
     logger.error("Failed to load Express application", {
       err,
