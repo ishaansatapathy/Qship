@@ -254,6 +254,63 @@ export async function replaceFeatureTasks(
   return rows;
 }
 
+export async function listTaskBoard(projectId: string) {
+  const features = await db.query.featureRequests.findMany({
+    where: eq(featureRequests.projectId, projectId),
+    orderBy: [desc(featureRequests.updatedAt)],
+    with: {
+      tasks: {
+        orderBy: (task, { asc }) => [asc(task.sortOrder), asc(task.createdAt)],
+      },
+    },
+  });
+
+  return features.flatMap((feature) =>
+    (feature.tasks ?? []).map((task) => ({
+      id: task.id,
+      featureId: feature.id,
+      featureTitle: feature.title,
+      featureStatus: feature.status,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      sortOrder: task.sortOrder,
+      updatedAt: task.updatedAt,
+    })),
+  );
+}
+
+export async function assertTaskInUserWorkspace(userId: string, taskId: string) {
+  const ws = await getWorkspaceProjectForUser(userId);
+  if (!ws) {
+    throw new ServiceError("FORBIDDEN", "Join a workspace before accessing tasks");
+  }
+
+  const task = await db.query.engineeringTasks.findFirst({
+    where: eq(engineeringTasks.id, taskId),
+    with: { featureRequest: true },
+  });
+  if (!task) throw new ServiceError("NOT_FOUND", "Engineering task not found");
+  if (task.featureRequest.projectId !== ws.project.id) {
+    throw new ServiceError("FORBIDDEN", "Task is not in your workspace");
+  }
+
+  return { ws, task, feature: task.featureRequest };
+}
+
+export async function updateEngineeringTaskStatus(
+  taskId: string,
+  status: "backlog" | "todo" | "in_progress" | "review" | "done",
+) {
+  const [row] = await db
+    .update(engineeringTasks)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(engineeringTasks.id, taskId))
+    .returning();
+  if (!row) throw new ServiceError("NOT_FOUND", "Engineering task not found");
+  return row;
+}
+
 export type FeatureActivityKind =
   | "submitted"
   | "triage"

@@ -19,6 +19,16 @@ export const FEATURE_STATUSES = [
 
 export type FeatureStatus = (typeof FEATURE_STATUSES)[number];
 
+export const ENGINEERING_TASK_STATUSES = [
+  "backlog",
+  "todo",
+  "in_progress",
+  "review",
+  "done",
+] as const;
+
+export type EngineeringTaskStatus = (typeof ENGINEERING_TASK_STATUSES)[number];
+
 /** Core loop phases for UI and agents */
 export const SHIPFLOW_PHASES = {
   discovery: ["submitted", "clarifying", "duplicate_education", "rejected", "prd_generating", "prd_ready"],

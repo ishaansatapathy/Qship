@@ -21,4 +21,21 @@ test.describe("ShipFlow demo journey", () => {
     await demoLogin(page, "/agent");
     await expect(page.getByText(/ShipFlow Agent/i)).toBeVisible();
   });
+
+  test("intake hub simulates email channel intake", async ({ page }) => {
+    await demoLogin(page, "/inbox");
+    await expect(page.getByRole("heading", { name: /intake hub/i })).toBeVisible();
+    await page.getByRole("button", { name: "Simulate" }).first().click();
+    await page.getByRole("button", { name: /send to pipeline/i }).click();
+    await expect(page.getByText(/intake received|existing capability detected/i)).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
+  test("engineering board shows kanban columns and seeded tasks", async ({ page }) => {
+    await demoLogin(page, "/tasks");
+    await expect(page.getByRole("heading", { name: /engineering board/i })).toBeVisible();
+    await expect(page.getByTestId("kanban-column-in_progress")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/add oauth provider config/i)).toBeVisible({ timeout: 15_000 });
+  });
 });

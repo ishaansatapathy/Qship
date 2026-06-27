@@ -1,7 +1,7 @@
 {
   "$schema": "https://modelcontextprotocol.io/schemas/mcp-server.json",
   "name": "shipflow-mcp",
-  "description": "ShipFlow MCP — 18 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration.",
+  "description": "ShipFlow MCP — 19 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration.",
   "version": "1.0.0",
   "transport": {
     "type": "http",
@@ -87,6 +87,10 @@
     {
       "name": "get_feature_delivery",
       "description": "Delivery timeline, summary, and recommended next step for a feature."
+    },
+    {
+      "name": "update_engineering_task_status",
+      "description": "Move an engineering task on the Kanban board (backlog → done)."
     }
   ]
 }

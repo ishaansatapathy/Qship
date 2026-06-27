@@ -5,8 +5,12 @@ import {
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
+  listTaskBoard,
   updateFeatureStatus,
   assertFeatureInUserWorkspace,
+  assertTaskInUserWorkspace,
+  updateEngineeringTaskStatus,
+  appendFeatureActivity,
 } from "@repo/services/feature-request";
 import { ingestFeatureRequest, getIntakeSummary } from "@repo/services/feature-intake";
 import { checkExistingCapability } from "@repo/services/feature-education";
@@ -16,7 +20,7 @@ import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
 import { listAiReviewsForFeature, markFeatureShipped, recordHumanApproval } from "@repo/services/review";
 import { ServiceError } from "@repo/services/errors";
-import { FEATURE_STATUSES } from "@repo/services/workflow";
+import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "@repo/services/workflow";
 import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 export const featureRouter = router({
@@ -471,6 +475,77 @@ export const featureRouter = router({
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return listAiReviewsForFeature(input.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  taskBoard: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/task-board",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "All engineering tasks in the workspace for Kanban board",
+      },
+    })
+    .input(zodUndefinedModel)
+    .output(
+      z.object({
+        tasks: z.array(
+          z.object({
+            id: z.string(),
+            featureId: z.string(),
+            featureTitle: z.string(),
+            featureStatus: z.string(),
+            title: z.string(),
+            description: z.string(),
+            status: z.enum(ENGINEERING_TASK_STATUSES),
+            sortOrder: z.number(),
+            updatedAt: z.date(),
+          }),
+        ),
+      }),
+    )
+    .query(async ({ ctx }) => {
+      try {
+        const ws = await getWorkspaceProjectForUser(ctx.user.id);
+        if (!ws) return { tasks: [] };
+        const tasks = await listTaskBoard(ws.project.id);
+        return { tasks };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  updateTaskStatus: protectedProcedure
+    .meta({
+      openapi: {
+        method: "PATCH",
+        path: "/feature/tasks/{id}/status",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Move an engineering task to a new Kanban column",
+      },
+    })
+    .input(
+      z.object({
+        id: z.string().min(1),
+        status: z.enum(ENGINEERING_TASK_STATUSES),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { task } = await assertTaskInUserWorkspace(ctx.user.id, input.id);
+        const row = await updateEngineeringTaskStatus(input.id, input.status);
+        await appendFeatureActivity(task.featureRequestId, {
+          kind: "tasks",
+          title: `Task → ${input.status.replace(/_/g, " ")}`,
+          detail: task.title,
+          actor: "user",
+        });
+        return row;
       } catch (error) {
         mapServiceError(error);
       }
