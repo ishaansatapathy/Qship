@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "dotenv -e ../../.env -- tsx watch --include ../../packages/trpc/** ./src/index.ts",
-    "build": "tsup",
+    "build": "tsup && node scripts/vercel-postbuild.mjs",
     "lint": "eslint src --max-warnings 0",
     "check-types": "tsc --noEmit"
   },

@@ -8,17 +8,16 @@
 
 ## Quick Links
 
-| What | Where |
-|------|-------|
-| Web app (local) | http://localhost:3000 |
-| **Demo login** | http://localhost:3000/api-auth/demo?next=/brief |
-| **Scalar API docs** | http://localhost:8000/docs |
-| OpenAPI JSON | http://localhost:8000/openapi.json |
-| MCP server | `POST http://localhost:8000/mcp` |
-| Intake webhook | `POST /webhooks/intake` |
-| GitHub repo | https://github.com/ishaansatapathy/Qship |
+| What | Local | Production |
+|------|-------|--------------|
+| Web app | http://localhost:3000 | https://qship.ishaandev.co.in |
+| **Demo login** | http://localhost:3000/api-auth/demo?next=/brief | https://qship.ishaandev.co.in/api-auth/demo?next=/brief |
+| **Scalar API docs** | http://localhost:8000/docs | https://api.qship.ishaandev.co.in/docs |
+| OpenAPI JSON | http://localhost:8000/openapi.json | https://api.qship.ishaandev.co.in/openapi.json |
+| MCP server | `POST http://localhost:8000/mcp` | `POST https://api.qship.ishaandev.co.in/mcp` |
+| GitHub repo | https://github.com/ishaansatapathy/Qship | — |
 
-> Replace localhost URLs with production hosts when deployed (Vercel + API host).
+Deploy: **[DEPLOY.md](./DEPLOY.md)**
 
 ---
 
