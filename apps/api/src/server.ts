@@ -14,6 +14,7 @@ ensureShipflowAgentServices();
 
 import { env } from "./env";
 import { handleGithubWebhook } from "./github-webhook";
+import { handleIntakeWebhook } from "./routes/intake-webhook";
 import { handleRazorpayWebhook } from "@repo/services/billing/webhook";
 import { mcpRouter } from "./routes/mcp";
 import { agentStreamRouter } from "./routes/agent-stream";
@@ -57,6 +58,13 @@ app.post(
 );
 
 app.use(express.json({ limit: "256kb" }));
+
+app.post(
+  "/webhooks/intake",
+  (req, res) => {
+    void handleIntakeWebhook(req, res);
+  },
+);
 
 app.get("/", (_req, res) => {
   return res.json({ message: "API is running" });

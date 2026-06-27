@@ -1,7 +1,7 @@
 {
   "$schema": "https://modelcontextprotocol.io/schemas/mcp-server.json",
   "name": "shipflow-mcp",
-  "description": "ShipFlow MCP — 14 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration.",
+  "description": "ShipFlow MCP — 18 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration.",
   "version": "1.0.0",
   "transport": {
     "type": "http",
@@ -71,6 +71,22 @@
     {
       "name": "list_github_repositories",
       "description": "List GitHub repositories linked after GitHub App installation."
+    },
+    {
+      "name": "check_existing_capability",
+      "description": "Check if a capability already exists before building — returns education message if duplicate."
+    },
+    {
+      "name": "intake_from_channel",
+      "description": "Intake a feature from email, support ticket, customer call, or external API."
+    },
+    {
+      "name": "list_ai_reviews",
+      "description": "List AI QA review iterations with blocking and non-blocking issues."
+    },
+    {
+      "name": "get_feature_delivery",
+      "description": "Delivery timeline, summary, and recommended next step for a feature."
     }
   ]
 }

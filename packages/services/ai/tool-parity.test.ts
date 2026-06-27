@@ -9,7 +9,7 @@ describe("agent ↔ MCP tool parity", () => {
     const agentNames = AGENT_TOOLS.map((tool) => tool.function.name).sort();
 
     expect(agentNames).toEqual(mcpNames);
-    expect(agentNames.length).toBeGreaterThanOrEqual(14);
+    expect(agentNames.length).toBeGreaterThanOrEqual(18);
   });
 
   it("agent tools are ShipFlow-only (no legacy Gmail/calendar tools)", () => {

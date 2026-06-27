@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -20,6 +21,7 @@ import {
 import type { RouterOutputs } from "@repo/trpc/client";
 import { trpc } from "~/trpc/client";
 import { SkeletonList } from "~/components/app/skeleton-list";
+import { StatSkeletonGrid } from "~/components/app/skeleton-panels";
 import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
 import { WorkflowProgress } from "~/components/app/workflow-progress";
 
@@ -29,6 +31,7 @@ type FeatureDetail = RouterOutputs["feature"]["get"];
 const STATUS_LABELS: Record<string, string> = {
   submitted: "Submitted",
   clarifying: "Clarifying",
+  duplicate_education: "Already exists",
   prd_generating: "Generating PRD",
   prd_ready: "PRD ready",
   planning: "Planning",
@@ -271,6 +274,14 @@ function FeatureDetailPanel({
   const linkedPr = feature.pullRequests?.[0];
   const latestReview = feature.aiReviews?.[0];
   const firstRepo = repos.data?.[0];
+  const education = feature.metadata?.education as
+    | {
+        educationMessage?: string;
+        existingCapabilitySummary?: string;
+        matchedFeatureId?: string;
+        matchedFeatureTitle?: string;
+      }
+    | undefined;
 
   return (
     <aside className="qship-req-detail">
@@ -278,11 +289,31 @@ function FeatureDetailPanel({
         <button type="button" className="qship-app-iconbtn" onClick={onClose} aria-label="Close panel">
           <X size={16} />
         </button>
-        <span className="qship-req-status-pill">{STATUS_LABELS[feature.status] ?? feature.status}</span>
+        <span className="qship-req-status-pill" data-accent={feature.status}>
+          {STATUS_LABELS[feature.status] ?? feature.status}
+        </span>
       </div>
 
       <h2 className="qship-req-detail-title">{feature.title}</h2>
       <p className="qship-req-detail-body">{feature.rawRequest}</p>
+
+      {feature.status === "duplicate_education" && education ? (
+        <section className="qship-req-triage" style={{ borderColor: "rgba(251, 191, 36, 0.35)" }}>
+          <h3>
+            <Sparkles size={14} /> Capability already exists
+          </h3>
+          <p>{education.educationMessage}</p>
+          {education.existingCapabilitySummary ? (
+            <p className="qship-req-rec">{education.existingCapabilitySummary}</p>
+          ) : null}
+          {education.matchedFeatureId ? (
+            <Link href={`/requests?id=${education.matchedFeatureId}`} className="qship-btn-ghost" style={{ marginTop: 8, display: "inline-flex" }}>
+              View existing: {education.matchedFeatureTitle ?? "Open feature"}
+              <ArrowRight size={13} />
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
 
       <FeatureDeliveryPanel featureId={feature.id} />
 
@@ -532,7 +563,7 @@ function FeatureDetailPanel({
 
 export default function RequestsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<SkeletonList count={5} />}>
       <RequestsPageContent />
     </Suspense>
   );
@@ -581,17 +612,21 @@ function RequestsPageContent() {
           </button>
         </header>
 
-        <div className="qship-req-stats">
-          <PipelineStat label="Total" value={summary.data?.total ?? 0} />
-          <PipelineStat label="In delivery" value={summary.data?.inDelivery ?? 0} accent="#38bdf8" />
-          <PipelineStat
-            label="Needs attention"
-            value={summary.data?.needsAttention ?? 0}
-            accent="#fbbf24"
-          />
-          <PipelineStat label="Awaiting approval" value={summary.data?.awaitingApproval ?? 0} accent="#fb923c" />
-          <PipelineStat label="Shipped" value={summary.data?.shipped ?? 0} accent="#34d399" />
-        </div>
+        {summary.isLoading ? (
+          <StatSkeletonGrid />
+        ) : (
+          <div className="qship-req-stats qship-content-reveal">
+            <PipelineStat label="Total" value={summary.data?.total ?? 0} />
+            <PipelineStat label="In delivery" value={summary.data?.inDelivery ?? 0} accent="#38bdf8" />
+            <PipelineStat
+              label="Needs attention"
+              value={summary.data?.needsAttention ?? 0}
+              accent="#fbbf24"
+            />
+            <PipelineStat label="Awaiting approval" value={summary.data?.awaitingApproval ?? 0} accent="#fb923c" />
+            <PipelineStat label="Shipped" value={summary.data?.shipped ?? 0} accent="#34d399" />
+          </div>
+        )}
 
         {features.isLoading ? (
           <SkeletonList count={5} />

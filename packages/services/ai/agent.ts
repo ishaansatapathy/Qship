@@ -31,6 +31,7 @@ export type AgentActionCard = {
     | "email"
     | "feature_list"
     | "feature_created"
+    | "feature_education"
     | "feature_detail"
     | "feature_tasks"
     | "ai_review"

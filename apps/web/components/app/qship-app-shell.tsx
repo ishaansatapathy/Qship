@@ -15,8 +15,10 @@ import {
   Menu,
   X,
   Sun,
+  Mail,
   Rocket,
   CreditCard,
+  Inbox,
 } from "lucide-react";
 
 import { QshipWordmark, QshipLogoMark } from "~/components/qship/qship-logo";
@@ -28,6 +30,7 @@ import { DemoBar } from "./demo-bar";
 
 const NAV = [
   { label: "Overview", href: "/brief", icon: Sun },
+  { label: "Intake", href: "/inbox", icon: Inbox },
   { label: "Requests", href: "/requests", icon: Rocket },
   { label: "Agent", href: "/agent", icon: Bot },
   { label: "Analytics", href: "/analytics", icon: BarChart2 },
@@ -36,6 +39,7 @@ const NAV = [
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {
   "/brief": { title: "Pipeline overview", sub: "Status, focus, and what needs you next" },
+  "/inbox": { title: "Intake hub", sub: "Email, support, calls, and in-app feature requests" },
   "/requests": { title: "Feature Requests", sub: "Submit, triage, and ship product work" },
   "/agent": { title: "ShipFlow Agent", sub: "PRD, tasks, reviews — with human oversight" },
   "/analytics": { title: "Analytics", sub: "Delivery pipeline and agent activity" },
@@ -129,7 +133,39 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
     </>
   );
 
-  if (isLoading || isError || !user) {
+  if (isLoading) {
+    return (
+      <div className="qship-page qship-app">
+        <aside className="qship-app-side">
+          <div className="qship-app-side-head">
+            <Link href="/requests" className="qship-app-side-brand">
+              <QshipLogoMark size={24} />
+              <QshipWordmark size="sm" />
+            </Link>
+          </div>
+          <nav className="qship-app-nav">
+            <span className="qship-app-nav-label">Workspace</span>
+            {NAV.map((item) => (
+              <span key={item.href} className="qship-app-nav-item qship-app-nav-item--skeleton">
+                <item.icon size={16} />
+                {item.label}
+              </span>
+            ))}
+          </nav>
+        </aside>
+        <div className="qship-app-main">
+          <header className="qship-app-topbar">
+            <span className="qship-app-title">Loading…</span>
+          </header>
+          <main className="qship-app-content">
+            <div className="qship-app-loading-bar" aria-hidden />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !user) {
     return (
       <div className="qship-page qship-app-splash">
         <div className="qship-app-spinner" aria-label="Loading" />

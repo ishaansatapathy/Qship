@@ -10,7 +10,7 @@ import {
   addClarificationMessage,
   appendFeatureActivity,
   assertFeatureInUserWorkspace,
-  createFeatureRequest,
+  getFeatureDeliveryView,
   getFeatureRequest,
   getPipelineSummary,
   getWorkspaceProjectForUser,
@@ -25,7 +25,10 @@ import {
   generateFeatureTasks,
   triageFeatureRequest,
 } from "./feature-ai";
+import { checkExistingCapability } from "./feature-education";
+import { ingestFeatureRequest, type FeatureSource } from "./feature-intake";
 import { runFeatureAiReviewWithOptionalPr } from "./github/pr-review";
+import { listAiReviewsForFeature } from "./review";
 import {
   getGithubConnectionForUser,
   listGithubRepositoriesForUser,
@@ -71,7 +74,8 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "create_feature_request",
-    description: "Submit a new employee feature request to the delivery pipeline.",
+    description:
+      "Submit a new employee feature request. Runs duplicate/capability check — may educate if feature already exists — then AI triage.",
     inputSchema: {
       type: "object",
       required: ["title", "rawRequest"],
@@ -169,6 +173,57 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
     name: "list_github_repositories",
     description: "List GitHub repositories linked to the workspace after GitHub App install.",
     inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "check_existing_capability",
+    description:
+      "Check if a requested capability already exists in the workspace before building. Returns education message and matched feature if duplicate.",
+    inputSchema: {
+      type: "object",
+      required: ["title", "rawRequest"],
+      properties: {
+        title: { type: "string" },
+        rawRequest: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "intake_from_channel",
+    description:
+      "Intake a feature request from email, support ticket, customer call, or external API channel.",
+    inputSchema: {
+      type: "object",
+      required: ["title", "rawRequest", "source"],
+      properties: {
+        title: { type: "string" },
+        rawRequest: { type: "string" },
+        source: {
+          type: "string",
+          enum: ["email", "support_ticket", "customer_call", "api"],
+        },
+        externalId: { type: "string", description: "External message/ticket ID for dedupe" },
+        channelMeta: { type: "object", description: "Raw channel metadata (from, subject, etc.)" },
+        runTriage: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "list_ai_reviews",
+    description: "List AI QA review iterations for a feature request with blocking/non-blocking issues.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "get_feature_delivery",
+    description: "Get delivery timeline, plain-language summary, and recommended next step for a feature.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
   },
 ];
 
@@ -275,41 +330,30 @@ export async function executeShipflowTool(
       const ws = await getWorkspaceProjectForUser(userId);
       if (!ws) return JSON.stringify({ error: "Join a workspace before submitting requests" });
 
-      let row = await createFeatureRequest({
+      const result = await ingestFeatureRequest({
         organizationId: ws.organization.id,
         projectId: ws.project.id,
         title,
         rawRequest,
         createdByUserId: userId,
         source: "api",
+        runTriage: args.runTriage !== false,
       });
 
-      const runTriage = args.runTriage !== false;
-      if (runTriage) {
-        const triage = await triageFeatureRequest({ title: row.title, rawRequest: row.rawRequest });
-        row = await updateFeatureMetadata(row.id, { triage });
-        await appendFeatureActivity(row.id, {
-          kind: "triage",
-          title: "AI triage completed",
-          detail: triage.priority ? `Priority ${triage.priority}` : undefined,
-          actor: "agent",
-        });
-      }
-
-      await appendFeatureActivity(row.id, {
-        kind: "submitted",
-        title: "Feature submitted via agent",
-        detail: row.title,
-        actor: "agent",
-      });
-
+      const row = result.feature;
       actions.push({
-        kind: "feature_created",
+        kind: result.educated ? "feature_education" : "feature_created",
         title: row.title,
         detail: row.status,
-        href: "/requests",
+        href: `/requests?id=${row.id}`,
       });
-      return JSON.stringify({ ...featureSummary(row), triage: row.metadata?.triage ?? null });
+
+      return JSON.stringify({
+        ...featureSummary(row),
+        educated: result.educated,
+        education: result.education,
+        triage: result.triage ?? row.metadata?.triage ?? null,
+      });
     }
 
     case "triage_feature_request": {
@@ -500,6 +544,114 @@ export async function executeShipflowTool(
         })),
         count: repos.length,
       });
+    }
+
+    case "check_existing_capability": {
+      const title = String(args.title ?? "").trim();
+      const rawRequest = String(args.rawRequest ?? "").trim();
+      if (title.length < 3 || rawRequest.length < 10) {
+        return JSON.stringify({ error: "title and rawRequest are required" });
+      }
+      const ws = await getWorkspaceProjectForUser(userId);
+      if (!ws) return JSON.stringify({ error: "No workspace found" });
+      const education = await checkExistingCapability({
+        projectId: ws.project.id,
+        title,
+        rawRequest,
+      });
+      if (education.shouldEducate) {
+        actions.push({
+          kind: "feature_education",
+          title: "Capability already exists",
+          detail: education.matchedFeatureTitle ?? "Similar feature found",
+          href: education.matchedFeatureId ? `/requests?id=${education.matchedFeatureId}` : "/requests",
+        });
+      }
+      return JSON.stringify(education);
+    }
+
+    case "intake_from_channel": {
+      const title = String(args.title ?? "").trim();
+      const rawRequest = String(args.rawRequest ?? "").trim();
+      const source = String(args.source ?? "").trim() as FeatureSource;
+      if (title.length < 3 || rawRequest.length < 10) {
+        return JSON.stringify({ error: "title and rawRequest are required" });
+      }
+      if (!["email", "support_ticket", "customer_call", "api"].includes(source)) {
+        return JSON.stringify({ error: "source must be email, support_ticket, customer_call, or api" });
+      }
+      const ws = await getWorkspaceProjectForUser(userId);
+      if (!ws) return JSON.stringify({ error: "No workspace found" });
+
+      const result = await ingestFeatureRequest({
+        organizationId: ws.organization.id,
+        projectId: ws.project.id,
+        title,
+        rawRequest,
+        source,
+        createdByUserId: userId,
+        externalId: args.externalId ? String(args.externalId) : undefined,
+        channelMeta:
+          args.channelMeta && typeof args.channelMeta === "object"
+            ? (args.channelMeta as Record<string, unknown>)
+            : undefined,
+        runTriage: args.runTriage !== false,
+      });
+
+      actions.push({
+        kind: result.educated ? "feature_education" : "feature_created",
+        title: result.feature.title,
+        detail: `${source} · ${result.feature.status}`,
+        href: `/requests?id=${result.feature.id}`,
+      });
+
+      return JSON.stringify({
+        featureId: result.feature.id,
+        status: result.feature.status,
+        source,
+        educated: result.educated,
+        education: result.education,
+        triage: result.triage,
+      });
+    }
+
+    case "list_ai_reviews": {
+      const id = String(args.id ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const reviews = await listAiReviewsForFeature(id);
+      actions.push({
+        kind: "ai_review",
+        title: `AI reviews: ${feature.title}`,
+        detail: `${reviews.length} iteration(s)`,
+        href: `/requests?id=${id}`,
+      });
+      return JSON.stringify({
+        featureId: id,
+        reviews: reviews.map((r) => ({
+          id: r.id,
+          iteration: r.iteration,
+          pass: r.readyForHuman === "true",
+          summary: r.summary,
+          issues: r.issues?.map((issue) => ({
+            severity: issue.severity,
+            title: issue.title,
+            category: issue.category,
+          })),
+        })),
+      });
+    }
+
+    case "get_feature_delivery": {
+      const id = String(args.id ?? "").trim();
+      const delivery = await getFeatureDeliveryView(id, userId);
+      actions.push({
+        kind: "feature_detail",
+        title: delivery.title,
+        detail: delivery.statusLabel,
+        href: `/requests?id=${id}`,
+        lines: [delivery.summary, delivery.nextStep],
+      });
+      return JSON.stringify(delivery);
     }
 
     default:
