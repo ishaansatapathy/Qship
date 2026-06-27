@@ -3,42 +3,19 @@ import db from "@repo/database";
 import { organizations } from "@repo/database/schema";
 
 import { ServiceError } from "../errors";
-import { getMembershipForUser } from "../organization";
+import { ensurePersonalWorkspace, getMembershipForUser } from "../organization";
 
-export const BILLING_PLANS = {
-  free: {
-    id: "free" as const,
-    name: "Free",
-    priceInr: 0,
-    aiReviewCredits: 10,
-    repositoryLimit: 1,
-    features: ["Pipeline overview", "10 AI reviews / month", "1 linked repo"],
-  },
-  pro: {
-    id: "pro" as const,
-    name: "Pro",
-    priceInr: 999,
-    aiReviewCredits: 100,
-    repositoryLimit: 10,
-    features: ["Unlimited feature requests", "100 AI reviews / month", "10 repos", "Priority support"],
-  },
-  enterprise: {
-    id: "enterprise" as const,
-    name: "Enterprise",
-    priceInr: 4999,
-    aiReviewCredits: 9999,
-    repositoryLimit: 999,
-    features: ["Unlimited reviews", "Unlimited repos", "SSO", "Dedicated support"],
-  },
-} as const;
+import { BILLING_PLANS, BILLING_PLAN_LIST, type PlanTier } from "./plans";
 
-export type PlanTier = keyof typeof BILLING_PLANS;
+export { BILLING_PLANS, BILLING_PLAN_LIST, type PlanTier };
 
-export async function getBillingSummary(userId: string) {
-  const membership = await getMembershipForUser(userId);
-  if (!membership) {
-    return null;
-  }
+export function isRazorpayConfigured() {
+  return Boolean(process.env.RAZORPAY_KEY_ID?.trim() && process.env.RAZORPAY_KEY_SECRET?.trim());
+}
+
+export async function getBillingSummary(userId: string, displayName?: string | null) {
+  const membership =
+    (await getMembershipForUser(userId)) ?? (await ensurePersonalWorkspace(userId, displayName));
 
   const org = membership.organization;
   const plan = BILLING_PLANS[org.planTier as PlanTier] ?? BILLING_PLANS.free;
@@ -54,16 +31,18 @@ export async function getBillingSummary(userId: string) {
     aiReviewCredits: Number.isFinite(credits) ? credits : 0,
     repositoryLimit: Number.isFinite(repoLimit) ? repoLimit : 1,
     billingStatus: org.billingStatus,
-    razorpayConfigured: Boolean(process.env.RAZORPAY_KEY_ID?.trim()),
-    plans: Object.values(BILLING_PLANS),
+    razorpayConfigured: isRazorpayConfigured(),
+    plans: BILLING_PLAN_LIST,
   };
 }
 
-export async function upgradeOrganizationPlan(userId: string, planTier: PlanTier) {
-  const membership = await getMembershipForUser(userId);
-  if (!membership) {
-    throw new ServiceError("FORBIDDEN", "Join a workspace before managing billing");
-  }
+export async function upgradeOrganizationPlan(
+  userId: string,
+  planTier: PlanTier,
+  displayName?: string | null,
+) {
+  const membership =
+    (await getMembershipForUser(userId)) ?? (await ensurePersonalWorkspace(userId, displayName));
   if (membership.role !== "owner" && membership.role !== "admin") {
     throw new ServiceError("FORBIDDEN", "Only workspace admins can change billing");
   }

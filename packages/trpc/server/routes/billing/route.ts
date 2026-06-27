@@ -3,12 +3,29 @@ import { z, zodUndefinedModel } from "../../schema";
 import {
   confirmRazorpayUpgrade,
   getBillingSummary,
+  isRazorpayConfigured,
   upgradeOrganizationPlan,
   type PlanTier,
 } from "@repo/services/billing";
 import { mapServiceError, protectedProcedure, router } from "../../trpc";
 
 export const billingRouter = router({
+  status: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/billing/status",
+        tags: ["Billing"],
+        protect: true,
+        summary: "Billing configuration (Razorpay keys, workspace readiness)",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(() => ({
+      razorpayConfigured: isRazorpayConfigured(),
+      ready: true,
+    })),
+
   summary: protectedProcedure
     .meta({
       openapi: {
@@ -22,7 +39,7 @@ export const billingRouter = router({
     .input(zodUndefinedModel)
     .query(async ({ ctx }) => {
       try {
-        return await getBillingSummary(ctx.user.id);
+        return await getBillingSummary(ctx.user.id, ctx.user.displayName);
       } catch (error) {
         mapServiceError(error);
       }
@@ -41,7 +58,7 @@ export const billingRouter = router({
     .input(z.object({ planTier: z.enum(["free", "pro", "enterprise"]) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        return await upgradeOrganizationPlan(ctx.user.id, input.planTier as PlanTier);
+        return await upgradeOrganizationPlan(ctx.user.id, input.planTier as PlanTier, ctx.user.displayName);
       } catch (error) {
         mapServiceError(error);
       }

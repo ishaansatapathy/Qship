@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../../.env -- next dev --webpack --port 3000",
-    "build": "dotenv -v NODE_ENV=production -- next build",
+    "build": "dotenv -v NODE_ENV=production -- next build --webpack",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "check-types": "next typegen && tsc --noEmit",
