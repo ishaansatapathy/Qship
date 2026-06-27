@@ -6,6 +6,7 @@ import * as trpcExpress from "@trpc/server/adapters/express";
 import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to-openapi";
 
 import { logger } from "@repo/logger";
+import { isOpenAiConfigured } from "@repo/services/ai/openai";
 import { ensureShipflowAgentServices } from "@repo/services/ensure-agent-services";
 import { serverRouter, openApiRouter, createContext } from "@repo/trpc/server";
 
@@ -61,6 +62,7 @@ app.get("/health", async (_req, res) => {
     return res.json({
       message: "API is healthy",
       healthy: true,
+      openaiConfigured: isOpenAiConfigured(),
       ...(checkDatabase && process.env.DATABASE_URL ? { database: "ok" as const } : {}),
     });
   } catch (error) {

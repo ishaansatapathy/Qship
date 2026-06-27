@@ -2773,9 +2773,14 @@
     border-color 0.15s ease;
 }
 
-.qship-agent-suggest button:hover {
+.qship-agent-suggest button:hover:not(:disabled) {
   color: var(--qship-text);
   border-color: var(--qship-line-strong);
+}
+
+.qship-agent-suggest button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .qship-agent-composer-wrap {

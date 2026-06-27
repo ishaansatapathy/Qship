@@ -426,6 +426,26 @@ function AgentPageContent() {
   const approvalSettingsReady = !approvalDefaults.isLoading && approvalDefaults.data !== undefined;
   const ready = status.data?.ready === true;
 
+  const agentBadge = approvalSettingsReady
+    ? agentAutoApprove
+      ? "Auto-approve · agent"
+      : "Queue first · agent"
+    : status.isLoading
+      ? "Connecting…"
+      : status.isError
+        ? "API offline"
+        : ready
+          ? (status.data?.model ?? "gpt-4o-mini")
+          : "OpenAI not loaded on API";
+
+  const agentPlaceholder = status.isLoading
+    ? "Connecting to agent…"
+    : status.isError
+      ? "API unavailable — run pnpm dev and refresh"
+      : ready
+        ? "Ask ShipFlow Agent… e.g. triage requests or generate a PRD"
+        : "Restart pnpm dev after saving OPENAI_API_KEY in .env";
+
   const { isDemo: isDemoUser, tryFeature, modal: demoModal } = useDemoAiGuard(meQuery.data?.email, "agent");
 
   // Brief / inbox deep-links: reset session bootstrap when URL params change.
@@ -555,9 +575,19 @@ function AgentPageContent() {
 
   const send = (text: string): boolean => {
     const message = text.trim();
-    if (!message || isPending || !activeSessionId) return false;
+    if (!message || isPending) return false;
+    if (!sessionReady || !activeSessionId) {
+      toast.message("Starting chat session… try again in a moment.");
+      return false;
+    }
     if (!ready) {
-      toast.message("Add OPENAI_API_KEY to enable ShipFlow Agent.");
+      if (status.isError) {
+        toast.message("Cannot reach API — run pnpm dev and refresh the page.");
+      } else if (status.isLoading) {
+        toast.message("Agent still connecting… try again in a moment.");
+      } else {
+        toast.message("OpenAI key not loaded on API — restart pnpm dev after saving .env.");
+      }
       return false;
     }
 
@@ -753,13 +783,7 @@ function AgentPageContent() {
               <Bot size={14} style={{ opacity: 0.7 }} />
               ShipFlow Agent
               <span className="qship-mono-tag" style={{ marginLeft: "auto" }}>
-                {approvalSettingsReady
-                  ? agentAutoApprove
-                    ? "Auto-approve · agent"
-                    : "Queue first · agent"
-                  : ready
-                    ? status.data?.model ?? "gpt-4o-mini"
-                    : "OpenAI required"}
+                {agentBadge}
               </span>
               {isPending ? (
                 <button
@@ -851,7 +875,13 @@ function AgentPageContent() {
               {!isPending && messages.length === 0 ? (
                 <div className="qship-agent-suggest">
                   {SUGGESTIONS.map((s) => (
-                    <button key={s.label} type="button" onClick={() => send(s.prompt)} disabled={!ready}>
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => send(s.prompt)}
+                      disabled={isPending || createSession.isPending}
+                      title={!ready ? "Set OPENAI_API_KEY in .env to run the agent" : undefined}
+                    >
                       <s.icon size={13} />
                       {s.label}
                     </button>
@@ -899,11 +929,7 @@ function AgentPageContent() {
                   onChange={setInput}
                   onSubmit={() => send(input)}
                   disabled={isPending}
-                  placeholder={
-                    ready
-                      ? "Ask ShipFlow Agent… e.g. triage requests or generate a PRD"
-                      : "Set OPENAI_API_KEY to chat with the agent"
-                  }
+                  placeholder={agentPlaceholder}
                 />
               </div>
             </form>
