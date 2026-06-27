@@ -29,8 +29,8 @@ export const env = createEnv({
     NEXT_PUBLIC_DEMO_MAIL_LIMIT: z.coerce.number().optional(),
   },
   runtimeEnv: {
-    JWT_SECRET: process.env.JWT_SECRET,
-    JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
+    JWT_SECRET: process.env.JWT_SECRET ?? process.env.BETTER_AUTH_SECRET,
+    JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET ?? process.env.BETTER_AUTH_SECRET,
     API_INTERNAL_URL: process.env.API_INTERNAL_URL,
     DEMO_LOGIN_ENABLED: process.env.DEMO_LOGIN_ENABLED,
     DEMO_USER_EMAIL: process.env.DEMO_USER_EMAIL,
