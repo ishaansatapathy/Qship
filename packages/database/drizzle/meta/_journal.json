@@ -281,6 +281,20 @@
       "when": 1782000000000,
       "tag": "0039_drop_legacy_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1782100000000,
+      "tag": "0040_fix_column_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1782100001000,
+      "tag": "0041_add_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@ export async function runPrdGenerationWorkflow(input: {
   try {
     await updateWorkflowRun(input.workflowRunId, {
       status: "running",
-      progress: "15",
+      progress: 15,
       message: "Reading feature request…",
     });
 
@@ -17,7 +17,7 @@ export async function runPrdGenerationWorkflow(input: {
     await updateFeatureStatus(input.featureId, "prd_generating");
 
     await updateWorkflowRun(input.workflowRunId, {
-      progress: "45",
+      progress: 45,
       message: "Generating structured PRD with AI…",
     });
 
@@ -27,7 +27,7 @@ export async function runPrdGenerationWorkflow(input: {
     });
 
     await updateWorkflowRun(input.workflowRunId, {
-      progress: "80",
+      progress: 80,
       message: "Saving PRD to workspace…",
     });
 
@@ -42,7 +42,7 @@ export async function runPrdGenerationWorkflow(input: {
 
     await updateWorkflowRun(input.workflowRunId, {
       status: "completed",
-      progress: "100",
+      progress: 100,
       message: "PRD ready",
       result: { prdId: prd.id, featureId: input.featureId },
     });
@@ -52,7 +52,7 @@ export async function runPrdGenerationWorkflow(input: {
     const message = error instanceof Error ? error.message : String(error);
     await updateWorkflowRun(input.workflowRunId, {
       status: "failed",
-      progress: "100",
+      progress: 100,
       message: "PRD generation failed",
       error: message,
     });

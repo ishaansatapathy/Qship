@@ -13,7 +13,7 @@ export { handleRazorpayWebhook } from "./webhook";
 
 export { BILLING_PLANS, BILLING_PLAN_LIST, type PlanTier };
 
-export function isRazorpayConfigured() {
+export function isRazorpayConfigured(): boolean {
   return Boolean(process.env.RAZORPAY_KEY_ID?.trim() && process.env.RAZORPAY_KEY_SECRET?.trim());
 }
 
@@ -23,8 +23,6 @@ export async function getBillingSummary(userId: string, displayName?: string | n
 
   const org = membership.organization;
   const plan = BILLING_PLANS[org.planTier as PlanTier] ?? BILLING_PLANS.free;
-  const credits = Number.parseInt(org.aiReviewCredits, 10);
-  const repoLimit = Number.parseInt(org.repositoryLimit, 10);
 
   return {
     organizationId: org.id,
@@ -32,8 +30,8 @@ export async function getBillingSummary(userId: string, displayName?: string | n
     planTier: org.planTier,
     planName: plan.name,
     priceInr: plan.priceInr,
-    aiReviewCredits: Number.isFinite(credits) ? credits : 0,
-    repositoryLimit: Number.isFinite(repoLimit) ? repoLimit : 1,
+    aiReviewCredits: org.aiReviewCredits,
+    repositoryLimit: org.repositoryLimit,
     billingStatus: org.billingStatus,
     razorpayConfigured: isRazorpayConfigured(),
     plans: BILLING_PLAN_LIST,
@@ -71,7 +69,7 @@ export async function upgradeOrganizationPlan(
       body: JSON.stringify({
         amount: amountPaise,
         currency: "INR",
-        receipt: `qship_${membership.organizationId}_${Date.now()}`,
+        receipt: `shipflow_${membership.organizationId}_${Date.now()}`,
         notes: { organizationId: membership.organizationId, planTier },
       }),
     });
@@ -99,9 +97,9 @@ export async function upgradeOrganizationPlan(
     .update(organizations)
     .set({
       planTier,
-      aiReviewCredits: String(plan.aiReviewCredits),
-      repositoryLimit: String(plan.repositoryLimit),
-      billingStatus: planTier === "free" ? "active" : "active",
+      aiReviewCredits: plan.aiReviewCredits,
+      repositoryLimit: plan.repositoryLimit,
+      billingStatus: "active",
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, membership.organization.id));
@@ -125,9 +123,7 @@ export async function confirmRazorpayUpgrade(
     throw new ServiceError("FORBIDDEN", "Join a workspace before managing billing");
   }
 
-  if (
-    !verifyRazorpayPaymentSignature(input.orderId, input.paymentId, input.signature)
-  ) {
+  if (!verifyRazorpayPaymentSignature(input.orderId, input.paymentId, input.signature)) {
     throw new ServiceError("BAD_REQUEST", "Invalid Razorpay payment signature");
   }
 
@@ -136,8 +132,8 @@ export async function confirmRazorpayUpgrade(
     .update(organizations)
     .set({
       planTier,
-      aiReviewCredits: String(plan.aiReviewCredits),
-      repositoryLimit: String(plan.repositoryLimit),
+      aiReviewCredits: plan.aiReviewCredits,
+      repositoryLimit: plan.repositoryLimit,
       billingStatus: "active",
       razorpayCustomerId: input.paymentId,
       updatedAt: new Date(),

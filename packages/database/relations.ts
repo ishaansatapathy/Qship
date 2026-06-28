@@ -9,18 +9,38 @@ import { engineeringTasks } from "./models/task";
 import { pullRequests } from "./models/github";
 import { aiReviewIssues, aiReviews, humanApprovals } from "./models/review";
 import { workflowRuns } from "./models/workflow";
+import { agentChatSessionsTable } from "./models/agent-chat-session";
+import { agentChatHistoryTable } from "./models/agent-chat-history";
 
-export const usersRelations = relations(users, ({ many }) => ({
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export const usersRelations = relations(users, ({ many, one }) => ({
   sessions: many(sessions),
   accounts: many(accounts),
   memberships: many(organizationMembers),
   humanApprovals: many(humanApprovals),
+  agentChatSessions: many(agentChatSessionsTable),
+  agentChatHistory: one(agentChatHistoryTable, {
+    fields: [users.id],
+    references: [agentChatHistoryTable.userId],
+  }),
 }));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, { fields: [accounts.userId], references: [users.id] }),
+}));
+
+// ─── Organization ────────────────────────────────────────────────────────────
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   members: many(organizationMembers),
   projects: many(projects),
   repositories: many(repositories),
+  featureRequests: many(featureRequests),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -34,6 +54,8 @@ export const organizationMembersRelations = relations(organizationMembers, ({ on
   }),
 }));
 
+// ─── Project / Repository ─────────────────────────────────────────────────────
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [projects.organizationId],
@@ -42,6 +64,20 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   featureRequests: many(featureRequests),
   repositories: many(repositories),
 }));
+
+export const repositoriesRelations = relations(repositories, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [repositories.organizationId],
+    references: [organizations.id],
+  }),
+  project: one(projects, {
+    fields: [repositories.projectId],
+    references: [projects.id],
+  }),
+  pullRequests: many(pullRequests),
+}));
+
+// ─── Feature Request ─────────────────────────────────────────────────────────
 
 export const featureRequestsRelations = relations(featureRequests, ({ one, many }) => ({
   organization: one(organizations, {
@@ -68,17 +104,32 @@ export const featureRequestsRelations = relations(featureRequests, ({ one, many 
   workflowRuns: many(workflowRuns),
 }));
 
-export const repositoriesRelations = relations(repositories, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [repositories.organizationId],
-    references: [organizations.id],
+export const clarificationMessagesRelations = relations(clarificationMessages, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [clarificationMessages.featureRequestId],
+    references: [featureRequests.id],
   }),
-  project: one(projects, {
-    fields: [repositories.projectId],
-    references: [projects.id],
-  }),
-  pullRequests: many(pullRequests),
 }));
+
+// ─── PRD ─────────────────────────────────────────────────────────────────────
+
+export const prdsRelations = relations(prds, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [prds.featureRequestId],
+    references: [featureRequests.id],
+  }),
+}));
+
+// ─── Engineering Tasks ────────────────────────────────────────────────────────
+
+export const engineeringTasksRelations = relations(engineeringTasks, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [engineeringTasks.featureRequestId],
+    references: [featureRequests.id],
+  }),
+}));
+
+// ─── Pull Requests ────────────────────────────────────────────────────────────
 
 export const pullRequestsRelations = relations(pullRequests, ({ one, many }) => ({
   featureRequest: one(featureRequests, {
@@ -92,44 +143,7 @@ export const pullRequestsRelations = relations(pullRequests, ({ one, many }) => 
   aiReviews: many(aiReviews),
 }));
 
-export const prdsRelations = relations(prds, ({ one }) => ({
-  featureRequest: one(featureRequests, {
-    fields: [prds.featureRequestId],
-    references: [featureRequests.id],
-  }),
-}));
-
-export const clarificationMessagesRelations = relations(clarificationMessages, ({ one }) => ({
-  featureRequest: one(featureRequests, {
-    fields: [clarificationMessages.featureRequestId],
-    references: [featureRequests.id],
-  }),
-}));
-
-export const engineeringTasksRelations = relations(engineeringTasks, ({ one }) => ({
-  featureRequest: one(featureRequests, {
-    fields: [engineeringTasks.featureRequestId],
-    references: [featureRequests.id],
-  }),
-}));
-
-export const humanApprovalsRelations = relations(humanApprovals, ({ one }) => ({
-  featureRequest: one(featureRequests, {
-    fields: [humanApprovals.featureRequestId],
-    references: [featureRequests.id],
-  }),
-  reviewer: one(users, {
-    fields: [humanApprovals.reviewerUserId],
-    references: [users.id],
-  }),
-}));
-
-export const workflowRunsRelations = relations(workflowRuns, ({ one }) => ({
-  featureRequest: one(featureRequests, {
-    fields: [workflowRuns.featureRequestId],
-    references: [featureRequests.id],
-  }),
-}));
+// ─── AI Reviews ──────────────────────────────────────────────────────────────
 
 export const aiReviewsRelations = relations(aiReviews, ({ one, many }) => ({
   featureRequest: one(featureRequests, {
@@ -147,5 +161,41 @@ export const aiReviewIssuesRelations = relations(aiReviewIssues, ({ one }) => ({
   aiReview: one(aiReviews, {
     fields: [aiReviewIssues.aiReviewId],
     references: [aiReviews.id],
+  }),
+}));
+
+export const humanApprovalsRelations = relations(humanApprovals, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [humanApprovals.featureRequestId],
+    references: [featureRequests.id],
+  }),
+  reviewer: one(users, {
+    fields: [humanApprovals.reviewerUserId],
+    references: [users.id],
+  }),
+}));
+
+// ─── Workflow Runs ────────────────────────────────────────────────────────────
+
+export const workflowRunsRelations = relations(workflowRuns, ({ one }) => ({
+  featureRequest: one(featureRequests, {
+    fields: [workflowRuns.featureRequestId],
+    references: [featureRequests.id],
+  }),
+}));
+
+// ─── Agent ───────────────────────────────────────────────────────────────────
+
+export const agentChatSessionsRelations = relations(agentChatSessionsTable, ({ one }) => ({
+  user: one(users, {
+    fields: [agentChatSessionsTable.userId],
+    references: [users.id],
+  }),
+}));
+
+export const agentChatHistoryRelations = relations(agentChatHistoryTable, ({ one }) => ({
+  user: one(users, {
+    fields: [agentChatHistoryTable.userId],
+    references: [users.id],
   }),
 }));

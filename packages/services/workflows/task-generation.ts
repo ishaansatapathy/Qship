@@ -15,7 +15,7 @@ export async function runTaskGenerationWorkflow(input: {
   try {
     await updateWorkflowRun(input.workflowRunId, {
       status: "running",
-      progress: "20",
+      progress: 20,
       message: "Loading PRD…",
     });
 
@@ -25,7 +25,7 @@ export async function runTaskGenerationWorkflow(input: {
     }
 
     await updateWorkflowRun(input.workflowRunId, {
-      progress: "50",
+      progress: 50,
       message: "Breaking PRD into engineering tasks…",
     });
 
@@ -36,7 +36,7 @@ export async function runTaskGenerationWorkflow(input: {
     });
 
     await updateWorkflowRun(input.workflowRunId, {
-      progress: "85",
+      progress: 85,
       message: "Saving task board…",
     });
 
@@ -51,7 +51,7 @@ export async function runTaskGenerationWorkflow(input: {
 
     await updateWorkflowRun(input.workflowRunId, {
       status: "completed",
-      progress: "100",
+      progress: 100,
       message: `${tasks.length} tasks ready`,
       result: { taskCount: tasks.length, featureId: input.featureId },
     });
@@ -61,7 +61,7 @@ export async function runTaskGenerationWorkflow(input: {
     const message = error instanceof Error ? error.message : String(error);
     await updateWorkflowRun(input.workflowRunId, {
       status: "failed",
-      progress: "100",
+      progress: 100,
       message: "Task generation failed",
       error: message,
     });
