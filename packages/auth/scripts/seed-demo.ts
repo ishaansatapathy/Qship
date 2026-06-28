@@ -78,8 +78,14 @@ async function ensureWorkspace(userId: string) {
       name: "ShipFlow Demo Org",
       slug: "shipflow-demo",
       planTier: "pro",
+      // Generous credits so judges can run AI features without hitting the limit.
+      aiReviewCredits: 999,
+      repositoryLimit: 10,
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: organizations.id,
+      set: { aiReviewCredits: 999, repositoryLimit: 10, planTier: "pro" },
+    });
 
   await db
     .insert(organizationMembers)
