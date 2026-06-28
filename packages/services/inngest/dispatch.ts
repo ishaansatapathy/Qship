@@ -1,6 +1,6 @@
 import { logger } from "@repo/logger";
 
-import { createWorkflowRun, listWorkflowRunsForFeature, updateWorkflowRun } from "../workflow-runs";
+import { createWorkflowRun, getActiveWorkflowOfType, listWorkflowRunsForFeature, updateWorkflowRun } from "../workflow-runs";
 import { runPrdGenerationWorkflow } from "../workflows/prd-generation";
 import { runTaskGenerationWorkflow } from "../workflows/task-generation";
 import { runAiReviewWorkflow } from "../workflows/ai-review-workflow";
@@ -46,6 +46,11 @@ async function sendOrBackground(
 }
 
 export async function dispatchPrdGeneration(featureId: string, _userId: string) {
+  const existing = await getActiveWorkflowOfType(featureId, "prd_generation");
+  if (existing) {
+    return { workflowRunId: existing.id, mode: "background" as const };
+  }
+
   const run = await createWorkflowRun({
     featureRequestId: featureId,
     type: "prd_generation",
@@ -60,6 +65,11 @@ export async function dispatchPrdGeneration(featureId: string, _userId: string) 
 }
 
 export async function dispatchTaskGeneration(featureId: string, _userId: string) {
+  const existing = await getActiveWorkflowOfType(featureId, "task_generation");
+  if (existing) {
+    return { workflowRunId: existing.id, mode: "background" as const };
+  }
+
   const run = await createWorkflowRun({
     featureRequestId: featureId,
     type: "task_generation",
@@ -120,6 +130,11 @@ export async function recoverStaleWorkflowRuns(featureId: string, userId?: strin
 }
 
 export async function dispatchAiReview(featureId: string, userId: string) {
+  const existing = await getActiveWorkflowOfType(featureId, "ai_review");
+  if (existing) {
+    return { workflowRunId: existing.id, mode: "background" as const };
+  }
+
   const run = await createWorkflowRun({
     featureRequestId: featureId,
     type: "ai_review",

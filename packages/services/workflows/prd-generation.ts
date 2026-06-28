@@ -1,12 +1,13 @@
 import { generateFeaturePrd } from "../feature-ai";
-import { appendFeatureActivity, getFeatureRequest, saveFeaturePrd, updateFeatureStatus } from "../feature-request";
-import { updateWorkflowRun } from "../workflow-runs";
+import { updateFeatureStatus, appendFeatureActivity, getFeatureRequest, saveFeaturePrd } from "../feature-request";
+import { assertWorkflowRunActive, updateWorkflowRun, WorkflowCancelledError } from "../workflow-runs";
 
 export async function runPrdGenerationWorkflow(input: {
   featureId: string;
   workflowRunId: string;
 }) {
   try {
+    await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
       status: "running",
       progress: 15,
@@ -16,6 +17,7 @@ export async function runPrdGenerationWorkflow(input: {
     const feature = await getFeatureRequest(input.featureId);
     await updateFeatureStatus(input.featureId, "prd_generating");
 
+    await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
       progress: 45,
       message: "Generating structured PRD with AI…",
@@ -26,6 +28,7 @@ export async function runPrdGenerationWorkflow(input: {
       rawRequest: feature.rawRequest,
     });
 
+    await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
       progress: 80,
       message: "Saving PRD to workspace…",
@@ -49,6 +52,9 @@ export async function runPrdGenerationWorkflow(input: {
 
     return { prd };
   } catch (error) {
+    if (error instanceof WorkflowCancelledError) {
+      return { cancelled: true as const };
+    }
     const message = error instanceof Error ? error.message : String(error);
     await updateWorkflowRun(input.workflowRunId, {
       status: "failed",
