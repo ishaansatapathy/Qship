@@ -496,3 +496,174 @@ For unresolved prior issues, include them in issues[] with severity "blocking" a
     checklistResults: parsed.checklistResults ?? [],
   };
 }
+
+// ── Approval briefing ──────────────────────────────────────────────────────────
+
+export type ApprovalBriefing = {
+  summary: string;
+  keyThingsToVerify: string[];
+  remainingConcerns: string[];
+  approvalRecommendation: "approve" | "hold" | "reject";
+  confidence: number;
+  riskLevel: "low" | "medium" | "high" | "critical";
+  rationale: string;
+};
+
+/**
+ * Generates a structured approval briefing for the human PM reviewing a feature.
+ * Synthesises AI review results, iteration delta, acceptance criteria, and prior
+ * decisions into a decision-support document readable in under 30 seconds.
+ */
+export async function generateApprovalBriefing(input: {
+  featureTitle: string;
+  rawRequest: string;
+  prd?: PrdContent | null;
+  latestReview: {
+    iteration: number;
+    summary: string;
+    pass: boolean;
+    blockingIssues: Array<{ title: string; category: string; description: string }>;
+    advisoryIssues: Array<{ title: string; category: string }>;
+  };
+  delta?: {
+    resolved: string[];
+    persisting: string[];
+    newIssues: string[];
+    overallProgress: string;
+  } | null;
+  priorDecisions?: Array<{ decision: string; notes?: string | null; createdAt: Date }>;
+}): Promise<ApprovalBriefing> {
+  requireOpenAi();
+
+  const deltaBlock = input.delta
+    ? [
+        `Review delta (iteration ${input.latestReview.iteration}):`,
+        `  Resolved: ${input.delta.resolved.join(", ") || "none"}`,
+        `  Still open: ${input.delta.persisting.join(", ") || "none"}`,
+        `  New issues: ${input.delta.newIssues.join(", ") || "none"}`,
+        `  Progress: ${input.delta.overallProgress}`,
+      ].join("\n")
+    : "(First review iteration)";
+
+  const priorBlock = input.priorDecisions?.length
+    ? input.priorDecisions
+        .map(
+          (d) =>
+            `- ${d.decision.toUpperCase()} (${new Date(d.createdAt).toLocaleDateString()})${d.notes ? `: "${d.notes}"` : ""}`,
+        )
+        .join("\n")
+    : "No prior human decisions.";
+
+  const blockingText = input.latestReview.blockingIssues.length
+    ? input.latestReview.blockingIssues
+        .map((i) => `  [${i.category}] ${i.title}: ${i.description}`)
+        .join("\n")
+    : "NONE — all blocking issues resolved.";
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a Staff Product Manager writing a pre-approval briefing for a busy executive reviewer.
+Your briefing must be evidence-based, specific, and readable in under 30 seconds.
+
+Return JSON with EXACTLY these keys:
+- summary: string (2-3 sentences: feature state + quality signal + recommendation justification)
+- keyThingsToVerify: string[] (3-6 specific verifiable items the reviewer must personally check)
+- remainingConcerns: string[] (non-blocking issues to note; empty array if none)
+- approvalRecommendation: "approve" | "hold" | "reject"
+- confidence: number 0-100
+- riskLevel: "low" | "medium" | "high" | "critical"
+- rationale: string (one sentence justifying the decision)`,
+      },
+      {
+        role: "user",
+        content: [
+          `Feature: ${input.featureTitle}`,
+          `Request: ${input.rawRequest}`,
+          `Acceptance criteria:\n${input.prd?.acceptanceCriteria?.map((c, i) => `  ${i + 1}. ${c}`).join("\n") ?? "Not available"}`,
+          `Latest review (iteration ${input.latestReview.iteration}, pass=${input.latestReview.pass}):`,
+          `  Summary: ${input.latestReview.summary}`,
+          `  Blocking:\n${blockingText}`,
+          `  Advisory count: ${input.latestReview.advisoryIssues.length}`,
+          deltaBlock,
+          `Prior decisions:\n${priorBlock}`,
+        ].join("\n\n"),
+      },
+    ],
+    { jsonObject: true, temperature: 0.15 },
+  );
+
+  return parseJson<ApprovalBriefing>(content);
+}
+
+// ── Change request analysis ────────────────────────────────────────────────────
+
+export type ChangeRequestAnalysis = {
+  summary: string;
+  actionItems: Array<{
+    category: string;
+    title: string;
+    description: string;
+    priority: "blocking" | "advisory";
+    estimatedEffort: "S" | "M" | "L";
+  }>;
+  totalBlockingEffort: "S" | "M" | "L" | "XL";
+  nextStep: string;
+};
+
+/**
+ * Analyses a PM's change-request notes into structured, developer-ready action items.
+ * The structured output is stored in the feature metadata so the next AI review
+ * can specifically verify each action item was addressed.
+ */
+export async function analyzeChangeRequest(input: {
+  featureTitle: string;
+  changeRequestNotes: string;
+  latestReview?: {
+    summary: string;
+    blockingIssues: Array<{ title: string; category: string }>;
+  } | null;
+}): Promise<ChangeRequestAnalysis> {
+  requireOpenAi();
+
+  const reviewContext = input.latestReview
+    ? `AI review summary: "${input.latestReview.summary}"\nAI blocking issues: ${input.latestReview.blockingIssues.map((i) => i.title).join(", ") || "none"}`
+    : "No prior AI review available.";
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a Senior Engineering Lead converting a PM's change request into actionable developer tasks.
+Make vague PM feedback specific, unambiguous, and immediately actionable.
+
+Return JSON with EXACTLY these keys:
+- summary: string (1-2 sentences summarising what the PM wants)
+- actionItems: array of {
+    category: "Security"|"Performance"|"Tests"|"Requirements"|"UX"|"Docs"|"Other",
+    title: string (imperative, max 60 chars),
+    description: string (what to do, why, where in the codebase),
+    priority: "blocking"|"advisory",
+    estimatedEffort: "S"|"M"|"L"
+  }
+- totalBlockingEffort: "S"|"M"|"L"|"XL" (combined for blocking items only)
+- nextStep: string (single most important action for developer RIGHT NOW)
+
+If PM says "add tests", specify: which functions, which edge cases, expected assertions.`,
+      },
+      {
+        role: "user",
+        content: [
+          `Feature: ${input.featureTitle}`,
+          `PM change request:\n${input.changeRequestNotes}`,
+          reviewContext,
+        ].join("\n\n"),
+      },
+    ],
+    { jsonObject: true, temperature: 0.2 },
+  );
+
+  const parsed = parseJson<ChangeRequestAnalysis>(content);
+  return { ...parsed, actionItems: parsed.actionItems ?? [] };
+}

@@ -23,6 +23,8 @@ import {
   updateFeatureStatus,
 } from "./feature-request";
 import {
+  generateApprovalBriefing,
+  analyzeChangeRequest,
   generateFeaturePrd,
   generateFeatureTasks,
   triageFeatureRequest,
@@ -32,10 +34,13 @@ import { ingestFeatureRequest, type FeatureSource } from "./feature-intake";
 import { runFeatureAiReviewWithOptionalPr } from "./github/pr-review";
 import {
   listAiReviewsForFeature,
+  getLatestAiReview,
   getReviewDelta,
   getReviewStats,
+  getReviewLoopHealth,
   listHumanApprovals,
   recordHumanApproval,
+  resolveReviewIssue,
   validateHumanApprovalEligibility,
 } from "./review";
 import {
@@ -282,6 +287,56 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   {
     name: "get_approval_history",
     description: "Get the full human approval audit trail for a feature — every approve, reject, and changes_requested decision with reviewer notes and timestamps.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "get_approval_briefing",
+    description:
+      "Generate an AI-powered pre-approval briefing for the human reviewer: risk level, approval recommendation, specific things to verify, and remaining concerns. Call this BEFORE approve_feature to give the reviewer a structured decision-support document.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "resolve_review_issue",
+    description:
+      "Mark an individual AI review issue as resolved (or reopen it). Use when a developer has fixed a specific blocking issue and you want to track it without re-running the full review. Provide optional resolution notes for the audit trail.",
+    inputSchema: {
+      type: "object",
+      required: ["issueId", "resolved"],
+      properties: {
+        issueId: { type: "string", description: "AI review issue UUID (from list_ai_reviews)" },
+        resolved: { type: "boolean", description: "true = mark resolved, false = reopen" },
+        notes: { type: "string", description: "Notes explaining how the issue was resolved" },
+      },
+    },
+  },
+  {
+    name: "analyze_change_request",
+    description:
+      "Convert a PM's change-request notes into structured developer action items with categories, priorities, and effort estimates. Run this after reject_feature or request_changes so the developer has an unambiguous TODO list for the next iteration.",
+    inputSchema: {
+      type: "object",
+      required: ["id", "notes"],
+      properties: {
+        id: { type: "string", description: "Feature request UUID" },
+        notes: {
+          type: "string",
+          description: "The PM's change request notes — can be vague; the AI will convert to specific engineering tasks",
+        },
+      },
+    },
+  },
+  {
+    name: "get_review_loop_health",
+    description:
+      "Get a comprehensive health score (0–100) and analysis for a feature's review loop: SLA status, cycle times, issue resolution progress, and overall health label (healthy / needs_attention / critical). Use to surface bottlenecks and risks.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -883,6 +938,96 @@ export async function executeShipflowTool(
         featureId: task.featureRequestId,
         featureTitle: feature.title,
       });
+    }
+
+    case "get_approval_briefing": {
+      const id = String(args.id ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const [latestReview, delta, priorDecisions] = await Promise.all([
+        getLatestAiReview(id),
+        getReviewDelta(id),
+        listHumanApprovals(id),
+      ]);
+      if (!latestReview) {
+        return JSON.stringify({ error: "No AI review found. Run run_ai_review first." });
+      }
+      const issues = latestReview.issues as Array<{
+        title: string; category: string; description: string; severity: string;
+      }>;
+      const briefing = await generateApprovalBriefing({
+        featureTitle: feature.title,
+        rawRequest: feature.rawRequest,
+        prd: (feature.prd as { content: import("@repo/database/schema").PrdContent } | null)?.content ?? null,
+        latestReview: {
+          iteration: latestReview.iteration,
+          summary: latestReview.summary,
+          pass: latestReview.readyForHuman,
+          blockingIssues: issues.filter((i) => i.severity === "blocking"),
+          advisoryIssues: issues.filter((i) => i.severity !== "blocking"),
+        },
+        delta,
+        priorDecisions: priorDecisions.map((d) => ({
+          decision: d.decision,
+          notes: d.notes,
+          createdAt: d.createdAt,
+        })),
+      });
+      actions.push({
+        kind: "feature_detail",
+        title: `Approval briefing: ${feature.title}`,
+        detail: `${briefing.approvalRecommendation} (confidence: ${briefing.confidence}%)`,
+        href: `/requests?id=${id}`,
+        lines: [briefing.summary, briefing.rationale],
+      });
+      return JSON.stringify({ featureId: id, featureTitle: feature.title, ...briefing });
+    }
+
+    case "resolve_review_issue": {
+      const issueId = String(args.issueId ?? "").trim();
+      const resolved = Boolean(args.resolved);
+      const notes = args.notes ? String(args.notes).trim() : undefined;
+      if (!issueId) return JSON.stringify({ error: "issueId is required" });
+      const result = await resolveReviewIssue(issueId, resolved, notes);
+      actions.push({
+        kind: "feature_detail",
+        title: resolved ? `Issue resolved: ${result.title}` : `Issue reopened: ${result.title}`,
+        detail: notes ?? (resolved ? "marked resolved" : "reopened"),
+      });
+      return JSON.stringify(result);
+    }
+
+    case "analyze_change_request": {
+      const id = String(args.id ?? "").trim();
+      const notes = String(args.notes ?? "").trim();
+      if (!notes) return JSON.stringify({ error: "notes are required" });
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const latestReview = await getLatestAiReview(id);
+      const analysis = await analyzeChangeRequest({
+        featureTitle: feature.title,
+        changeRequestNotes: notes,
+        latestReview: latestReview
+          ? {
+              summary: latestReview.summary,
+              blockingIssues: (latestReview.issues as Array<{ title: string; category: string; severity: string }>)
+                .filter((i) => i.severity === "blocking")
+                .map((i) => ({ title: i.title, category: i.category })),
+            }
+          : null,
+      });
+      actions.push({
+        kind: "feature_detail",
+        title: `Change analysis: ${feature.title}`,
+        detail: `${analysis.actionItems.length} action items (${analysis.totalBlockingEffort} effort)`,
+        href: `/requests?id=${id}`,
+        lines: [analysis.summary, `Next: ${analysis.nextStep}`],
+      });
+      return JSON.stringify({ featureId: id, featureTitle: feature.title, ...analysis });
+    }
+
+    case "get_review_loop_health": {
+      const id = String(args.id ?? "").trim();
+      const health = await getReviewLoopHealth(id);
+      return JSON.stringify(health);
     }
 
     default:
