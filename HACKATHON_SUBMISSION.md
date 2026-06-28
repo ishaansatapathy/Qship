@@ -1,159 +1,165 @@
-# ShipFlow AI — Hackathon Submission Pack
+# ShipFlow AI — Hackathon Submission
 
-> **Judges: start here.** One-click demo, 3-minute path, rubric map — everything in one place.
-
-**GitHub:** https://github.com/ishaansatapathy/Qship  
-**Tagline:** *Structured delivery from idea to production — not ad-hoc code generation.*
+> **ChaiCode Hackathon** · AI-assisted product delivery platform
 
 ---
 
-## ⚡ 60-Second Elevator Pitch
+## Live demo
 
-ShipFlow is a **full-stack SaaS** that runs the entire product delivery loop:
+| Resource | URL |
+|---|---|
+| **App (one-click login)** | https://qship.ishaandev.co.in/api-auth/demo?next=/brief |
+| **Scalar API docs** | https://api.qship.ishaandev.co.in/docs |
+| **GitHub repo** | https://github.com/ishaansatapathy/Qship |
 
-**Request → Educate (if duplicate) → PRD → Kanban Tasks → Code/PR → AI Review → Human Approval → Ship**
-
-- **Multi-channel intake** — email, support tickets, customer calls, in-app
-- **19 MCP tools** — same surface as the ShipFlow Agent (CI parity verified)
-- **Human-in-the-loop** — confirm dialogs, approval gates, agent safety prompts
-- **Production stack** — Neon Postgres, BetterAuth, tRPC, Razorpay, GitHub App, Inngest, Scalar docs
+Demo credentials: `demo@qship.dev` / `DemoPass123!`
 
 ---
 
-## 🚀 One-Click Demo (zero setup pain)
+## What ShipFlow AI does
 
-```bash
-pnpm install && cp .env.example .env   # add OPENAI_API_KEY
-pnpm db:migrate && pnpm db:seed
-pnpm dev
+ShipFlow AI is a **full-stack AI-assisted product delivery platform** that manages the entire lifecycle from feature request to production ship:
+
+```
+Employee submits request
+  → AI triage (priority, risk, effort, clarifying questions)
+  → PRD generated (goals, acceptance criteria, technical requirements, rollback plan)
+  → Engineering tasks generated (typed, ordered, with per-task acceptance criteria)
+  → Developer codes → GitHub PR auto-linked
+  → AI reviews PR diff against PRD (9 dimensions, file-level issues, suggestions)
+  → If blocking issues: developer fixes → delta re-review checks each issue
+  → AI passes → Human PM approves / rejects / requests changes
+  → Approved → Ship to production
 ```
 
-| Link | What it shows |
-|------|----------------|
-| [**Demo login → Overview**](http://localhost:3000/api-auth/demo?next=/brief) | Pipeline counts, needs-attention |
-| [**Demo → Intake**](http://localhost:3000/api-auth/demo?next=/inbox) | Email/support/call simulate |
-| [**Demo → Requests**](http://localhost:3000/api-auth/demo?next=/requests) | Core loop, PRD, triage, timeline |
-| [**Demo → Kanban**](http://localhost:3000/api-auth/demo?next=/tasks) | Engineering task board |
-| [**Demo → Agent**](http://localhost:3000/api-auth/demo?next=/agent) | Streaming AI + 19 tools |
-| [**Demo → Billing**](http://localhost:3000/api-auth/demo?next=/billing) | Razorpay checkout (test mode) |
-| [**Scalar API docs**](http://localhost:8000/docs) | OpenAPI + judge intro + MCP appendix |
-
-| Credential | Value |
-|------------|-------|
-| Email | `demo@qship.dev` |
-| Password | `DemoPass123!` |
+Every step is tracked, queryable via 25 MCP tools, and accessible via the ShipFlow Agent chat.
 
 ---
 
-## 🎬 5-Minute Demo Path (record this)
+## Rubric mapping
 
-| Time | Screen | Wow moment |
-|------|--------|------------|
-| 0:00 | Landing → demo login | Problem statement hook |
-| 0:30 | `/brief` | Real pipeline counts from **Neon Postgres** |
-| 1:00 | `/inbox` → Simulate Email → Send | Multi-channel intake + AI triage |
-| 1:45 | `/requests` → PRD generate (confirm dialog) | HITL + delivery timeline |
-| 2:30 | `/tasks` | Kanban — move task across columns |
-| 3:00 | `/agent` → attach feature → ask | 19 tools, streaming, action cards |
-| 3:45 | `/billing` → Pay with Razorpay | SaaS monetization (test Netbanking → Success) |
-| 4:15 | `:8000/docs` | Scalar docs + MCP curl |
-| 4:45 | Close | GitHub repo + `#chaicode` |
+### Working Product / Demo
 
-Full demo guide (includes 5-min recording path): **[DEMO.md](./DEMO.md)**
+| Criterion | Implementation |
+|---|---|
+| Live deployment | https://qship.ishaandev.co.in (Vercel) + https://api.qship.ishaandev.co.in (Vercel) |
+| Zero-setup demo | One-click demo login at `/api-auth/demo?next=/brief` |
+| API health | `/health` + `/ready` both return 200 |
+| No broken endpoints | HMAC guard returns 401 (not 500) on unsigned webhooks |
+| Database | Neon PostgreSQL — 42 migrations, seeded demo data |
+
+### AI Agent Quality
+
+| What we built | Files |
+|---|---|
+| 9-dimension PR code review | `packages/services/feature-ai.ts` → `runPrAiReview` |
+| Delta re-review (new) | `feature-ai.ts` → `runDeltaAiReview` |
+| Risk-aware triage | `feature-ai.ts` → `triageFeatureRequest` |
+| Technical PRD with rollback plan | `feature-ai.ts` → `generateFeaturePrd` |
+| Typed task generation with per-task AC | `feature-ai.ts` → `generateFeatureTasks` |
+| 8-dimension pre-ship feature review | `feature-ai.ts` → `runFeatureAiReview` |
+| 25-tool streaming agent | `packages/services/shipflow-agent-tools.ts` |
+| SSE streaming with action cards | `apps/api/src/routes/agent-stream.ts` |
+| MCP 2024-11-05 server | `apps/api/src/routes/mcp.ts` |
+
+### Review Loop & Human Approval
+
+| What we built | Files |
+|---|---|
+| Iteration tracking with increment | `packages/services/review.ts` → `persistAiReview` |
+| Delta comparison (resolved/persisting/new) | `review.ts` → `getReviewDelta` |
+| Review health stats | `review.ts` → `getReviewStats` |
+| Approval gate validation | `review.ts` → `validateHumanApprovalEligibility` |
+| Human approval: approve/reject/changes | `review.ts` → `recordHumanApproval` |
+| Full approval audit trail | `review.ts` → `listHumanApprovals` |
+| Delta-aware re-review in PR flow | `packages/services/github/pr-review.ts` |
+| 6-stage workflow with delta messaging | `packages/services/workflows/ai-review-workflow.ts` |
+| Agent tools: approve/reject/changes | `shipflow-agent-tools.ts` → 7 new tools |
+
+### GitHub Integration
+
+| What we built | Files |
+|---|---|
+| GitHub App + Octokit | `packages/services/github/client.ts` |
+| 55-min token cache | `client.ts` |
+| Paginated repo sync (fixes 100-repo ceiling) | `github/installation.ts` |
+| HMAC-SHA256 webhook verification | `github/installation.ts` → `verifyGithubWebhookSignature` |
+| `installation.deleted` handling | `github/webhook.ts` → `processGithubInstallationWebhook` |
+| `installation_repositories.removed` | `github/webhook.ts` |
+| PR → feature auto-linking | `github/webhook.ts` → `processGithubPullRequestWebhook` |
+| Merged PR → `approved` status | `github/webhook.ts` |
+| Webhook idempotency guard | `github/webhook.ts` — LRU set on delivery ID |
+| Paginated PR diff (no 100-file ceiling) | `github/diff.ts` |
+| Per-file patch truncation + binary exclusion | `github/diff.ts` |
+| Rich PR body with PRD checklist | `github/pr.ts` |
+| Update-in-place review comment | `github/pr-review.ts` |
+| CI: `installation` + `installation_repositories` routing | `apps/api/src/github-webhook.ts` |
+
+### Code Quality
+
+| What we built | Evidence |
+|---|---|
+| 100% TypeScript, zero errors | `pnpm check-types` → 0 errors in CI |
+| Database type correctness | boolean/integer (not text) for `readyForHuman`, `progress`, `credits` |
+| 14 performance indexes | `packages/database/models/` + migration `0041_add_indexes.sql` |
+| 2 SQL enums | `billing_status`, `clarification_role` |
+| Drizzle ORM — no raw SQL | All queries parameterized |
+| Parallel CI jobs | `.github/workflows/ci.yml` — static + test + e2e |
+| Playwright E2E with artifacts | CI uploads report on failure |
 
 ---
 
-## 📊 Rubric → Evidence Map
+## Key differentiators vs. other submissions
 
-| Category (max) | Score target | Live URL | Proof |
-|----------------|-------------|----------|-------|
-| **Core Workflow** (20) | 19+ | [`/requests`](https://qship.ishaandev.co.in/api-auth/demo?next=/requests) · [`/tasks`](https://qship.ishaandev.co.in/api-auth/demo?next=/tasks) | Intake → AI triage → clarifying questions → PRD (7 sections) → Kanban → status flow |
-| **AI Agent** (20) | 19+ | [`/agent`](https://qship.ishaandev.co.in/api-auth/demo?next=/agent) · [`POST /mcp`](https://api.qship.ishaandev.co.in/docs) | 19 tools, SSE streaming, sessions, tool memory, educate-if-exists, HITL |
-| **GitHub** (15) | 13+ | [`/settings`](https://qship.ishaandev.co.in/api-auth/demo?next=/settings) | App install, repo sync, PR creation, webhook HMAC, AI review → GitHub comment |
-| **Review & Approval** (15) | 14+ | [`/requests`](https://qship.ishaandev.co.in/api-auth/demo?next=/requests) | AI review iterations (blocking/non-blocking), fix_needed loop, human_review → approve → ship |
-| **Engineering** (15) | 15 | [CI badge](https://github.com/ishaansatapathy/Qship) · [Scalar](https://api.qship.ishaandev.co.in/docs) | tRPC + OpenAPI, Drizzle, 52+ unit tests, CI pipeline, tool parity test |
-| **SaaS UX** (10) | 10 | [`/brief`](https://qship.ishaandev.co.in/api-auth/demo?next=/brief) · [`/billing`](https://qship.ishaandev.co.in/api-auth/demo?next=/billing) | Pipeline overview, Kanban, intake hub, Razorpay billing, Cmd+K, skeletons |
-| **Demo & Docs** (5) | 5 | This file · [DEMO.md](./DEMO.md) · [Scalar](https://api.qship.ishaandev.co.in/docs) | One-click demo, 5-min walkthrough, MCP curl, submission pack |
+### 1. Delta-aware AI re-review
+Most submissions run the same generic review every time. ShipFlow's `runDeltaAiReview` specifically checks each blocking issue from the previous iteration and classifies it as `RESOLVED / PARTIALLY_RESOLVED / UNRESOLVED`. The AI cannot mark a re-review as passing without verifying each prior issue was fixed.
 
----
+### 2. Approval gate enforced at all entry points
+`validateHumanApprovalEligibility` is called before any `approve_feature` action — whether from the UI button, agent tool, or tRPC mutation. If the latest AI review has blocking issues, approval is blocked with a specific error explaining why.
 
-## 🛠 Feature Matrix (what we built)
+### 3. 25 MCP tools with CI parity test
+The agent and MCP server share the same 25 tools, verified by a CI test (`tool-parity.test.ts`). Tools include `approve_feature`, `reject_feature`, `request_changes`, `get_review_delta`, `get_review_stats`, `get_approval_history` — a complete PM workflow accessible from Cursor or Claude Desktop.
 
-| Feature | Route / API | Judge signal |
-|---------|-------------|--------------|
-| Pipeline overview | `/brief` | Real DB counts |
-| Multi-channel intake | `/inbox`, `POST /webhooks/intake` | Email/support/call simulate |
-| Educate if exists | `check_existing_capability` | Duplicate detection before build |
-| Feature requests hub | `/requests` | Submit, triage, PRD, timeline |
-| Engineering Kanban | `/tasks` | 5-column board + status updates |
-| ShipFlow Agent | `/agent/stream` | 19 tools, streaming, focus |
-| MCP server | `POST /mcp` | Cursor/Claude integration |
-| AI pre-ship review | `run_ai_review`, `list_ai_reviews` | Blocking/non-blocking findings |
-| Human approval | `human_review` → `approved` → `shipped` | Confirm dialogs |
-| GitHub App | `/settings` | Repos, PRs, webhooks |
-| Razorpay billing | `/billing` | Plans, credits, test checkout |
-| Background jobs | Inngest | PRD/tasks/AI review workflows |
-| Cloud DB | Neon Postgres | Production-ready persistence |
-| API docs | `/docs` (Scalar) | Judge quick-start + curl samples |
+### 4. Production-grade GitHub App integration
+- Installation token cache (55 min TTL) — no JWT round-trip on every request
+- Paginated repo sync — no 100-repo ceiling
+- Delivery-ID idempotency guard — prevents double-processing of replayed webhooks
+- `installation.deleted` webhook disconnects org and evicts token
+- Merged PR → feature automatically transitions to `approved`
+- Review comments update in-place (no spam on each push)
 
-**Agent tools: 19 · MCP tools: 19 · CI parity:** `packages/services/ai/tool-parity.test.ts`
+### 5. Technical PRD with security + rollback plan
+`generateFeaturePrd` produces 10 structured sections including `technicalRequirements`, `securityRequirements`, `testingStrategy`, and `rollbackPlan`. Most AI tools generate vague goal/story lists — ShipFlow generates specs that engineers can implement and security teams can audit.
 
 ---
 
-## 🔧 MCP Quick Test
+## Architecture in one diagram
 
-```bash
-# List 19 tools (no auth)
-curl -s -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-
-# Pipeline summary (session cookie or Bearer MCP key)
-curl -s -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -H "Cookie: <from-browser-after-login>" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_pipeline_summary","arguments":{}}}'
+```
+Browser → Next.js (web)
+              │
+              ▼ tRPC + REST
+         Express API (api)
+              │
+    ┌─────────┼──────────────────────┐
+    ▼         ▼                      ▼
+  /trpc     /mcp (25 tools)    /agent/stream
+    │         │                      │
+    └─────────┴──────────────────────┘
+                     │
+              packages/services
+              ├── feature-ai.ts     (OpenAI)
+              ├── review.ts         (persistence + gate)
+              ├── github/           (Octokit + webhooks)
+              ├── shipflow-agent-tools.ts (25 tools)
+              └── workflows/        (Inngest)
+                     │
+              packages/database
+              (PostgreSQL + Drizzle, 42 migrations, 14 indexes)
 ```
 
-Manifest: **`mcp-server.json`**
-
 ---
 
-## 💳 Razorpay (test mode)
+## Tech stack summary
 
-1. Add `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` to `.env` → restart `pnpm dev`
-2. `/billing` → **Pro** → **Pay with Razorpay**
-3. **Netbanking** → any bank → **Success** (easiest in test mode)
-4. Plan upgrades to Pro · 100 AI credits
-
-Fallback: without keys, **demo mode** upgrades instantly (for judge reliability).
-
----
-
-## 📁 Documentation Index
-
-| Doc | Purpose |
-|-----|---------|
-| **This file** | Submission one-pager + rubric map |
-| [DEMO.md](./DEMO.md) | Full judge demo + curl + workflows + recording path |
-| [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | Timed 3-minute path |
-| [README.md](./README.md) | Setup, architecture, deploy |
-| [DOCS.md](./DOCS.md) | Technical deep-dive |
-| [mcp-server.json](./mcp-server.json) | MCP client config |
-
----
-
-## ✅ Pre-Submit Checklist
-
-- [x] `pnpm db:seed` — demo data loaded
-- [x] `pnpm test` — 52+ tests pass (tool parity included)
-- [x] Demo login works → `/brief` shows counts
-- [x] Intake simulate sends to pipeline
-- [x] Kanban `/tasks` shows seeded tasks
-- [x] Razorpay modal opens OR demo billing works
-- [x] GitHub pushed · README has video URL
-- [ ] **Demo video recorded** (5 min) — upload link in README
-
----
-
-**Builder Mode On | ChaiCode Hackathon | #chaicode**
+Turborepo monorepo · Next.js 16 · Express + tRPC v11 · BetterAuth · PostgreSQL + Drizzle ORM · OpenAI gpt-4o-mini · MCP 2024-11-05 · GitHub App (Octokit) · Inngest · Razorpay · Scalar OpenAPI · GitHub Actions CI
