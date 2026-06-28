@@ -18,7 +18,6 @@ export const aiReviews = pgTable(
       .notNull()
       .references(() => featureRequests.id, { onDelete: "cascade" }),
     pullRequestId: text("pull_request_id")
-      .notNull()
       .references(() => pullRequests.id, { onDelete: "cascade" }),
     /** Monotonically increasing iteration count per feature request. */
     iteration: integer("iteration").notNull().default(1),

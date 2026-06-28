@@ -57,18 +57,25 @@ After demo login you land here. You'll see:
 
 ---
 
-### Step 2 · Submit a feature request (`/requests`)
+### Step 2 · View pre-seeded features & submit a new one (`/requests`)
 
 > **URL:** https://qship.ishaandev.co.in/requests
 
-Click **"+ New request"** and submit:
+After demo login you'll see **3 pre-seeded features** already in the pipeline:
+
+| Feature | Status | What it shows |
+|---|---|---|
+| **OAuth login for enterprise customers** | `prd_ready` | Full PRD + tasks generated — click to inspect |
+| **Bulk export for compliance reports** | `human_review` | AI review passed — approve/reject gate is live |
+| **Slack notification when PR is approved** | `submitted` | Raw request — run triage from here |
+
+To demo the full flow end-to-end, click **"+ New request"** and submit:
 
 ```
-Title: Rate limiting on authentication endpoints
-Request: We're seeing brute-force login attempts from multiple IPs.
-         We need per-IP rate limiting on /sign-in and /mfa endpoints
-         with exponential backoff, configurable thresholds, and Redis-backed
-         counters. Lockout after 10 failures in 5 minutes. Alert on repeated lockouts.
+Title: Real-time webhook delivery dashboard
+Request: Engineering team needs a dashboard to monitor outbound webhook delivery —
+         showing last-attempt status, retry counts, failure reasons, and a manual
+         retry button. Must support filtering by endpoint URL and status code.
 ```
 
 **What to observe:** Automatic **duplicate capability check** fires before creation. New feature appears in `submitted` status.
@@ -240,7 +247,7 @@ Try these exact prompts:
 - Judge quick-start table at the top of the info panel
 - Tag groups: Getting started / ShipFlow core / AI platform / Integrations
 - Interactive code samples with `curl` examples
-- MCP tool manifest with all 25 tool descriptions
+- MCP tool manifest with all 33 tool descriptions
 - `/mcp`, `/agent/stream`, `/webhooks/github` documented as reference paths
 
 ---
@@ -273,7 +280,7 @@ for t in tools:
 "
 ```
 
-Expected: **25 tools** listed.
+Expected: **33 tools** listed.
 
 ### OpenAPI schema
 
@@ -348,7 +355,7 @@ curl -s -X POST http://localhost:8000/mcp \
 | **GitHub** | 55-min token cache, paginated repo sync, idempotent webhook delivery |
 | **CI** | Parallel static + integration + E2E jobs, Playwright artifacts on failure |
 | **Security** | HMAC-SHA256 webhooks, approval gate validation, scoped tool execution |
-| **MCP** | 25 tools, CI parity test, JSON-RPC 2.0 spec-compliant |
+| **MCP** | 33 tools, CI parity test, JSON-RPC 2.0 spec-compliant |
 
 ---
 
@@ -358,11 +365,11 @@ curl -s -X POST http://localhost:8000/mcp \
 |---|---|---|
 | Working demo | One-click login, all pages load | https://qship.ishaandev.co.in |
 | API live | `/health`, `/ready`, `/docs` all 200 | https://api.qship.ishaandev.co.in |
-| AI agent quality | 9-dim review, delta re-review, 25 tools | `/agent`, `feature-ai.ts` |
+| AI agent quality | 9-dim review, delta re-review, 33 tools | `/agent`, `feature-ai.ts` |
 | Review loop | Iteration tracking, delta, approval gate | `review.ts`, `/requests` |
 | Human approval | Validate → approve/reject/changes | UI + agent tools |
 | GitHub integration | Webhooks, PR link, AI comment | `packages/services/github/` |
-| MCP | 25 tools, spec-compliant, public list | `POST /mcp` |
+| MCP | 33 tools, spec-compliant, public list | `POST /mcp` |
 | Documentation | README + DEMO + JUDGE_WALKTHROUGH + ARCHITECTURE | This repo |
 | Code quality | TypeScript strict, CI green, Drizzle migrations | `.github/workflows/ci.yml` |
 | Deployment | Vercel (web + API) + Neon DB | live URLs above |

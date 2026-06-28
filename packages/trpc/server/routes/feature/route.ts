@@ -6,7 +6,6 @@ import {
   getWorkspaceProjectForUser,
   listFeatureRequests,
   listTaskBoard,
-  updateFeatureStatus,
   assertFeatureInUserWorkspace,
   assertTaskInUserWorkspace,
   updateEngineeringTaskStatus,
@@ -30,6 +29,7 @@ import {
   getIssueResolutionSummary,
   getReviewLoopHealth,
 } from "@repo/services/review";
+import { guardedUpdateFeatureStatus } from "@repo/services/feature-request";
 import { generateApprovalBriefing, analyzeChangeRequest, generateDeveloperOnboardingGuide } from "@repo/services/feature-ai";
 import {
   predictDeliveryTimeline,
@@ -353,7 +353,7 @@ export const featureRouter = router({
         path: "/feature/requests/{id}/status",
         tags: ["Feature Requests"],
         protect: true,
-        summary: "Move a feature request to a new pipeline status",
+        summary: "Move a feature request to an adjacent pipeline status (FSM-validated)",
       },
     })
     .input(
@@ -364,9 +364,10 @@ export const featureRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
-        return updateFeatureStatus(
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return guardedUpdateFeatureStatus(
           input.id,
+          feature.status as (typeof FEATURE_STATUSES)[number],
           input.status as (typeof FEATURE_STATUSES)[number],
         );
       } catch (error) {

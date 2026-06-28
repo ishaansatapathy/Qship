@@ -22,6 +22,7 @@ import { inngestServe } from "./routes/inngest";
 import { enrichShipflowOpenApi, type OpenApiDocumentWithPaths } from "./openapi-enrichment";
 import {
   agentRateLimiter,
+  authRateLimiter,
   errorHandlerMiddleware,
   globalRateLimiter,
   notFoundMiddleware,

@@ -167,17 +167,38 @@ export async function processGithubPullRequestWebhook(
 
   // ── Feature status transitions ────────────────────────────────────────────────
   if (isMerged) {
-    await updateFeatureStatus(feature.id, "approved");
-    await appendFeatureActivity(feature.id, {
-      kind: "status",
-      title: "Pull request merged",
-      detail: `#${pr.number} merged into ${pr.base?.ref ?? "main"} · ${repoMeta.full_name}`,
-      actor: "system",
+    // Transition to human_review — human sign-off is required before approved.
+    // Only skip this gate if a human approval is already on record (e.g. pre-approved and then merged).
+    const { humanApprovals: humanApprovalsTable } = await import("@repo/database/schema");
+    const { eq: eqOp } = await import("@repo/database");
+    const existingApproval = await db.query.humanApprovals.findFirst({
+      where: eqOp(humanApprovalsTable.featureRequestId, feature.id),
     });
+
+    if (existingApproval?.decision === "approved") {
+      // Already approved by a human — mark shipped-ready.
+      await updateFeatureStatus(feature.id, "approved");
+      await appendFeatureActivity(feature.id, {
+        kind: "status",
+        title: "Pull request merged (pre-approved)",
+        detail: `#${pr.number} merged · human approval already on record`,
+        actor: "system",
+      });
+    } else {
+      // Gate the feature at human_review — PM must confirm before approved.
+      await updateFeatureStatus(feature.id, "human_review");
+      await appendFeatureActivity(feature.id, {
+        kind: "status",
+        title: "Pull request merged — awaiting human approval",
+        detail: `#${pr.number} merged into ${pr.base?.ref ?? "main"} · ${repoMeta.full_name} · PM sign-off required`,
+        actor: "system",
+      });
+    }
     logger.info("webhook.pull_request.merged", {
       featureId: feature.id,
       prNumber: pr.number,
       orgId: org.id,
+      hadExistingApproval: Boolean(existingApproval),
     });
     return { handled: true, linked: true, action, featureId: feature.id, pullRequestId: prId, state };
   }

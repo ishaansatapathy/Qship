@@ -303,7 +303,8 @@ export async function runFeatureAiReviewWithOptionalPr(
     }
   }
 
-  // Fallback: PRD-only review without code diff.
+  // Fallback: PRD-only review without code diff — still persisted to DB so
+  // the human-approval gate (which checks ai_reviews) works correctly.
   logger.info("pr_review.fallback_feature_only", { featureId });
 
   const review = await runFeatureAiReview({
@@ -313,16 +314,26 @@ export async function runFeatureAiReviewWithOptionalPr(
     taskTitles: feature.tasks?.map((t) => t.title) ?? [],
   });
 
-  const nextStatus = review.pass ? "human_review" : "fix_needed";
-  await updateFeatureStatus(featureId, nextStatus);
-  await updateFeatureMetadata(featureId, {
-    lastAiReview: {
-      at: new Date().toISOString(),
-      pass: review.pass,
-      summary: review.summary,
-      findings: review.findings,
-    },
+  const { persistAiReview } = await import("../review");
+  // Convert feature-only review (no diff) to the PrAiReviewResult shape.
+  // findings (string[]) are mapped to non-blocking PrReviewIssue entries.
+  const prReviewShape = {
+    ...review,
+    issues: review.pass
+      ? []
+      : review.findings.map((finding) => ({
+          severity: "non_blocking" as const,
+          category: "prd_alignment",
+          title: finding.length > 80 ? `${finding.slice(0, 77)}…` : finding,
+          description: finding,
+        })),
+  };
+  const { reviewId, iteration, nextStatus } = await persistAiReview({
+    featureRequestId: featureId,
+    pullRequestId: null,
+    review: prReviewShape,
   });
 
+  logger.info("pr_review.fallback_persisted", { featureId, reviewId, iteration, nextStatus });
   return { ok: true as const, pass: review.pass, nextStatus, prLinked: false as const };
 }

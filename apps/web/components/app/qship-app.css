@@ -6686,3 +6686,60 @@
   color: #f87171;
 }
 
+/* ── Review health badge ─────────────────────────────────────────────────── */
+.qship-review-health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: rgba(255,255,255,0.7);
+}
+.qship-review-health-badge[data-label="healthy"] { border-color: rgba(52,211,153,0.3); color: #34d399; }
+.qship-review-health-badge[data-label="needs_attention"] { border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+.qship-review-health-badge[data-label="critical"] { border-color: rgba(239,68,68,0.3); color: #f87171; }
+.qship-health-label {
+  text-transform: capitalize;
+  opacity: 0.85;
+}
+.qship-health-sla {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(251,146,60,0.15);
+  color: #fb923c;
+}
+.qship-health-sla[data-sla="breach"] {
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+}
+
+/* ── Review delta panel ──────────────────────────────────────────────────── */
+.qship-review-delta { border-top: 1px solid rgba(255,255,255,0.05); }
+.qship-delta-group {
+  margin: 6px 0;
+  font-size: 12px;
+}
+.qship-delta-group ul {
+  list-style: disc;
+  padding-left: 16px;
+  margin: 4px 0 0;
+  opacity: 0.75;
+}
+.qship-delta-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.qship-delta-badge.resolved { background: rgba(52,211,153,0.15); color: #34d399; }
+.qship-delta-badge.new      { background: rgba(239,68,68,0.15);  color: #f87171; }
+

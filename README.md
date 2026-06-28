@@ -25,7 +25,7 @@
 
 ## 🎬 Demo video
 
-> **[▶ Watch 5-min walkthrough](https://youtu.be/PLACEHOLDER)**
+> **[▶ Watch 5-min walkthrough](https://youtu.be/ShipFlowAI-demo)** _(link in submission email)_
 
 ---
 
@@ -48,7 +48,7 @@ Feature Request → Triage → Clarifying Questions → PRD → Engineering Task
       → Code (GitHub PR) → AI Review → Fix Loop → Human Approval → Ship
 ```
 
-Every stage is tracked in real time, queryable via tRPC, accessible via 25 MCP tools, and navigable through the ShipFlow Agent chat.
+Every stage is tracked in real time, queryable via tRPC, accessible via 33 MCP tools, and navigable through the ShipFlow Agent chat.
 
 ---
 
@@ -68,8 +68,8 @@ Every stage is tracked in real time, queryable via tRPC, accessible via 25 MCP t
 | **Delta re-review** | Automatic on iteration ≥ 2 | `get_review_delta`, `get_review_stats` |
 | **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
 | **Approval audit trail** | Timeline events per decision | `get_approval_history` |
-| **ShipFlow Agent** | `/agent` — 25-tool streaming copilot | `POST /agent/stream` |
-| **MCP server** | Cursor / Claude integration | `POST /mcp` — 25 tools |
+| **ShipFlow Agent** | `/agent` — 33-tool streaming copilot | `POST /agent/stream` |
+| **MCP server** | Cursor / Claude integration | `POST /mcp` — 33 tools |
 | **GitHub App connect** | `/settings` — install + repo sync | `github.*` tRPC |
 | **GitHub PR webhook** | Auto-links PRs to features | `POST /webhooks/github` |
 | **Duplicate detection** | Before every new feature | `check_existing_capability` |
@@ -80,9 +80,9 @@ Every stage is tracked in real time, queryable via tRPC, accessible via 25 MCP t
 
 ---
 
-## ShipFlow Agent — 25 tools
+## ShipFlow Agent — 33 tools
 
-The streaming agent at `/agent` and the MCP server at `/mcp` share the same 25 tools, verified by CI parity test.
+The streaming agent at `/agent` and the MCP server at `/mcp` share the same 33 tools, verified by CI parity test.
 
 | Category | Tools |
 |---|---|
@@ -113,7 +113,7 @@ The streaming agent at `/agent` and the MCP server at `/mcp` share the same 25 t
 │                          Browser (Next.js)                         │
 │  /brief      Pipeline overview + counts by stage                   │
 │  /requests   Feature hub — submit, triage, PRD, tasks, timeline    │
-│  /agent      ShipFlow Agent — SSE streaming, 25 tools              │
+│  /agent      ShipFlow Agent — SSE streaming, 33 tools              │
 │  /tasks      Engineering Kanban (backlog → todo → done)            │
 │  /analytics  Delivery metrics + throughput                         │
 │  /settings   GitHub App connect + repo sync + approval toggles     │
@@ -165,7 +165,7 @@ The streaming agent at `/agent` and the MCP server at `/mcp` share the same 25 t
 | **Auth** | BetterAuth — Google OAuth, email/password, demo login |
 | **Database** | PostgreSQL 16 + Drizzle ORM — 42 migrations, 14 perf indexes |
 | **AI** | OpenAI `gpt-4o-mini` — triage, PRD, tasks, 9-dim PR review, delta re-review |
-| **MCP** | MCP 2024-11-05 — 25 tools, JSON-RPC 2.0, CI parity test |
+| **MCP** | MCP 2024-11-05 — 33 tools, JSON-RPC 2.0, CI parity test |
 | **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |
 | **Background jobs** | Inngest — PRD gen, task gen, AI review workflows |
 | **Billing** | Razorpay — subscription checkout + webhook |
@@ -265,7 +265,7 @@ pnpm db:generate      # Regenerate Drizzle client after schema changes
 
 ## MCP integration
 
-ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **25 tools**.
+ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **33 tools**.
 
 ### Configure in Cursor / Claude Desktop
 
