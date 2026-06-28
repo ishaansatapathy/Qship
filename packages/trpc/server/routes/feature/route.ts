@@ -470,11 +470,45 @@ export const featureRouter = router({
     }),
 
   listReviews: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/reviews",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "All AI review iterations for a feature request",
+      },
+    })
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return listAiReviewsForFeature(input.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  addClarification: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/clarifications",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Add a user clarification answer to a feature request",
+      },
+    })
+    .input(z.object({ id: z.string().min(1), content: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return appendFeatureActivity(feature.id, {
+          kind: "clarification",
+          title: "Clarification provided",
+          detail: input.content,
+          actor: "user",
+        });
       } catch (error) {
         mapServiceError(error);
       }

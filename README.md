@@ -1,7 +1,6 @@
 # Qship — ShipFlow AI
 
-> **Judge / Evaluator?** → **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** · **[DEMO.md](./DEMO.md)** · **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**  
-> **Deploy:** Code is ready — **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** (your Vercel + Hostinger steps) · Full reference: **[DEPLOY.md](./DEPLOY.md)**
+> **Judge / Evaluator?** → **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** · **[DEMO.md](./DEMO.md)** · **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
 
 AI-assisted **product delivery platform** — move features from **request → PRD → tasks → code → AI review → human approval → ship**.
 
@@ -11,21 +10,37 @@ Built for the **ChaiCode hackathon** as a production-style **tRPC monorepo SaaS*
 
 ---
 
-## Demo (judges — start here)
+## 🎬 Demo video
 
-| Step | Action |
-|------|--------|
-| 1 | `pnpm db:migrate && pnpm db:seed` |
-| 2 | Set `DEMO_LOGIN_ENABLED=true` in `.env` |
-| 3 | Open **http://localhost:3000/api-auth/demo?next=/brief** |
-| 4 | Scalar docs: **http://localhost:8000/docs** (prod: **https://api.qship.ishaandev.co.in/docs**) |
+> **[▶ Watch 5-min demo](https://youtu.be/PLACEHOLDER)** — record this and replace the link before submission
 
-Production deploy: **[DEPLOY.md](./DEPLOY.md)**
+---
+
+## ⚡ Live demo (zero setup)
+
+| | URL |
+|---|-----|
+| **App** | https://qship.ishaandev.co.in/api-auth/demo?next=/brief |
+| **Scalar API docs** | https://api.qship.ishaandev.co.in/docs |
+| **MCP server** | `POST https://api.qship.ishaandev.co.in/mcp` |
 
 | Field | Value |
 |-------|-------|
 | Email | `demo@qship.dev` |
 | Password | `DemoPass123!` |
+
+---
+
+## Local setup
+
+| Step | Action |
+|------|--------|
+| 1 | `pnpm install` |
+| 2 | Copy `.env.example` → `.env`, add `OPENAI_API_KEY` + `DATABASE_URL` |
+| 3 | `pnpm db:migrate && pnpm db:seed` |
+| 4 | Set `DEMO_LOGIN_ENABLED=true` in `.env` |
+| 5 | `pnpm dev` |
+| 6 | Open **http://localhost:3000/api-auth/demo?next=/brief** |
 
 Full guide: **[DEMO.md](./DEMO.md)** · Timed walkthrough: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
 
