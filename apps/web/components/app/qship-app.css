@@ -6743,3 +6743,42 @@
 .qship-delta-badge.resolved { background: rgba(52,211,153,0.15); color: #34d399; }
 .qship-delta-badge.new      { background: rgba(239,68,68,0.15);  color: #f87171; }
 
+/* ── Workflow panel stop control ─────────────────────────────────────────── */
+.qship-workflow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.qship-workflow-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(248,113,113,0.35);
+  background: rgba(239,68,68,0.1);
+  color: #f87171;
+  cursor: pointer;
+}
+.qship-workflow-stop:hover:not(:disabled) {
+  background: rgba(239,68,68,0.18);
+}
+.qship-workflow-stop:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.qship-workflow-stop-inline {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f87171;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+

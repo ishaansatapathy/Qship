@@ -13,7 +13,7 @@ import {
 } from "@repo/services/feature-request";
 import { ingestFeatureRequest, getIntakeSummary } from "@repo/services/feature-intake";
 import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration, recoverStaleWorkflowRuns } from "@repo/services/inngest/dispatch";
-import { listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
+import { cancelActiveWorkflowRuns, listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
 import {
@@ -342,6 +342,36 @@ export const featureRouter = router({
         await assertFeatureInUserWorkspace(ctx.user.id, input.featureId);
         await recoverStaleWorkflowRuns(input.featureId, ctx.user.id);
         return listWorkflowRunsForFeature(input.featureId);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  cancelWorkflow: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{featureId}/workflow/cancel",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Cancel active Inngest/background workflow runs for a feature",
+      },
+    })
+    .input(
+      z.object({
+        featureId: z.string().min(1),
+        workflowRunId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.featureId);
+        if (input.workflowRunId) {
+          const { cancelWorkflowRunWithCleanup } = await import("@repo/services/workflow-runs");
+          await cancelWorkflowRunWithCleanup(input.workflowRunId);
+          return { cancelled: 1 };
+        }
+        return cancelActiveWorkflowRuns(input.featureId);
       } catch (error) {
         mapServiceError(error);
       }
