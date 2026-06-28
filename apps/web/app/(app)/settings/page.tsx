@@ -172,7 +172,7 @@ export default function SettingsPage() {
   const logout = trpc.auth.logout.useMutation({
     onSettled: async () => {
       await utils.auth.me.reset();
-      await signOutShipflow("/sign-in");
+      await signOutShipflow("/");
     },
   });
 

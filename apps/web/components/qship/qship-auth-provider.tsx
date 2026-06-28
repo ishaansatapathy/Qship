@@ -28,6 +28,7 @@ function QshipAuthProviderInner({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const errorMessage = searchParams.get("error") ?? undefined;
+  const nextPath = searchParams.get("next") ?? undefined;
 
   useEffect(() => {
     if (isLoading) return;
@@ -50,9 +51,10 @@ function QshipAuthProviderInner({ children }: { children: ReactNode }) {
     setOpen(false);
     if (typeof window !== "undefined" && window.location.search) {
       const url = new URL(window.location.href);
-      if (url.searchParams.has("error") || url.searchParams.has("login")) {
+      if (url.searchParams.has("error") || url.searchParams.has("login") || url.searchParams.has("next")) {
         url.searchParams.delete("error");
         url.searchParams.delete("login");
+        url.searchParams.delete("next");
         const next = url.pathname + (url.search || "") + url.hash;
         window.history.replaceState({}, "", next);
       }
@@ -67,7 +69,7 @@ function QshipAuthProviderInner({ children }: { children: ReactNode }) {
   if (open) {
     return (
       <AuthContext.Provider value={value}>
-        <QshipAuthScreen mode={mode} errorMessage={errorMessage} onClose={closeAuth} />
+        <QshipAuthScreen mode={mode} errorMessage={errorMessage} nextPath={nextPath} onClose={closeAuth} />
       </AuthContext.Provider>
     );
   }

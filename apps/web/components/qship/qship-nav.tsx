@@ -6,7 +6,6 @@ import { Github, ArrowRight, Menu, X } from "lucide-react";
 import { QshipLogoMark, QshipWordmark } from "./qship-logo";
 import { useQshipAuth } from "./qship-auth-provider";
 import { useQshipUser } from "~/components/app/use-qship-user";
-import { signOutShipflow } from "~/lib/sign-out";
 
 const NAV = [
   { label: "How it works", href: "#how" },
@@ -67,19 +66,10 @@ export function QshipNav() {
             <Github size={15} />
           </a>
           {user ? (
-            <>
-              <button
-                type="button"
-                className="qship-btn-ghost qship-nav-login"
-                onClick={() => void signOutShipflow("/sign-in")}
-              >
-                Sign out
-              </button>
-              <Link href="/inbox" className="qship-btn-accent qship-nav-cta" onClick={closeMenu}>
-                <span className="qship-nav-cta-text">Open ShipFlow</span>
-                <ArrowRight size={15} />
-              </Link>
-            </>
+            <Link href="/inbox" className="qship-btn-accent qship-nav-cta" onClick={closeMenu}>
+              <span className="qship-nav-cta-text">Open ShipFlow</span>
+              <ArrowRight size={15} />
+            </Link>
           ) : (
             <>
               <button
@@ -140,21 +130,9 @@ export function QshipNav() {
               Privacy Policy
             </a>
             {user ? (
-              <>
-                <button
-                  type="button"
-                  className="qship-btn-ghost"
-                  onClick={() => {
-                    closeMenu();
-                    void signOutShipflow("/sign-in");
-                  }}
-                >
-                  Sign out
-                </button>
-                <Link href="/inbox" className="qship-btn-accent" onClick={closeMenu}>
-                  Open ShipFlow
-                </Link>
-              </>
+              <Link href="/inbox" className="qship-btn-accent" onClick={closeMenu}>
+                Open ShipFlow
+              </Link>
             ) : (
               <button
                 type="button"

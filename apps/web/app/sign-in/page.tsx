@@ -1,31 +1,30 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import "~/components/qship/qship.css";
-import { QshipAuthScreen } from "~/components/qship/qship-auth-screen";
-
-function SignInContent() {
+/** Same login UI as landing — avoid a separate bare /sign-in page. */
+function SignInRedirect() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const errorMessage = searchParams.get("error") ?? undefined;
-  const nextPath = searchParams.get("next") ?? undefined;
-  const pendingTwoFactorEmail =
-    searchParams.get("2fa") === "1" ? (searchParams.get("email") ?? undefined) : undefined;
 
-  return (
-    <QshipAuthScreen
-      errorMessage={errorMessage}
-      nextPath={nextPath}
-      pendingTwoFactorEmail={pendingTwoFactorEmail}
-    />
-  );
+  useEffect(() => {
+    const url = new URL("/", window.location.origin);
+    url.searchParams.set("login", "1");
+    for (const key of ["error", "next", "email", "2fa"] as const) {
+      const value = searchParams.get(key);
+      if (value) url.searchParams.set(key, value);
+    }
+    router.replace(`${url.pathname}${url.search}`);
+  }, [router, searchParams]);
+
+  return null;
 }
 
 export default function SignInPage() {
   return (
     <Suspense>
-      <SignInContent />
+      <SignInRedirect />
     </Suspense>
   );
 }
