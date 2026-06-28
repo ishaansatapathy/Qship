@@ -18,7 +18,21 @@ import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration } from 
 import { listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
-import { listAiReviewsForFeature, markFeatureShipped, recordHumanApproval } from "@repo/services/review";
+import {
+  listAiReviewsForFeature,
+  markFeatureShipped,
+  recordHumanApproval,
+  validateHumanApprovalEligibility,
+  listHumanApprovals,
+  getReviewDelta,
+  getReviewStats,
+  getLatestAiReview,
+  resolveReviewIssue,
+  getIssueResolutionSummary,
+  getReviewCycleTimes,
+  getReviewLoopHealth,
+} from "@repo/services/review";
+import { generateApprovalBriefing, analyzeChangeRequest } from "@repo/services/feature-ai";
 import { ServiceError } from "@repo/services/errors";
 import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES, type EngineeringTaskStatus } from "@repo/services/workflow";
 import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
@@ -427,10 +441,20 @@ export const featureRouter = router({
     }),
 
   approve: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/approve",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Approve a feature request (blocked if AI has unresolved blocking issues)",
+      },
+    })
     .input(z.object({ id: z.string().min(1), notes: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        await validateHumanApprovalEligibility(input.id);
         return recordHumanApproval({
           featureRequestId: input.id,
           reviewerUserId: ctx.user.id,
@@ -443,16 +467,50 @@ export const featureRouter = router({
     }),
 
   reject: protectedProcedure
-    .input(z.object({ id: z.string().min(1), notes: z.string().optional() }))
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/reject",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Reject a feature request and request changes",
+      },
+    })
+    .input(
+      z.object({
+        id: z.string().min(1),
+        notes: z.string().min(1, "Rejection must include change-request notes"),
+        analyzeWithAi: z.boolean().default(true),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       try {
-        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
-        return recordHumanApproval({
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        const result = await recordHumanApproval({
           featureRequestId: input.id,
           reviewerUserId: ctx.user.id,
           decision: "changes_requested",
           notes: input.notes,
         });
+        // Fire-and-forget structured analysis of change request
+        if (input.analyzeWithAi) {
+          const latestReview = await getLatestAiReview(input.id);
+          analyzeChangeRequest({
+            featureTitle: feature.title,
+            changeRequestNotes: input.notes,
+            latestReview: latestReview
+              ? {
+                  summary: latestReview.summary,
+                  blockingIssues: (latestReview.issues as Array<{ title: string; category: string; severity: string }>)
+                    .filter((i) => i.severity === "blocking")
+                    .map((i) => ({ title: i.title, category: i.category })),
+                }
+              : null,
+          }).catch(() => {
+            // Non-fatal — the rejection itself already succeeded
+          });
+        }
+        return result;
       } catch (error) {
         mapServiceError(error);
       }
@@ -594,6 +652,218 @@ export const featureRouter = router({
           actor: "user",
         });
         return row;
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  // ── Review loop health & analytics ────────────────────────────────────────
+
+  getReviewDelta: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/review-delta",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Compare last two AI review iterations — resolved, persisting, and new issues",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return getReviewDelta(input.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  getReviewStats: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/review-stats",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Aggregate AI review statistics: pass rate, avg issues, iteration count",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return getReviewStats(input.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  getReviewLoopHealth: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/review-health",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Comprehensive review loop health: score, SLA status, cycle times, issue resolution",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return getReviewLoopHealth(input.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  getApprovalBriefing: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/approval-briefing",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "AI-generated decision-support briefing for the human reviewer",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        const [latestReview, delta, priorDecisions] = await Promise.all([
+          getLatestAiReview(input.id),
+          getReviewDelta(input.id),
+          listHumanApprovals(input.id),
+        ]);
+
+        if (!latestReview) {
+          throw new ServiceError("PRECONDITION_FAILED", "Run an AI review before requesting an approval briefing");
+        }
+
+        const blockingIssues = (latestReview.issues as Array<{
+          title: string; category: string; description: string; severity: string;
+        }>).filter((i) => i.severity === "blocking");
+        const advisoryIssues = (latestReview.issues as Array<{
+          title: string; category: string; severity: string;
+        }>).filter((i) => i.severity !== "blocking");
+
+        return generateApprovalBriefing({
+          featureTitle: feature.title,
+          rawRequest: feature.rawRequest,
+          prd: feature.prd?.content ?? null,
+          latestReview: {
+            iteration: latestReview.iteration,
+            summary: latestReview.summary,
+            pass: latestReview.readyForHuman,
+            blockingIssues,
+            advisoryIssues,
+          },
+          delta,
+          priorDecisions: priorDecisions?.map((d) => ({
+            decision: d.decision,
+            notes: d.notes,
+            createdAt: d.createdAt,
+          })),
+        });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  resolveIssue: protectedProcedure
+    .meta({
+      openapi: {
+        method: "PATCH",
+        path: "/feature/review-issues/{issueId}/resolve",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Mark an individual AI review issue as resolved (or reopen it)",
+      },
+    })
+    .input(
+      z.object({
+        issueId: z.string().min(1),
+        resolved: z.boolean(),
+        notes: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return resolveReviewIssue(input.issueId, input.resolved, input.notes);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  getIssueResolution: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/reviews/{reviewId}/issue-resolution",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Resolution summary for a specific AI review — how many blocking issues resolved vs outstanding",
+      },
+    })
+    .input(z.object({ reviewId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        return getIssueResolutionSummary(input.reviewId);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  getApprovalHistory: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/approval-history",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Full audit trail of human approval decisions for a feature",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return listHumanApprovals(input.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  analyzeChangeRequest: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/analyze-change-request",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "AI analysis of PM change-request notes into structured developer action items",
+      },
+    })
+    .input(z.object({ id: z.string().min(1), notes: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        const latestReview = await getLatestAiReview(input.id);
+        return analyzeChangeRequest({
+          featureTitle: feature.title,
+          changeRequestNotes: input.notes,
+          latestReview: latestReview
+            ? {
+                summary: latestReview.summary,
+                blockingIssues: (latestReview.issues as Array<{ title: string; category: string; severity: string }>)
+                  .filter((i) => i.severity === "blocking")
+                  .map((i) => ({ title: i.title, category: i.category })),
+              }
+            : null,
+        });
       } catch (error) {
         mapServiceError(error);
       }

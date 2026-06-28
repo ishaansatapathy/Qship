@@ -196,7 +196,17 @@ export async function getReviewStats(featureRequestId: string) {
   });
 
   if (reviews.length === 0) {
-    return { iterationCount: 0, totalIssues: 0, resolvedIssues: 0, passRate: 0, averageIssuesPerIteration: 0 };
+    return {
+      iterationCount: 0,
+      totalIssues: 0,
+      resolvedIssues: 0,
+      passRate: 0,
+      averageIssuesPerIteration: 0,
+      latestIteration: 0,
+      latestPass: false,
+      firstReviewedAt: undefined as Date | undefined,
+      latestReviewedAt: undefined as Date | undefined,
+    };
   }
 
   const totalIssues = reviews.reduce((sum, r) => sum + r.issues.length, 0);
@@ -354,4 +364,241 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
   });
 
   logger.info("review.feature_shipped", { featureRequestId, userId });
+}
+
+// ── Individual issue resolution ────────────────────────────────────────────────
+
+/**
+ * Marks a single AI review issue as resolved (or reverts it to unresolved).
+ * Used to track which blocking issues have been fixed between review iterations,
+ * providing developer-level granularity within a review session.
+ */
+export async function resolveReviewIssue(
+  issueId: string,
+  resolved: boolean,
+  resolutionNotes?: string,
+) {
+  const issue = await db.query.aiReviewIssues.findFirst({
+    where: eq(aiReviewIssues.id, issueId),
+    with: { aiReview: { columns: { featureRequestId: true, iteration: true } } },
+  });
+  if (!issue) {
+    throw new ServiceError("NOT_FOUND", "AI review issue not found");
+  }
+
+  await db
+    .update(aiReviewIssues)
+    .set({ resolved })
+    .where(eq(aiReviewIssues.id, issueId));
+
+  if (issue.aiReview?.featureRequestId) {
+    await appendFeatureActivity(issue.aiReview.featureRequestId, {
+      kind: "ai_review",
+      title: resolved
+        ? `Issue resolved: ${issue.title}`
+        : `Issue reopened: ${issue.title}`,
+      detail: resolutionNotes ?? issue.category,
+      actor: "user",
+    });
+  }
+
+  logger.info("review.issue_resolved", {
+    issueId,
+    resolved,
+    featureRequestId: issue.aiReview?.featureRequestId,
+  });
+
+  return { issueId, resolved, title: issue.title };
+}
+
+/**
+ * Returns a resolution summary for all issues in a specific review iteration:
+ * how many blocking issues are resolved vs outstanding.
+ */
+export async function getIssueResolutionSummary(reviewId: string) {
+  const issues = await db.query.aiReviewIssues.findMany({
+    where: eq(aiReviewIssues.aiReviewId, reviewId),
+    columns: { id: true, severity: true, title: true, category: true, resolved: true },
+  });
+
+  const blocking = issues.filter((i) => i.severity === "blocking");
+  const resolvedBlocking = blocking.filter((i) => i.resolved);
+  const advisory = issues.filter((i) => i.severity !== "blocking");
+  const resolvedAdvisory = advisory.filter((i) => i.resolved);
+
+  return {
+    reviewId,
+    total: issues.length,
+    blocking: {
+      total: blocking.length,
+      resolved: resolvedBlocking.length,
+      outstanding: blocking.length - resolvedBlocking.length,
+      items: blocking.map((i) => ({ id: i.id, title: i.title, category: i.category, resolved: i.resolved })),
+    },
+    advisory: {
+      total: advisory.length,
+      resolved: resolvedAdvisory.length,
+      outstanding: advisory.length - resolvedAdvisory.length,
+    },
+    allBlockingResolved: blocking.length === 0 || resolvedBlocking.length === blocking.length,
+  };
+}
+
+// ── Cycle time tracking ────────────────────────────────────────────────────────
+
+type SlaStatus = "ok" | "at_risk" | "breach";
+
+/**
+ * Computes SLA and cycle time metrics for a feature's review loop.
+ *
+ * SLA thresholds for human_review stage:
+ * - ok       : < 24 hours
+ * - at_risk  : 24–48 hours
+ * - breach   : > 48 hours
+ */
+export async function getReviewCycleTimes(featureRequestId: string) {
+  const [reviews, approvals] = await Promise.all([
+    db.query.aiReviews.findMany({
+      where: eq(aiReviews.featureRequestId, featureRequestId),
+      orderBy: [desc(aiReviews.createdAt)],
+      columns: { id: true, iteration: true, createdAt: true, readyForHuman: true },
+    }),
+    db.query.humanApprovals.findMany({
+      where: eq(humanApprovals.featureRequestId, featureRequestId),
+      orderBy: [desc(humanApprovals.createdAt)],
+      columns: { decision: true, createdAt: true },
+    }),
+  ]);
+
+  const now = Date.now();
+
+  const firstReviewAt = reviews.length ? reviews[reviews.length - 1]!.createdAt.getTime() : null;
+  const latestReviewAt = reviews.length ? reviews[0]!.createdAt.getTime() : null;
+  const firstApprovalAt = approvals.length ? approvals[approvals.length - 1]!.createdAt.getTime() : null;
+
+  const reviewLoopDurationMs =
+    firstReviewAt && latestReviewAt ? latestReviewAt - firstReviewAt : null;
+
+  const timeToFirstApprovalMs =
+    firstReviewAt && firstApprovalAt ? firstApprovalAt - firstReviewAt : null;
+
+  // Estimate time currently waiting in human_review by checking last AI review pass
+  const lastPassedReview = reviews.find((r) => r.readyForHuman);
+  const waitingInHumanReviewMs =
+    lastPassedReview && !approvals.length
+      ? now - lastPassedReview.createdAt.getTime()
+      : null;
+
+  let slaStatus: SlaStatus = "ok";
+  if (waitingInHumanReviewMs !== null) {
+    const hours = waitingInHumanReviewMs / (1000 * 60 * 60);
+    slaStatus = hours > 48 ? "breach" : hours > 24 ? "at_risk" : "ok";
+  }
+
+  return {
+    featureRequestId,
+    reviewIterationCount: reviews.length,
+    firstReviewAt: firstReviewAt ? new Date(firstReviewAt) : null,
+    latestReviewAt: latestReviewAt ? new Date(latestReviewAt) : null,
+    reviewLoopDurationMs,
+    reviewLoopDurationHours: reviewLoopDurationMs ? Math.round(reviewLoopDurationMs / 36000) / 100 : null,
+    timeToFirstApprovalMs,
+    timeToFirstApprovalHours: timeToFirstApprovalMs ? Math.round(timeToFirstApprovalMs / 36000) / 100 : null,
+    waitingInHumanReviewMs,
+    waitingInHumanReviewHours: waitingInHumanReviewMs ? Math.round(waitingInHumanReviewMs / 36000) / 100 : null,
+    slaStatus,
+    humanApprovalCount: approvals.length,
+  };
+}
+
+/**
+ * Returns a comprehensive review loop health summary combining:
+ * review stats, cycle times, issue resolution, and delta progress.
+ */
+export async function getReviewLoopHealth(featureRequestId: string) {
+  const [stats, cycleTimes, latestReview, delta] = await Promise.all([
+    getReviewStats(featureRequestId),
+    getReviewCycleTimes(featureRequestId),
+    getLatestAiReview(featureRequestId),
+    getReviewDelta(featureRequestId),
+  ]);
+
+  const resolutionSummary = latestReview
+    ? await getIssueResolutionSummary(latestReview.id)
+    : null;
+
+  const healthScore = computeHealthScore({
+    passRate: stats.passRate,
+    iterationCount: stats.iterationCount,
+    slaStatus: cycleTimes.slaStatus,
+    allBlockingResolved: resolutionSummary?.allBlockingResolved ?? false,
+    latestPass: stats.latestPass,
+  });
+
+  return {
+    featureRequestId,
+    healthScore,
+    healthLabel: healthScore >= 80 ? "healthy" : healthScore >= 50 ? "needs_attention" : "critical",
+    stats,
+    cycleTimes,
+    delta,
+    latestReviewResolution: resolutionSummary,
+    summary: buildHealthSummary(healthScore, stats, cycleTimes),
+  };
+}
+
+function computeHealthScore(params: {
+  passRate: number;
+  iterationCount: number;
+  slaStatus: SlaStatus;
+  allBlockingResolved: boolean;
+  latestPass: boolean;
+}): number {
+  let score = 100;
+
+  // Penalise for low pass rate
+  if (params.passRate < 50) score -= 30;
+  else if (params.passRate < 75) score -= 15;
+
+  // Penalise for high iteration count (> 3 iterations suggests poor initial quality)
+  if (params.iterationCount > 5) score -= 20;
+  else if (params.iterationCount > 3) score -= 10;
+
+  // Penalise for SLA breach
+  if (params.slaStatus === "breach") score -= 25;
+  else if (params.slaStatus === "at_risk") score -= 10;
+
+  // Penalise if latest review failed
+  if (!params.latestPass) score -= 15;
+
+  // Penalise if blocking issues unresolved
+  if (!params.allBlockingResolved) score -= 10;
+
+  return Math.max(0, Math.min(100, score));
+}
+
+function buildHealthSummary(
+  score: number,
+  stats: Awaited<ReturnType<typeof getReviewStats>>,
+  cycleTimes: Awaited<ReturnType<typeof getReviewCycleTimes>>,
+): string {
+  const parts: string[] = [];
+
+  if (stats.iterationCount === 0) return "No AI review has been run yet.";
+
+  parts.push(`${stats.iterationCount} review iteration${stats.iterationCount === 1 ? "" : "s"}.`);
+
+  if (stats.latestPass) {
+    parts.push("Latest review passed.");
+  } else {
+    parts.push(`Latest review failed — ${stats.averageIssuesPerIteration} avg issues/iteration.`);
+  }
+
+  if (cycleTimes.slaStatus === "breach") {
+    parts.push(`⚠ SLA breach: waiting ${cycleTimes.waitingInHumanReviewHours}h for human approval.`);
+  } else if (cycleTimes.slaStatus === "at_risk") {
+    parts.push(`⚠ At risk: ${cycleTimes.waitingInHumanReviewHours}h since AI approved.`);
+  }
+
+  return parts.join(" ");
 }
