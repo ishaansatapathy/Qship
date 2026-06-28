@@ -8,13 +8,25 @@
 
 | Resource | URL |
 |---|---|
-| **Web app** | **https://qship.ishaandev.co.in** |
+| **Web app** (Vercel) | **https://qship.ishaandev.co.in** |
 | **One-click demo login** | **https://qship.ishaandev.co.in/api-auth/demo?next=/brief** |
-| **Scalar API docs** | **https://api.qship.ishaandev.co.in/docs** |
-| **API health** | https://api.qship.ishaandev.co.in/health |
-| **API readiness** | https://api.qship.ishaandev.co.in/ready |
-| **MCP tools list** | `POST https://api.qship.ishaandev.co.in/mcp` |
-| **OpenAPI JSON** | https://api.qship.ishaandev.co.in/openapi.json |
+| **API** (Railway) | **https://repoapi-production-adfe.up.railway.app** |
+| **Scalar API docs** | **https://repoapi-production-adfe.up.railway.app/docs** |
+| **API health** | https://repoapi-production-adfe.up.railway.app/health |
+| **API readiness** | https://repoapi-production-adfe.up.railway.app/ready |
+| **MCP tools list** | `POST https://repoapi-production-adfe.up.railway.app/mcp` |
+| **OpenAPI JSON** | https://repoapi-production-adfe.up.railway.app/openapi.json |
+
+```bash
+# Quick smoke check before a demo
+curl -fsS https://qship.ishaandev.co.in
+curl -fsS https://repoapi-production-adfe.up.railway.app/health
+curl -fsS https://repoapi-production-adfe.up.railway.app/ready
+curl -s -X POST https://repoapi-production-adfe.up.railway.app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | python3 -c "import json,sys; print(len(json.load(sys.stdin)['result']['tools']), 'tools')"
+```
 
 | Demo credential | Value |
 |---|---|
@@ -106,11 +118,35 @@ The streaming agent at `/agent` and the MCP server at `/mcp` share the same 33 t
 
 ---
 
+## Production deployment
+
+| Layer | Host | Notes |
+|---|---|---|
+| **Web** | Vercel → `qship.ishaandev.co.in` | Next.js 16 frontend |
+| **API** | Railway → `repoapi-production-adfe.up.railway.app` | Long-lived Express server (workflows, webhooks, MCP) |
+| **Database** | Neon Postgres | Shared `DATABASE_URL`; migrations run on API boot |
+
+**Vercel (web) env vars** — point the browser and server-side fetches at Railway:
+
+```env
+API_INTERNAL_URL=https://repoapi-production-adfe.up.railway.app
+BASE_URL=https://repoapi-production-adfe.up.railway.app
+NEXT_PUBLIC_API_BASE_URL=https://repoapi-production-adfe.up.railway.app
+BETTER_AUTH_URL=https://qship.ishaandev.co.in
+CLIENT_URL=https://qship.ishaandev.co.in
+```
+
+**Railway (API) env vars** — same secrets as local `.env` (OpenAI, BetterAuth, Neon, GitHub App, demo login). Set `BASE_URL` to the Railway URL above. Migrations apply automatically on deploy (`pnpm db:migrate` via startup).
+
+**GitHub App webhook URL:** `https://repoapi-production-adfe.up.railway.app/webhooks/github`
+
+---
+
 ## Architecture
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                          Browser (Next.js)                         │
+│              Browser (Next.js on Vercel — qship.ishaandev.co.in)   │
 │  /brief      Pipeline overview + counts by stage                   │
 │  /requests   Feature hub — submit, triage, PRD, tasks, timeline    │
 │  /agent      ShipFlow Agent — SSE streaming, 33 tools              │
@@ -121,10 +157,10 @@ The streaming agent at `/agent` and the MCP server at `/mcp` share the same 33 t
 └────────────────────────┬───────────────────────────────────────────┘
                          │  tRPC + REST (OpenAPI/Scalar)
 ┌────────────────────────▼───────────────────────────────────────────┐
-│                     Express API (apps/api)                         │
+│        Express API (apps/api on Railway — long-lived process)      │
 │  /trpc              Type-safe tRPC procedures (all features)        │
 │  /api/*             REST — trpc-to-openapi auto-generated           │
-│  /mcp               MCP 2024-11-05 JSON-RPC — 25 ShipFlow tools    │
+│  /mcp               MCP 2024-11-05 JSON-RPC — 33 ShipFlow tools    │
 │  /agent/stream      SSE streaming agent (rate-limited, guardrailed) │
 │  /webhooks/github   GitHub App events (HMAC-SHA256 verified)       │
 │  /health  /ready    Liveness + readiness probes                    │
@@ -132,13 +168,14 @@ The streaming agent at `/agent` and the MCP server at `/mcp` share the same 33 t
 └──────────┬──────────────────────────────┬──────────────────────────┘
            │                              │
 ┌──────────▼───────────┐      ┌───────────▼────────────────────────┐
-│  PostgreSQL + Drizzle │      │  OpenAI (gpt-4o-mini)              │
-│  features, PRDs,      │      │  Triage, PRD, tasks, pre-ship      │
-│  tasks, reviews,      │      │  review, delta re-review           │
-│  approvals, GitHub,   │      ├────────────────────────────────────┤
-│  agent sessions       │      │  GitHub App (Octokit)              │
-│  42 migrations        │      │  Install, repo sync, PR webhooks,  │
-│  14 performance idx   │      │  AI review comments, token cache   │
+│ Neon Postgres +      │      │  OpenAI (gpt-4o-mini)              │
+│ Drizzle ORM          │      │  Triage, PRD, tasks, pre-ship      │
+│ features, PRDs,      │      │  review, delta re-review           │
+│ tasks, reviews,      │      ├────────────────────────────────────┤
+│ approvals, GitHub,   │      │  GitHub App (Octokit)              │
+│ agent sessions       │      │  Install, repo sync, PR webhooks,  │
+│ 42 migrations        │      │  AI review comments, token cache   │
+│ 14 performance idx   │      │                                    │
 └───────────────────────┘      └────────────────────────────────────┘
 ```
 
@@ -167,7 +204,7 @@ The streaming agent at `/agent` and the MCP server at `/mcp` share the same 33 t
 | **AI** | OpenAI `gpt-4o-mini` — triage, PRD, tasks, 9-dim PR review, delta re-review |
 | **MCP** | MCP 2024-11-05 — 33 tools, JSON-RPC 2.0, CI parity test |
 | **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |
-| **Background jobs** | Inngest — PRD gen, task gen, AI review workflows |
+| **Background jobs** | In-process workflows on Railway (PRD gen, task gen, AI review); Inngest optional |
 | **Billing** | Razorpay — subscription checkout + webhook |
 | **CI** | GitHub Actions — parallel type-check + test + E2E + Playwright artifacts |
 
@@ -275,7 +312,7 @@ Create `mcp-server.json` in your project:
 {
   "mcpServers": {
     "shipflow": {
-      "url": "https://api.qship.ishaandev.co.in/mcp",
+      "url": "https://repoapi-production-adfe.up.railway.app/mcp",
       "type": "http"
     }
   }
@@ -285,7 +322,7 @@ Create `mcp-server.json` in your project:
 ### Test without auth (tools/list is public)
 
 ```bash
-curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
+curl -s -X POST https://repoapi-production-adfe.up.railway.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
   | python3 -c "import json,sys; tools=json.load(sys.stdin)['result']['tools']; print(f'{len(tools)} tools:'); [print(f'  {t[\"name\"]}') for t in tools]"
@@ -301,7 +338,7 @@ curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
 ## GitHub integration
 
 1. Create a **GitHub App** with: `Repository contents (read/write)`, `Pull requests (read/write)`, `Webhooks (receive)`
-2. Set webhook URL: `https://api.qship.ishaandev.co.in/webhooks/github`
+2. Set webhook URL: `https://repoapi-production-adfe.up.railway.app/webhooks/github`
 3. Set in `.env`: `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET`
 4. Connect from **Settings → GitHub** in the web app
 
@@ -309,7 +346,8 @@ curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
 - Repositories synced via paginated Octokit (handles 100+ repos)
 - Push to `shipflow/<feature-uuid>` branch → PR auto-linked to feature
 - PR opened/synchronized → AI review triggered, structured comment posted
-- PR merged → feature moves to `approved`
+- PR merged → feature moves to `human_review` (human approval gate still required)
+- PRD-only AI review (no linked PR) → persisted with nullable `pull_request_id`; human gate works without a GitHub PR
 - `installation.deleted` webhook → org disconnected gracefully
 
 ---
