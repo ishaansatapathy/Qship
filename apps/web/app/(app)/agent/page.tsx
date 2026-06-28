@@ -398,6 +398,8 @@ function AgentPageContent() {
   const urlContextId = deepLink.contextId;
   const urlEventId = deepLink.eventId;
   const urlWalkthrough = searchParams.get("walkthrough") === "1";
+  const urlTaskId = searchParams.get("task")?.trim() ?? "";
+  const urlAnalyzeRepo = searchParams.get("repo") === "1";
   const isDeepLink = Boolean(urlPrompt);
 
   const [input, setInput] = useState("");
@@ -635,6 +637,8 @@ function AgentPageContent() {
         focusEventId: focus.eventId,
         focusContextLabel: focus.contextLabel,
         focusEventLabel: focus.eventLabel,
+        walkthroughTaskId: urlTaskId || undefined,
+        analyzeRepo: urlAnalyzeRepo || undefined,
       }),
       signal: abortController.signal,
     })

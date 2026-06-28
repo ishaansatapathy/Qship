@@ -55,7 +55,7 @@ export async function runAgentChatStream(
   }
 
   const history =
-    input.focus?.contextId || input.focus?.eventId
+    input.focus?.contextId || input.focus?.eventId || input.focus?.walkthroughTaskId
       ? (input.history ?? []).slice(-4)
       : (input.history ?? []);
   const previewMessages: OpenAiConversationMessage[] = [

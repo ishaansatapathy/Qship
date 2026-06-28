@@ -31,7 +31,7 @@ export async function prepareAgentRun(
   const effectiveFocus = topicShift.shouldClearFocus ? undefined : input.focus;
 
   const history =
-    effectiveFocus?.contextId || effectiveFocus?.eventId
+    effectiveFocus?.contextId || effectiveFocus?.eventId || effectiveFocus?.walkthroughTaskId
       ? (input.history ?? []).slice(-4)
       : (input.history ?? []).slice(-12);
 

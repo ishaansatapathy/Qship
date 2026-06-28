@@ -39,6 +39,8 @@ const agentStreamBodySchema = z.object({
   userEmail: z.string().email().optional(),
   focusContextId: z.string().trim().min(1).max(128).optional(),
   focusEventId: z.string().trim().min(1).max(256).optional(),
+  walkthroughTaskId: z.string().uuid().optional(),
+  analyzeRepo: z.boolean().optional(),
   focusContextLabel: z.string().trim().min(1).max(200).optional(),
   focusEventLabel: z.string().trim().min(1).max(200).optional(),
   focusCleared: z.boolean().optional(),
@@ -77,6 +79,8 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
     userEmail,
     focusContextId,
     focusEventId,
+    walkthroughTaskId,
+    analyzeRepo,
     focusContextLabel,
     focusEventLabel,
     focusCleared,
@@ -107,6 +111,8 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
     let effectiveFocus = {
       contextId: focusContextId,
       eventId: focusEventId,
+      walkthroughTaskId,
+      analyzeRepo,
     };
     let effectivecontextLabel = focusContextLabel;
     let effectiveEventLabel = focusEventLabel;
@@ -120,15 +126,27 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
       effectiveHistory = session.messages;
       effectiveToolMemory = session.toolMemory;
       if (focusCleared) {
-        effectiveFocus = { contextId: undefined, eventId: undefined };
+        effectiveFocus = {
+          contextId: undefined,
+          eventId: undefined,
+          walkthroughTaskId: undefined,
+          analyzeRepo: undefined,
+        };
         effectivecontextLabel = undefined;
         effectiveEventLabel = undefined;
-      } else if (focusContextId || focusEventId) {
-        effectiveFocus = { contextId: focusContextId, eventId: focusEventId };
+      } else if (focusContextId || focusEventId || walkthroughTaskId) {
+        effectiveFocus = {
+          contextId: focusContextId,
+          eventId: focusEventId,
+          walkthroughTaskId,
+          analyzeRepo,
+        };
       } else {
         effectiveFocus = {
           contextId: session.focus.contextId,
           eventId: session.focus.eventId,
+          walkthroughTaskId: undefined,
+          analyzeRepo: undefined,
         };
         effectivecontextLabel = session.focus.contextLabel;
         effectiveEventLabel = session.focus.eventLabel;
