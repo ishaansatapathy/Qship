@@ -264,6 +264,51 @@ type PipelineHealthSummary = {
   insight: string;
 };
 
+export type PipelineHealthInsightInput = {
+  activeTotal: number;
+  fixNeededCount: number;
+  humanReviewCount: number;
+  maxBottleneckPercent: number;
+  topBottleneckLabel?: string;
+  topBottleneckCount?: number;
+  shippedLast30Days: number;
+  avgCycleDaysLast30: number | null;
+};
+
+/** Pure pipeline health derivation — unit tested without DB. */
+export function derivePipelineHealthInsight(input: PipelineHealthInsightInput): {
+  healthLabel: "healthy" | "congested" | "stalled";
+  insight: string;
+} {
+  if (input.activeTotal === 0) {
+    return { healthLabel: "healthy", insight: "No active features in the pipeline." };
+  }
+
+  const blocked = input.fixNeededCount + input.humanReviewCount;
+  if (blocked > input.activeTotal * 0.4) {
+    return {
+      healthLabel: "stalled",
+      insight: `${blocked} of ${input.activeTotal} active features are blocked in fix/review. Consider running batch AI re-reviews or scheduling a review session.`,
+    };
+  }
+
+  if (input.maxBottleneckPercent > 50 && input.topBottleneckLabel) {
+    return {
+      healthLabel: "congested",
+      insight: `${input.topBottleneckLabel} has ${input.topBottleneckCount ?? 0} features (${input.maxBottleneckPercent}% of pipeline). This stage is a bottleneck.`,
+    };
+  }
+
+  const cycleText = input.avgCycleDaysLast30
+    ? ` at an average of ${Math.round(input.avgCycleDaysLast30)} days cycle time`
+    : "";
+
+  return {
+    healthLabel: "healthy",
+    insight: `Pipeline is flowing well. ${input.shippedLast30Days} features shipped in the last 30 days${cycleText}.`,
+  };
+}
+
 /**
  * Analyses the entire project pipeline to surface bottlenecks and velocity trends.
  * Returns a health label and actionable insight.
@@ -314,21 +359,16 @@ export async function getPipelineHealthSummary(projectId: string): Promise<Pipel
   const humanReviewCount = byStatus["human_review"] ?? 0;
   const fixNeededCount = byStatus["fix_needed"] ?? 0;
 
-  let healthLabel: "healthy" | "congested" | "stalled" = "healthy";
-  let insight = "";
-
-  if (fixNeededCount + humanReviewCount > activeFeatures.length * 0.4) {
-    healthLabel = "stalled";
-    insight = `${fixNeededCount + humanReviewCount} of ${activeFeatures.length} active features are blocked in fix/review. Consider running batch AI re-reviews or scheduling a review session.`;
-  } else if (maxPercent > 50) {
-    healthLabel = "congested";
-    insight = `${bottlenecks[0]?.label} has ${bottlenecks[0]?.featureCount} features (${maxPercent}% of pipeline). This stage is a bottleneck.`;
-  } else {
-    insight =
-      activeFeatures.length === 0
-        ? "No active features in the pipeline."
-        : `Pipeline is flowing well. ${shippedRecent.length} features shipped in the last 30 days${avgCycleDaysLast30 ? ` at an average of ${Math.round(avgCycleDaysLast30)} days cycle time` : ""}.`;
-  }
+  const { healthLabel, insight } = derivePipelineHealthInsight({
+    activeTotal: activeFeatures.length,
+    fixNeededCount,
+    humanReviewCount,
+    maxBottleneckPercent: maxPercent,
+    topBottleneckLabel: bottlenecks[0]?.label,
+    topBottleneckCount: bottlenecks[0]?.featureCount,
+    shippedLast30Days: shippedRecent.length,
+    avgCycleDaysLast30,
+  });
 
   return {
     projectId,

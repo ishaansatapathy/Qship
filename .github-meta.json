@@ -46,6 +46,7 @@
     "judge_walkthrough": "JUDGE_WALKTHROUGH.md",
     "submission": "HACKATHON_SUBMISSION.md",
     "architecture": "ARCHITECTURE.md",
+    "engineering": "ENGINEERING.md",
     "scalar_ui": "https://api.qship.ishaandev.co.in/docs"
   },
   "verify_commands": [

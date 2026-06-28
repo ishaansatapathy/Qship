@@ -28,7 +28,8 @@
     "types/**/*.ts",
     "user/**/*.ts",
     "validation/**/*.ts",
-    "workflows/**/*.ts"
+    "workflows/**/*.ts",
+    "security/**/*.ts"
   ],
 
   "exclude": ["node_modules"]

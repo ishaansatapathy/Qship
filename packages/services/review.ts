@@ -11,6 +11,12 @@ import { logger } from "@repo/logger";
 import { ServiceError } from "./errors";
 import { appendFeatureActivity, updateFeatureStatus } from "./feature-request";
 import type { PrAiReviewResult } from "./feature-ai";
+import {
+  buildReviewHealthSummary,
+  computeReviewHealthScore,
+  computeSlaStatus,
+  reviewHealthLabel,
+} from "./review-health";
 
 // ── Credit management ─────────────────────────────────────────────────────────
 
@@ -444,8 +450,6 @@ export async function getIssueResolutionSummary(reviewId: string) {
 
 // ── Cycle time tracking ────────────────────────────────────────────────────────
 
-type SlaStatus = "ok" | "at_risk" | "breach";
-
 /**
  * Computes SLA and cycle time metrics for a feature's review loop.
  *
@@ -487,11 +491,7 @@ export async function getReviewCycleTimes(featureRequestId: string) {
       ? now - lastPassedReview.createdAt.getTime()
       : null;
 
-  let slaStatus: SlaStatus = "ok";
-  if (waitingInHumanReviewMs !== null) {
-    const hours = waitingInHumanReviewMs / (1000 * 60 * 60);
-    slaStatus = hours > 48 ? "breach" : hours > 24 ? "at_risk" : "ok";
-  }
+  const slaStatus = computeSlaStatus(waitingInHumanReviewMs);
 
   return {
     featureRequestId,
@@ -525,7 +525,7 @@ export async function getReviewLoopHealth(featureRequestId: string) {
     ? await getIssueResolutionSummary(latestReview.id)
     : null;
 
-  const healthScore = computeHealthScore({
+  const healthScore = computeReviewHealthScore({
     passRate: stats.passRate,
     iterationCount: stats.iterationCount,
     slaStatus: cycleTimes.slaStatus,
@@ -536,68 +536,18 @@ export async function getReviewLoopHealth(featureRequestId: string) {
   return {
     featureRequestId,
     healthScore,
-    healthLabel: healthScore >= 80 ? "healthy" : healthScore >= 50 ? "needs_attention" : "critical",
+    healthLabel: reviewHealthLabel(healthScore),
     stats,
     cycleTimes,
     delta,
     latestReviewResolution: resolutionSummary,
-    summary: buildHealthSummary(healthScore, stats, cycleTimes),
+    summary: buildReviewHealthSummary({
+      score: healthScore,
+      iterationCount: stats.iterationCount,
+      latestPass: stats.latestPass,
+      averageIssuesPerIteration: stats.averageIssuesPerIteration,
+      slaStatus: cycleTimes.slaStatus,
+      waitingInHumanReviewHours: cycleTimes.waitingInHumanReviewHours,
+    }),
   };
-}
-
-function computeHealthScore(params: {
-  passRate: number;
-  iterationCount: number;
-  slaStatus: SlaStatus;
-  allBlockingResolved: boolean;
-  latestPass: boolean;
-}): number {
-  let score = 100;
-
-  // Penalise for low pass rate
-  if (params.passRate < 50) score -= 30;
-  else if (params.passRate < 75) score -= 15;
-
-  // Penalise for high iteration count (> 3 iterations suggests poor initial quality)
-  if (params.iterationCount > 5) score -= 20;
-  else if (params.iterationCount > 3) score -= 10;
-
-  // Penalise for SLA breach
-  if (params.slaStatus === "breach") score -= 25;
-  else if (params.slaStatus === "at_risk") score -= 10;
-
-  // Penalise if latest review failed
-  if (!params.latestPass) score -= 15;
-
-  // Penalise if blocking issues unresolved
-  if (!params.allBlockingResolved) score -= 10;
-
-  return Math.max(0, Math.min(100, score));
-}
-
-function buildHealthSummary(
-  score: number,
-  stats: Awaited<ReturnType<typeof getReviewStats>>,
-  cycleTimes: Awaited<ReturnType<typeof getReviewCycleTimes>>,
-): string {
-  const parts: string[] = [];
-
-  if (stats.iterationCount === 0) return "No AI review has been run yet.";
-
-  parts.push(`Health score: ${score}/100.`);
-  parts.push(`${stats.iterationCount} review iteration${stats.iterationCount === 1 ? "" : "s"}.`);
-
-  if (stats.latestPass) {
-    parts.push("Latest review passed.");
-  } else {
-    parts.push(`Latest review failed — ${stats.averageIssuesPerIteration} avg issues/iteration.`);
-  }
-
-  if (cycleTimes.slaStatus === "breach") {
-    parts.push(`⚠ SLA breach: waiting ${cycleTimes.waitingInHumanReviewHours}h for human approval.`);
-  } else if (cycleTimes.slaStatus === "at_risk") {
-    parts.push(`⚠ At risk: ${cycleTimes.waitingInHumanReviewHours}h since AI approved.`);
-  }
-
-  return parts.join(" ");
 }

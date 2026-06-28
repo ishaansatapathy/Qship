@@ -40,6 +40,12 @@ test-results/
 
 playwright-report/
 
+blob-report/
+
+**/error-context.md
+
+playwright/.cache/
+
 
 
 # Turbo
