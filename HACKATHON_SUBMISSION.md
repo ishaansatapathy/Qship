@@ -32,7 +32,7 @@ Employee submits request
   → Approved → Ship to production
 ```
 
-Every step is tracked, queryable via 25 MCP tools, and accessible via the ShipFlow Agent chat.
+Every step is tracked, queryable via 33 MCP tools, and accessible via the ShipFlow Agent chat.
 
 ---
 
@@ -58,7 +58,7 @@ Every step is tracked, queryable via 25 MCP tools, and accessible via the ShipFl
 | Technical PRD with rollback plan | `feature-ai.ts` → `generateFeaturePrd` |
 | Typed task generation with per-task AC | `feature-ai.ts` → `generateFeatureTasks` |
 | 8-dimension pre-ship feature review | `feature-ai.ts` → `runFeatureAiReview` |
-| 25-tool streaming agent | `packages/services/shipflow-agent-tools.ts` |
+| 33-tool streaming agent | `packages/services/shipflow-agent-tools.ts` |
 | SSE streaming with action cards | `apps/api/src/routes/agent-stream.ts` |
 | MCP 2024-11-05 server | `apps/api/src/routes/mcp.ts` |
 
@@ -117,8 +117,8 @@ Most submissions run the same generic review every time. ShipFlow's `runDeltaAiR
 ### 2. Approval gate enforced at all entry points
 `validateHumanApprovalEligibility` is called before any `approve_feature` action — whether from the UI button, agent tool, or tRPC mutation. If the latest AI review has blocking issues, approval is blocked with a specific error explaining why.
 
-### 3. 25 MCP tools with CI parity test
-The agent and MCP server share the same 25 tools, verified by a CI test (`tool-parity.test.ts`). Tools include `approve_feature`, `reject_feature`, `request_changes`, `get_review_delta`, `get_review_stats`, `get_approval_history` — a complete PM workflow accessible from Cursor or Claude Desktop.
+### 3. 33 MCP tools with CI parity test
+The agent and MCP server share the same 33 tools, verified by a CI test (`tool-parity.test.ts`). Tools include `approve_feature`, `reject_feature`, `request_changes`, `get_review_delta`, `get_review_stats`, `get_approval_history` — a complete PM workflow accessible from Cursor or Claude Desktop.
 
 ### 4. Production-grade GitHub App integration
 - Installation token cache (55 min TTL) — no JWT round-trip on every request
@@ -143,7 +143,7 @@ Browser → Next.js (web)
               │
     ┌─────────┼──────────────────────┐
     ▼         ▼                      ▼
-  /trpc     /mcp (25 tools)    /agent/stream
+  /trpc     /mcp (33 tools)    /agent/stream
     │         │                      │
     └─────────┴──────────────────────┘
                      │
@@ -151,7 +151,7 @@ Browser → Next.js (web)
               ├── feature-ai.ts     (OpenAI)
               ├── review.ts         (persistence + gate)
               ├── github/           (Octokit + webhooks)
-              ├── shipflow-agent-tools.ts (25 tools)
+              ├── shipflow-agent-tools.ts (33 tools)
               └── workflows/        (Inngest)
                      │
               packages/database

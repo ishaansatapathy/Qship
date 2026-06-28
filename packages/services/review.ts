@@ -54,7 +54,7 @@ export async function consumeAiReviewCredit(organizationId: string): Promise<num
  */
 export async function persistAiReview(input: {
   featureRequestId: string;
-  pullRequestId: string;
+  pullRequestId?: string | null;
   review: PrAiReviewResult;
 }) {
   const prior = await db.query.aiReviews.findMany({
@@ -69,7 +69,7 @@ export async function persistAiReview(input: {
   await db.insert(aiReviews).values({
     id: reviewId,
     featureRequestId: input.featureRequestId,
-    pullRequestId: input.pullRequestId,
+    pullRequestId: input.pullRequestId ?? null,
     iteration,
     summary: input.review.summary,
     readyForHuman: input.review.pass,

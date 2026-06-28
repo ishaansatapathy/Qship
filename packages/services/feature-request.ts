@@ -11,6 +11,52 @@ import {
 import { ServiceError } from "./errors";
 import type { FeatureTriage } from "./feature-ai";
 import { getMembershipForUser } from "./organization";
+import type { FeatureStatus } from "./workflow";
+
+// ── Workflow FSM ───────────────────────────────────────────────────────────────
+
+/**
+ * Allowed status transitions for feature requests.
+ * Enforced by guardedUpdateFeatureStatus — prevents illegal state jumps.
+ * Direct `updateFeatureStatus` is used internally by trusted service code only.
+ */
+const ALLOWED_TRANSITIONS: Partial<Record<FeatureStatus, FeatureStatus[]>> = {
+  submitted:           ["clarifying", "prd_generating", "duplicate_education", "rejected"],
+  clarifying:          ["prd_generating", "rejected"],
+  duplicate_education: ["submitted", "rejected"],
+  prd_generating:      ["prd_ready"],
+  prd_ready:           ["planning", "prd_generating"],
+  planning:            ["plan_approved", "in_development", "prd_ready"],
+  plan_approved:       ["in_development"],
+  in_development:      ["pr_open", "planning"],
+  pr_open:             ["ai_review", "in_development", "fix_needed"],
+  ai_review:           ["human_review", "fix_needed"],
+  fix_needed:          ["ai_review", "pr_open"],
+  human_review:        ["approved", "fix_needed", "rejected"],
+  approved:            ["shipped"],
+  shipped:             [],
+  rejected:            ["submitted"],
+};
+
+/**
+ * Validated status transition for tRPC/UI surfaces.
+ * Throws PRECONDITION_FAILED on illegal jumps.
+ * Internal service code (Inngest, webhooks) calls updateFeatureStatus directly.
+ */
+export async function guardedUpdateFeatureStatus(
+  featureRequestId: string,
+  from: FeatureStatus,
+  to: FeatureStatus,
+) {
+  const allowed = ALLOWED_TRANSITIONS[from] ?? [];
+  if (!allowed.includes(to)) {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Cannot transition feature from "${from}" to "${to}". Allowed: ${allowed.join(", ") || "none"}.`,
+    );
+  }
+  return updateFeatureStatus(featureRequestId, to);
+}
 
 export async function getWorkspaceProjectForUser(userId: string) {
   const membership = await getMembershipForUser(userId);

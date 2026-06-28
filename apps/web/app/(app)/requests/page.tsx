@@ -194,6 +194,21 @@ function FeatureDetailPanel({
   const detail = trpc.feature.get.useQuery({ id: featureId });
   const repos = trpc.github.listRepositories.useQuery({});
   const allReviews = trpc.feature.listReviews.useQuery({ id: featureId }, { staleTime: 10_000 });
+  const reviewHealth = trpc.feature.getReviewLoopHealth.useQuery(
+    { id: featureId },
+    { enabled: allReviews.data != null && allReviews.data.length > 0, staleTime: 30_000 },
+  );
+  const reviewDelta = trpc.feature.getReviewDelta.useQuery(
+    { id: featureId },
+    { enabled: (allReviews.data?.length ?? 0) >= 2, staleTime: 30_000 },
+  );
+  const approvalBriefing = trpc.feature.getApprovalBriefing.useQuery(
+    { id: featureId },
+    {
+      enabled: detail.data?.status === "human_review",
+      staleTime: 60_000,
+    },
+  );
 
   const invalidate = async () => {
     await utils.feature.get.invalidate({ id: featureId });
@@ -499,18 +514,21 @@ function FeatureDetailPanel({
               type="button"
               className="qship-btn-accent"
               disabled={approve.isPending}
-              onClick={() =>
+              onClick={() => {
+                const briefing = approvalBriefing.data;
+                const desc = briefing
+                  ? `AI recommends: ${briefing.approvalRecommendation.toUpperCase()} (confidence ${briefing.confidence}%). ${briefing.rationale}`
+                  : "This feature passed AI review. Approving moves it to the release queue.";
                 setConfirm({
                   title: "Approve for release?",
-                  description:
-                    "This feature passed AI review. Approving moves it to the release queue — you can mark it shipped once deployed.",
+                  description: desc,
                   confirmLabel: "Approve",
                   onConfirm: () => {
                     setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
                     approve.mutate({ id: feature.id }, { onSettled: () => setConfirm(null) });
                   },
-                })
-              }
+                });
+              }}
             >
               <CheckCircle2 size={14} /> Approve for ship
             </button>
@@ -518,7 +536,17 @@ function FeatureDetailPanel({
               type="button"
               className="qship-btn-ghost"
               disabled={reject.isPending}
-              onClick={() => reject.mutate({ id: feature.id, notes: "Changes requested from Requests UI" })}
+              onClick={() => {
+                setConfirm({
+                  title: "Request changes?",
+                  description: "This will move the feature back to the fix loop. The developer will need to address issues and re-run AI review.",
+                  confirmLabel: "Request changes",
+                  onConfirm: () => {
+                    setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
+                    reject.mutate({ id: feature.id, notes: "Changes requested" }, { onSettled: () => setConfirm(null) });
+                  },
+                });
+              }}
             >
               Request changes
             </button>
@@ -577,6 +605,128 @@ function FeatureDetailPanel({
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {reviewHealth.data && (
+        <section className="qship-req-prd">
+          <h3>
+            <ShieldCheck size={14} /> Review loop health
+            <span
+              className="qship-req-tag"
+              style={{
+                color:
+                  reviewHealth.data.healthLabel === "healthy"
+                    ? "#34d399"
+                    : reviewHealth.data.healthLabel === "needs_attention"
+                      ? "#fbbf24"
+                      : "#f87171",
+                marginLeft: 8,
+              }}
+            >
+              {reviewHealth.data.healthScore}/100 · {reviewHealth.data.healthLabel.replace("_", " ")}
+            </span>
+          </h3>
+          <p style={{ fontSize: 13, opacity: 0.8 }}>{reviewHealth.data.summary}</p>
+          {reviewHealth.data.cycleTimes?.slaStatus !== "ok" && (
+            <p style={{ fontSize: 12, color: "#fbbf24" }}>
+              ⚠ SLA {reviewHealth.data.cycleTimes.slaStatus} ·{" "}
+              {reviewHealth.data.cycleTimes.waitingInHumanReviewHours}h waiting for approval
+            </p>
+          )}
+        </section>
+      )}
+
+      {reviewDelta.data && (reviewDelta.data.resolved.length > 0 || reviewDelta.data.newIssues.length > 0) && (
+        <section className="qship-req-prd">
+          <h3>
+            <ShieldCheck size={14} /> Review delta (latest vs previous)
+          </h3>
+          {reviewDelta.data.resolved.length > 0 && (
+            <p style={{ fontSize: 13, color: "#34d399" }}>
+              ✓ {reviewDelta.data.resolved.length} issue{reviewDelta.data.resolved.length !== 1 ? "s" : ""} resolved
+            </p>
+          )}
+          {reviewDelta.data.newIssues.length > 0 && (
+            <p style={{ fontSize: 13, color: "#fb923c" }}>
+              ✗ {reviewDelta.data.newIssues.length} new issue{reviewDelta.data.newIssues.length !== 1 ? "s" : ""} introduced
+            </p>
+          )}
+          {reviewDelta.data.persisting.length > 0 && (
+            <p style={{ fontSize: 12, opacity: 0.7 }}>
+              {reviewDelta.data.persisting.length} persisting unresolved
+            </p>
+          )}
+        </section>
+      )}
+
+      {approvalBriefing.data && feature.status === "human_review" && (
+        <section className="qship-req-prd">
+          <h3>
+            <CheckCircle2 size={14} /> AI approval briefing
+            <span
+              className="qship-req-tag"
+              style={{
+                color:
+                  approvalBriefing.data.approvalRecommendation === "approve"
+                    ? "#34d399"
+                    : approvalBriefing.data.approvalRecommendation === "hold"
+                      ? "#fbbf24"
+                      : "#f87171",
+                marginLeft: 8,
+              }}
+            >
+              {approvalBriefing.data.approvalRecommendation?.toUpperCase()} · {approvalBriefing.data.confidence}% confidence
+            </span>
+          </h3>
+          <p style={{ fontSize: 13 }}>{approvalBriefing.data.summary}</p>
+          {(approvalBriefing.data.keyThingsToVerify?.length ?? 0) > 0 && (
+            <div style={{ marginTop: 6 }}>
+              <strong style={{ fontSize: 12 }}>Verify before approving:</strong>
+              <ul style={{ fontSize: 12, marginTop: 2 }}>
+                {approvalBriefing.data.keyThingsToVerify.map((item: string) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+
+      {reviewHealth.data && (
+        <div
+          className="qship-review-health-badge"
+          data-label={reviewHealth.data.healthLabel}
+          title={reviewHealth.data.summary}
+        >
+          <ShieldCheck size={12} />
+          Review health: <strong>{reviewHealth.data.healthScore}/100</strong>
+          <span className="qship-health-label">{reviewHealth.data.healthLabel.replace("_", " ")}</span>
+          {reviewHealth.data.cycleTimes.slaStatus !== "ok" && (
+            <span className="qship-health-sla" data-sla={reviewHealth.data.cycleTimes.slaStatus}>
+              ⚠ SLA {reviewHealth.data.cycleTimes.slaStatus}
+            </span>
+          )}
+        </div>
+      )}
+
+      {reviewDelta.data && (reviewDelta.data.resolved.length > 0 || reviewDelta.data.newIssues.length > 0) ? (
+        <section className="qship-req-prd qship-review-delta">
+          <h3>
+            <ShieldCheck size={14} /> Review delta (iteration {reviewDelta.data.fromIteration} → {reviewDelta.data.toIteration})
+          </h3>
+          {reviewDelta.data.resolved.length > 0 && (
+            <div className="qship-delta-group">
+              <span className="qship-delta-badge resolved">✓ {reviewDelta.data.resolved.length} resolved</span>
+              <ul>{reviewDelta.data.resolved.map((title, idx) => <li key={idx}>{title}</li>)}</ul>
+            </div>
+          )}
+          {reviewDelta.data.newIssues.length > 0 && (
+            <div className="qship-delta-group">
+              <span className="qship-delta-badge new">+ {reviewDelta.data.newIssues.length} new</span>
+              <ul>{reviewDelta.data.newIssues.map((title, idx) => <li key={idx}>{title}</li>)}</ul>
+            </div>
+          )}
         </section>
       ) : null}
 

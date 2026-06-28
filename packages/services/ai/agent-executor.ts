@@ -1,6 +1,6 @@
 /**
  * Shared tool-executor factory for the ShipFlow Agent.
- * Delegates exclusively to ShipFlow MCP tools (19 tools — CI parity verified).
+ * Delegates exclusively to ShipFlow MCP tools (33 tools — CI parity verified).
  */
 
 import { ServiceError } from "../errors";
