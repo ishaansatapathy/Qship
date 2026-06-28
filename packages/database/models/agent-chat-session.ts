@@ -1,4 +1,4 @@
-import { jsonb, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, text, timestamp, uuid, varchar, boolean } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
 
@@ -28,6 +28,8 @@ export const agentChatSessionsTable = pgTable("agent_chat_sessions", {
   focusEventId: varchar("focus_event_id", { length: 256 }),
   focusContextLabel: varchar("focus_context_label", { length: 200 }),
   focusEventLabel: varchar("focus_event_label", { length: 200 }),
+  walkthroughTaskId: varchar("walkthrough_task_id", { length: 36 }),
+  analyzeRepo: boolean("analyze_repo").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

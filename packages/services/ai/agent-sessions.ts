@@ -57,6 +57,8 @@ function rowToRecord(row: typeof agentChatSessionsTable.$inferSelect): AgentSess
       eventId: row.focusEventId ?? undefined,
       contextLabel: row.focusContextLabel ?? undefined,
       eventLabel: row.focusEventLabel ?? undefined,
+      walkthroughTaskId: row.walkthroughTaskId ?? undefined,
+      analyzeRepo: row.analyzeRepo ?? undefined,
     },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -124,6 +126,8 @@ export async function createAgentSession(
       focusEventId: focus.eventId ?? null,
       focusContextLabel: focus.contextLabel ?? null,
       focusEventLabel: focus.eventLabel ?? null,
+      walkthroughTaskId: focus.walkthroughTaskId ?? null,
+      analyzeRepo: focus.analyzeRepo ?? false,
       updatedAt: new Date(),
     })
     .returning();
@@ -157,6 +161,8 @@ export async function updateAgentSession(
       eventId: patch.focus.eventId,
       contextLabel: patch.focus.contextLabel,
       eventLabel: patch.focus.eventLabel,
+      walkthroughTaskId: patch.focus.walkthroughTaskId,
+      analyzeRepo: patch.focus.analyzeRepo,
     };
   } else {
     focus = existing.focus;
@@ -172,6 +178,8 @@ export async function updateAgentSession(
       focusEventId: focus.eventId ?? null,
       focusContextLabel: focus.contextLabel ?? null,
       focusEventLabel: focus.eventLabel ?? null,
+      walkthroughTaskId: focus.walkthroughTaskId ?? null,
+      analyzeRepo: focus.analyzeRepo ?? false,
       updatedAt: new Date(),
     })
     .where(and(eq(agentChatSessionsTable.userId, userId), eq(agentChatSessionsTable.id, sessionId)))

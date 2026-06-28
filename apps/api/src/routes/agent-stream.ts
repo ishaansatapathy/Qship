@@ -145,8 +145,8 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
         effectiveFocus = {
           contextId: session.focus.contextId,
           eventId: session.focus.eventId,
-          walkthroughTaskId: undefined,
-          analyzeRepo: undefined,
+          walkthroughTaskId: walkthroughTaskId ?? session.focus.walkthroughTaskId,
+          analyzeRepo: analyzeRepo ?? session.focus.analyzeRepo,
         };
         effectivecontextLabel = session.focus.contextLabel;
         effectiveEventLabel = session.focus.eventLabel;
@@ -186,6 +186,8 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
               eventId: effectiveFocus.eventId,
               contextLabel: effectivecontextLabel,
               eventLabel: effectiveEventLabel,
+              walkthroughTaskId: effectiveFocus.walkthroughTaskId,
+              analyzeRepo: effectiveFocus.analyzeRepo,
             },
       });
       if (!updated) {

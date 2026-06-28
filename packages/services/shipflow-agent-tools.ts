@@ -54,7 +54,7 @@ import {
   listGithubRepositoriesForUser,
   syncGithubInstallationForUser,
 } from "./github/installation";
-import { explainEngineeringTaskForUser } from "./task-walkthrough";
+import { explainEngineeringTaskForUser, advanceTaskWalkthroughForUser } from "./task-walkthrough";
 import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "./workflow";
 
 export type ShipflowToolContext = {
@@ -418,7 +418,7 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   {
     name: "explain_engineering_task",
     description:
-      "Interactive task walkthrough for ShipFlow Agent: returns pseudo-code steps (brief) or a full implementation guide (full). When analyzeRepo=true and GitHub is connected, compares the task against the linked codebase and reports what is already implemented vs still needed. Use ONE task at a time in walkthrough mode; wait for the user to say 'explain more' or 'next task'.",
+      "Interactive task walkthrough for ShipFlow Agent: returns pseudo-code steps (brief) or a full implementation guide (full). When analyzeRepo=true and GitHub is connected, compares the task against the linked codebase and reports what is already implemented vs still needed. Use ONE task at a time in walkthrough mode; wait for the user to say 'explain more' or call advance_task_walkthrough for next task.",
     inputSchema: {
       type: "object",
       required: ["taskId"],
@@ -432,6 +432,22 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
         analyzeRepo: {
           type: "boolean",
           description: "When true, scan linked GitHub repo for codebase-aware guidance",
+        },
+      },
+    },
+  },
+  {
+    name: "advance_task_walkthrough",
+    description:
+      "Mark the current engineering task as done and immediately return a brief walkthrough for the NEXT task. Use when the user says 'next task' or 'mark done'. Returns completed=true when all tasks are finished.",
+    inputSchema: {
+      type: "object",
+      required: ["currentTaskId"],
+      properties: {
+        currentTaskId: { type: "string", description: "Engineering task UUID to mark done" },
+        analyzeRepo: {
+          type: "boolean",
+          description: "When true, scan linked GitHub repo for the next task",
         },
       },
     },
@@ -1149,8 +1165,8 @@ export async function executeShipflowTool(
       const guide = await generateDeveloperOnboardingGuide({
         taskTitle: task.title,
         taskDescription: task.description,
-        taskType: (task as Record<string, unknown>).type as string | undefined,
-        acceptanceCriteria: (task as Record<string, unknown>).acceptanceCriteria as string[] | undefined,
+        taskType: task.taskType ?? undefined,
+        acceptanceCriteria: task.acceptanceCriteria ?? undefined,
         featureTitle: feature.title,
         prd: featureDetail.prd?.content ?? null,
       });
@@ -1197,6 +1213,34 @@ export async function executeShipflowTool(
         repository: result.repository,
         repoSnippetCount: result.repoSnippetCount,
       });
+    }
+
+    case "advance_task_walkthrough": {
+      const currentTaskId = String(args.currentTaskId ?? "").trim();
+      if (!currentTaskId) return JSON.stringify({ error: "currentTaskId is required" });
+      const analyzeRepo = args.analyzeRepo === true;
+
+      const result = await advanceTaskWalkthroughForUser(userId, { currentTaskId, analyzeRepo });
+      if (result.completed) {
+        actions.push({
+          kind: "feature_tasks",
+          title: "Walkthrough complete",
+          detail: result.message,
+          href: "/tasks",
+        });
+        return JSON.stringify(result);
+      }
+
+      const { walkthrough, taskIndex } = result;
+      const modeLabel = walkthrough.mode === "repo_aware" ? "codebase-aware" : "plan-only";
+      actions.push({
+        kind: "feature_tasks",
+        title: `Task ${taskIndex}/${walkthrough.totalTasks}: ${walkthrough.taskTitle}`,
+        detail: `${modeLabel} · next task`,
+        href: `/tasks`,
+        lines: [walkthrough.briefSummary, ...walkthrough.pseudoCodeSteps.slice(0, 3)],
+      });
+      return JSON.stringify(result);
     }
 
     default:

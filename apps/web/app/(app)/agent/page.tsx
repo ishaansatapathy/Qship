@@ -90,7 +90,7 @@ const WALKTHROUGH_SUGGESTIONS = [
   {
     label: "Next task",
     icon: CheckCircle2,
-    prompt: "Mark this task done and walk me through the next engineering task.",
+    prompt: "Mark this task done and advance to the next engineering task.",
   },
   {
     label: "Scan repo",
@@ -513,6 +513,8 @@ function AgentPageContent() {
             focus: {
               contextId: urlContextId || undefined,
               eventId: urlEventId || undefined,
+              walkthroughTaskId: urlTaskId || undefined,
+              analyzeRepo: urlAnalyzeRepo || undefined,
             },
             title: urlPrompt.slice(0, 72) || null,
           });

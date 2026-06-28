@@ -1,6 +1,11 @@
+import crypto from "node:crypto";
+
 import { logger } from "@repo/logger";
 
 import type { Octokit } from "@octokit/rest";
+
+import { cacheGet, cacheSet } from "../cache/kv-store";
+import { withRetry } from "../cache/retry";
 
 export type RepoFileSnippet = {
   path: string;
@@ -56,6 +61,7 @@ const STOP_WORDS = new Set([
 const MAX_FILE_BYTES = 120_000;
 const MAX_EXCERPT_CHARS = 3_500;
 const MAX_SEARCH_KEYWORDS = 4;
+const SNIPPET_CACHE_TTL_MS = 15 * 60 * 1000;
 
 /** Exported for unit tests. */
 export function extractTaskKeywords(title: string, description: string, max = MAX_SEARCH_KEYWORDS): string[] {
@@ -72,6 +78,15 @@ export function extractTaskKeywords(title: string, description: string, max = MA
   }
 
   return keywords;
+}
+
+function snippetCacheKey(owner: string, repo: string, title: string, description: string): string {
+  const digest = crypto
+    .createHash("sha256")
+    .update(`${owner}/${repo}:${title}:${description}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `repo_snippets:${digest}`;
 }
 
 function scoreTreePath(path: string, keywords: string[]): number {
@@ -95,7 +110,10 @@ async function fetchFileSnippet(
   if (SKIP_PATH_RE.test(path) || BINARY_EXT_RE.test(path)) return null;
 
   try {
-    const { data } = await octokit.rest.repos.getContent({ owner, repo, path });
+    const { data } = await withRetry(
+      () => octokit.rest.repos.getContent({ owner, repo, path }),
+      { label: "repos.getContent", maxAttempts: 3 },
+    );
     if (Array.isArray(data) || data.type !== "file" || !("content" in data)) return null;
     if (typeof data.size === "number" && data.size > MAX_FILE_BYTES) {
       logger.debug("repo_context.file_skipped_large", { owner, repo, path, size: data.size });
@@ -119,14 +137,20 @@ async function fetchFileSnippet(
 
 async function listRepoSourcePaths(octokit: Octokit, owner: string, repo: string): Promise<string[]> {
   try {
-    const { data: meta } = await octokit.rest.repos.get({ owner, repo });
-    const branch = meta.default_branch ?? "main";
-    const { data: tree } = await octokit.rest.git.getTree({
-      owner,
-      repo,
-      tree_sha: branch,
-      recursive: "true",
+    const { data: meta } = await withRetry(() => octokit.rest.repos.get({ owner, repo }), {
+      label: "repos.get",
     });
+    const branch = meta.default_branch ?? "main";
+    const { data: tree } = await withRetry(
+      () =>
+        octokit.rest.git.getTree({
+          owner,
+          repo,
+          tree_sha: branch,
+          recursive: "true",
+        }),
+      { label: "git.getTree" },
+    );
     return (tree.tree ?? [])
       .filter((node) => node.type === "blob" && typeof node.path === "string")
       .map((node) => node.path as string);
@@ -140,17 +164,13 @@ async function listRepoSourcePaths(octokit: Octokit, owner: string, repo: string
   }
 }
 
-/**
- * Pulls a small, task-relevant slice of a linked GitHub repo for codebase-aware
- * task walkthroughs. Uses code search when available, otherwise ranks repo tree paths.
- */
-export async function fetchRepoSnippetsForTask(
+async function fetchRepoSnippetsUncached(
   octokit: Octokit,
   owner: string,
   repo: string,
   taskTitle: string,
   taskDescription: string,
-  maxFiles = 6,
+  maxFiles: number,
 ): Promise<RepoFileSnippet[]> {
   const keywords = extractTaskKeywords(taskTitle, taskDescription);
   const snippets: RepoFileSnippet[] = [];
@@ -166,10 +186,14 @@ export async function fetchRepoSnippetsForTask(
   for (const keyword of keywords) {
     if (snippets.length >= maxFiles) break;
     try {
-      const { data } = await octokit.rest.search.code({
-        q: `${keyword} repo:${owner}/${repo}`,
-        per_page: 3,
-      });
+      const { data } = await withRetry(
+        () =>
+          octokit.rest.search.code({
+            q: `${keyword} repo:${owner}/${repo}`,
+            per_page: 3,
+          }),
+        { label: "search.code", maxAttempts: 2 },
+      );
       for (const item of data.items ?? []) {
         await pushPath(item.path);
         if (snippets.length >= maxFiles) break;
@@ -197,5 +221,40 @@ export async function fetchRepoSnippetsForTask(
     }
   }
 
+  return snippets;
+}
+
+/**
+ * Pulls a small, task-relevant slice of a linked GitHub repo for codebase-aware
+ * task walkthroughs. Results are cached for 15 minutes per repo + task text.
+ */
+export async function fetchRepoSnippetsForTask(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  taskTitle: string,
+  taskDescription: string,
+  maxFiles = 6,
+): Promise<RepoFileSnippet[]> {
+  const cacheKey = snippetCacheKey(owner, repo, taskTitle, taskDescription);
+  const cached = await cacheGet(cacheKey);
+  if (cached) {
+    try {
+      return JSON.parse(cached) as RepoFileSnippet[];
+    } catch {
+      // Corrupt cache entry — refetch below.
+    }
+  }
+
+  const snippets = await fetchRepoSnippetsUncached(
+    octokit,
+    owner,
+    repo,
+    taskTitle,
+    taskDescription,
+    maxFiles,
+  );
+
+  await cacheSet(cacheKey, JSON.stringify(snippets), SNIPPET_CACHE_TTL_MS);
   return snippets;
 }

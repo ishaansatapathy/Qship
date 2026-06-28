@@ -55,7 +55,7 @@ export function buildSystemPromptFor(userEmail?: string, approval?: ApprovalDefa
     "- Work ONE engineering task at a time — never dump all tasks at once.",
     "- Call explain_engineering_task with depth=brief first; show pseudoCodeSteps as numbered pseudo-code.",
     "- If user says 'explain more', call explain_engineering_task again with depth=full for the SAME taskId.",
-    "- If user says 'next task' / 'mark done', call update_engineering_task_status to done, then explain_engineering_task for the next task.",
+    "- If user says 'next task' / 'mark done', call advance_task_walkthrough (preferred) or update_engineering_task_status + explain_engineering_task for the next task.",
     "- If GitHub is connected and user wants codebase-aware help, use analyzeRepo=true — report alreadyImplemented vs stillNeeded.",
     "- Without GitHub: plan-only pseudo-code (no invented file paths).",
     "- End each turn with suggestedUserReplies from the tool output as clickable next steps.",

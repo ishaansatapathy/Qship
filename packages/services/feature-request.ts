@@ -279,7 +279,13 @@ export async function assertFeatureInUserWorkspace(userId: string, featureId: st
 
 export async function replaceFeatureTasks(
   featureRequestId: string,
-  tasks: { title: string; description: string; status?: "backlog" | "todo" | "in_progress" | "review" | "done" }[],
+  tasks: {
+    title: string;
+    description: string;
+    status?: "backlog" | "todo" | "in_progress" | "review" | "done";
+    type?: string;
+    acceptanceCriteria?: string[];
+  }[],
 ) {
   await db.delete(engineeringTasks).where(eq(engineeringTasks.featureRequestId, featureRequestId));
   if (tasks.length === 0) return [];
@@ -293,6 +299,8 @@ export async function replaceFeatureTasks(
         title: task.title.trim(),
         description: task.description.trim(),
         status: task.status ?? "todo",
+        taskType: task.type?.trim() || null,
+        acceptanceCriteria: task.acceptanceCriteria ?? [],
         sortOrder: index,
       })),
     )

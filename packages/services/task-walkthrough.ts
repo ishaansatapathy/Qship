@@ -11,6 +11,7 @@ import {
   assertTaskInUserWorkspace,
   getFeatureRequest,
   getWorkspaceProjectForUser,
+  updateEngineeringTaskStatus,
 } from "./feature-request";
 import { getInstallationOctokit } from "./github/client";
 import { getGithubConnectionForUser } from "./github/installation";
@@ -32,7 +33,7 @@ export type ExplainEngineeringTaskResult = {
   repoSnippetCount: number;
 };
 
-function orderTasks<T extends { sortOrder: number; createdAt: Date; id: string }>(
+export function orderTasks<T extends { sortOrder: number; createdAt: Date; id: string }>(
   tasks: T[],
 ): T[] {
   return [...tasks].sort(
@@ -40,7 +41,7 @@ function orderTasks<T extends { sortOrder: number; createdAt: Date; id: string }
   );
 }
 
-function resolveTaskIndex(tasks: { id: string }[], taskId: string): number {
+export function resolveTaskIndex(tasks: { id: string }[], taskId: string): number {
   const idx = tasks.findIndex((t) => t.id === taskId);
   return idx >= 0 ? idx + 1 : 1;
 }
@@ -121,6 +122,8 @@ export async function explainEngineeringTaskForUser(
   const walkthrough = await generateTaskWalkthrough({
     taskTitle: task.title,
     taskDescription: task.description,
+    taskType: task.taskType,
+    taskAcceptanceCriteria: task.acceptanceCriteria ?? [],
     taskIndex,
     totalTasks,
     featureTitle: feature.title,
@@ -151,4 +154,50 @@ export async function getNextEngineeringTaskId(
   const idx = ordered.findIndex((t) => t.id === task.id);
   if (idx < 0 || idx >= ordered.length - 1) return null;
   return ordered[idx + 1]!.id;
+}
+
+export type AdvanceTaskWalkthroughResult =
+  | {
+      completed: true;
+      featureId: string;
+      message: string;
+    }
+  | ({
+      completed: false;
+      previousTaskId: string;
+    } & ExplainEngineeringTaskResult);
+
+/** Mark current task done and explain the next task in one step. */
+export async function advanceTaskWalkthroughForUser(
+  userId: string,
+  input: { currentTaskId: string; analyzeRepo?: boolean },
+): Promise<AdvanceTaskWalkthroughResult> {
+  const currentTaskId = input.currentTaskId.trim();
+  if (!currentTaskId) {
+    throw new ServiceError("BAD_REQUEST", "currentTaskId is required");
+  }
+
+  const { task, feature } = await assertTaskInUserWorkspace(userId, currentTaskId);
+  await updateEngineeringTaskStatus(task.id, "done");
+
+  const nextTaskId = await getNextEngineeringTaskId(userId, currentTaskId);
+  if (!nextTaskId) {
+    return {
+      completed: true,
+      featureId: feature.id,
+      message: `All engineering tasks for "${feature.title}" are complete.`,
+    };
+  }
+
+  const result = await explainEngineeringTaskForUser(userId, {
+    taskId: nextTaskId,
+    depth: "brief",
+    analyzeRepo: input.analyzeRepo === true,
+  });
+
+  return {
+    completed: false,
+    previousTaskId: currentTaskId,
+    ...result,
+  };
 }

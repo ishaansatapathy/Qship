@@ -233,6 +233,13 @@ export async function runFeatureAiReview(input: {
   title: string;
   rawRequest: string;
   prd?: PrdContent | null;
+  /** Rich task list with type + acceptance criteria (preferred). */
+  engineeringTasks?: Array<{
+    title: string;
+    taskType?: string | null;
+    acceptanceCriteria?: string[] | null;
+  }>;
+  /** Legacy fallback — titles only. */
   taskTitles?: string[];
 }) {
   requireOpenAi();
@@ -241,8 +248,20 @@ export async function runFeatureAiReview(input: {
     ? JSON.stringify(input.prd, null, 2)
     : "PRD: NOT GENERATED — flag as incomplete and fail";
 
-  const tasksText = input.taskTitles?.length
-    ? input.taskTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")
+  const tasksText =
+    input.engineeringTasks?.length ?
+      input.engineeringTasks
+        .map((t, i) => {
+          const type = t.taskType ? `[${t.taskType}] ` : "";
+          const criteria =
+            t.acceptanceCriteria?.length ?
+              `\n   Acceptance: ${t.acceptanceCriteria.join("; ")}`
+            : "";
+          return `${i + 1}. ${type}${t.title}${criteria}`;
+        })
+        .join("\n")
+    : input.taskTitles?.length ?
+      input.taskTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")
     : "Tasks: NONE — flag task generation as required and fail";
 
   const content = await createChatCompletion(
@@ -883,6 +902,8 @@ export type TaskWalkthrough = {
 export async function generateTaskWalkthrough(input: {
   taskTitle: string;
   taskDescription: string;
+  taskType?: string | null;
+  taskAcceptanceCriteria?: string[];
   taskIndex: number;
   totalTasks: number;
   featureTitle: string;
@@ -904,6 +925,10 @@ export async function generateTaskWalkthrough(input: {
     input.depth === "brief" ?
       "Return ONLY a concise pseudo-code walkthrough (3–6 steps). Keep fullExplanation to 1 short paragraph."
     : "Expand fullExplanation with file-level guidance, function names, and edge cases. pseudoCodeSteps can be more detailed.";
+
+  const taskCriteriaText = input.taskAcceptanceCriteria?.length
+    ? input.taskAcceptanceCriteria.map((c, i) => `  ${i + 1}. ${c}`).join("\n")
+    : "Not specified.";
 
   const content = await createChatCompletion(
     [
@@ -933,7 +958,9 @@ For repo_aware mode: cite actual paths from snippets. Say things like "you alrea
         content: [
           `Feature: ${input.featureTitle}`,
           `Task ${input.taskIndex} of ${input.totalTasks}: ${input.taskTitle}`,
+          `Type: ${input.taskType ?? "unspecified"}`,
           `Description: ${input.taskDescription}`,
+          `Task acceptance criteria:\n${taskCriteriaText}`,
           input.prd?.acceptanceCriteria?.length ?
             `PRD acceptance criteria:\n${input.prd.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
           : "",

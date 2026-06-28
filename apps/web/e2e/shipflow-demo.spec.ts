@@ -38,4 +38,13 @@ test.describe("ShipFlow demo journey", () => {
     await expect(page.getByTestId("kanban-column-in_progress")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/add oauth provider config/i)).toBeVisible({ timeout: 15_000 });
   });
+
+  test("requests page links task walkthrough to agent", async ({ page }) => {
+    await demoLogin(page, "/requests");
+    await page.getByText(/slack notification when pr is approved/i).click();
+    await expect(page.getByText(/explain in agent/i).first()).toBeVisible({ timeout: 15_000 });
+    await page.getByText(/explain in agent/i).first().click();
+    await expect(page).toHaveURL(/\/agent\?.*walkthrough=1/);
+    await expect(page.getByText(/explain more/i)).toBeVisible({ timeout: 10_000 });
+  });
 });

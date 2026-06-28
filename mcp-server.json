@@ -151,6 +151,10 @@
     {
       "name": "explain_engineering_task",
       "description": "Interactive task walkthrough: pseudo-code (brief) or full guide; optional codebase-aware analysis when GitHub is connected."
+    },
+    {
+      "name": "advance_task_walkthrough",
+      "description": "Mark current task done and return brief walkthrough for the next engineering task."
     }
   ]
 }
