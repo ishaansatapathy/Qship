@@ -11,7 +11,7 @@ export async function runAiReviewWorkflow(input: {
   try {
     await updateWorkflowRun(input.workflowRunId, {
       status: "running",
-      progress: "25",
+      progress: 25,
       message: "Loading feature and PR context…",
     });
 
@@ -21,7 +21,7 @@ export async function runAiReviewWorkflow(input: {
     }
 
     await updateWorkflowRun(input.workflowRunId, {
-      progress: "55",
+      progress: 55,
       message: "Running AI QA review against PRD and diff…",
     });
 
@@ -29,7 +29,7 @@ export async function runAiReviewWorkflow(input: {
 
     await updateWorkflowRun(input.workflowRunId, {
       status: "completed",
-      progress: "100",
+      progress: 100,
       message: result.ok
         ? result.pass
           ? "AI review passed"
@@ -47,7 +47,7 @@ export async function runAiReviewWorkflow(input: {
     const message = error instanceof Error ? error.message : String(error);
     await updateWorkflowRun(input.workflowRunId, {
       status: "failed",
-      progress: "100",
+      progress: 100,
       message: "AI review failed",
       error: message,
     });

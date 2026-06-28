@@ -588,7 +588,7 @@ function FeatureDetailPanel({
           {reviews.map((review) => {
             const blocking = review.issues?.filter((i) => i.severity === "blocking") ?? [];
             const nonBlocking = review.issues?.filter((i) => i.severity !== "blocking") ?? [];
-            const passed = review.readyForHuman === "true";
+            const passed = review.readyForHuman === true;
             return (
               <div key={review.id} className="qship-review-iteration" data-pass={passed ? "true" : "false"}>
                 <div className="qship-review-iteration-head">

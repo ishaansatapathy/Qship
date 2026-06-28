@@ -48,7 +48,7 @@ export function WorkflowProgress({ featureId }: { featureId: string }) {
             {run.status === "running" || run.status === "pending" ? (
               <Loader2 size={12} className="qship-spin" style={{ marginLeft: 6, verticalAlign: -2 }} />
             ) : null}
-            {run.progress !== "0" && run.progress !== "100" ? ` (${run.progress}%)` : null}
+            {run.progress > 0 && run.progress < 100 ? ` (${run.progress}%)` : null}
           </li>
         ))}
       </ul>

@@ -12,17 +12,15 @@ import { ServiceError } from "./errors";
 import { appendFeatureActivity, updateFeatureStatus } from "./feature-request";
 import type { PrAiReviewResult } from "./feature-ai";
 
-export async function getAiReviewCredits(organizationId: string) {
+export async function getAiReviewCredits(organizationId: string): Promise<number> {
   const org = await db.query.organizations.findFirst({
     where: eq(organizations.id, organizationId),
     columns: { aiReviewCredits: true, planTier: true },
   });
-  if (!org) return 0;
-  const parsed = Number.parseInt(org.aiReviewCredits, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return org?.aiReviewCredits ?? 0;
 }
 
-export async function consumeAiReviewCredit(organizationId: string) {
+export async function consumeAiReviewCredit(organizationId: string): Promise<number> {
   const credits = await getAiReviewCredits(organizationId);
   if (credits <= 0) {
     throw new ServiceError(
@@ -33,7 +31,7 @@ export async function consumeAiReviewCredit(organizationId: string) {
   await db
     .update(organizations)
     .set({
-      aiReviewCredits: String(credits - 1),
+      aiReviewCredits: credits - 1,
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, organizationId));
@@ -61,7 +59,7 @@ export async function persistAiReview(input: {
     pullRequestId: input.pullRequestId,
     iteration,
     summary: input.review.summary,
-    readyForHuman: input.review.pass ? "true" : "false",
+    readyForHuman: input.review.pass,
     rawAnalysis: input.review as unknown as Record<string, unknown>,
   });
 
@@ -77,7 +75,7 @@ export async function persistAiReview(input: {
         filePath: issue.filePath ?? null,
         lineNumber: issue.lineNumber ?? null,
         requirementRef: issue.requirementRef ?? null,
-        resolved: "false",
+        resolved: false,
       })),
     );
   }

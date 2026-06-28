@@ -45,8 +45,8 @@ export async function handleRazorpayWebhook(req: Request, res: Response) {
         .update(organizations)
         .set({
           planTier,
-          aiReviewCredits: String(plan.aiReviewCredits),
-          repositoryLimit: String(plan.repositoryLimit),
+          aiReviewCredits: plan.aiReviewCredits,
+          repositoryLimit: plan.repositoryLimit,
           billingStatus: "active",
           razorpayCustomerId: payment.id,
           updatedAt: new Date(),

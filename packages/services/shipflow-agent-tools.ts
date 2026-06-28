@@ -647,7 +647,7 @@ export async function executeShipflowTool(
         reviews: reviews.map((r) => ({
           id: r.id,
           iteration: r.iteration,
-          pass: r.readyForHuman === "true",
+          pass: r.readyForHuman,
           summary: r.summary,
           issues: r.issues?.map((issue) => ({
             severity: issue.severity,

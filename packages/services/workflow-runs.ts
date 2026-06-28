@@ -26,7 +26,7 @@ export async function createWorkflowRun(input: {
       featureRequestId: input.featureRequestId,
       type: input.type,
       status: "pending",
-      progress: "0",
+      progress: 0,
       message: input.message ?? "Queued…",
     })
     .returning();
@@ -37,7 +37,8 @@ export async function updateWorkflowRun(
   id: string,
   patch: {
     status?: WorkflowStatus;
-    progress?: string;
+    /** Completion percentage in the range [0, 100]. */
+    progress?: number;
     message?: string;
     result?: Record<string, unknown>;
     error?: string | null;

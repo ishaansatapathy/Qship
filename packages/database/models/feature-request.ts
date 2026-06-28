@@ -1,4 +1,4 @@
-import { jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
 import { organizations } from "./organization";
@@ -30,31 +30,57 @@ export const featureSourceEnum = pgEnum("feature_source", [
   "api",
 ]);
 
-export const featureRequests = pgTable("feature_requests", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organizations.id, { onDelete: "cascade" }),
-  projectId: text("project_id")
-    .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  rawRequest: text("raw_request").notNull(),
-  source: featureSourceEnum("source").notNull().default("manual"),
-  status: featureStatusEnum("status").notNull().default("submitted"),
-  submitterEmail: text("submitter_email"),
-  createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
-  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+/** Role of a participant in the clarification dialogue. */
+export const clarificationRoleEnum = pgEnum("clarification_role", [
+  "user",
+  "agent",
+  "system",
+]);
 
-export const clarificationMessages = pgTable("clarification_messages", {
-  id: text("id").primaryKey(),
-  featureRequestId: text("feature_request_id")
-    .notNull()
-    .references(() => featureRequests.id, { onDelete: "cascade" }),
-  role: text("role").notNull(), // user | agent | system
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const featureRequests = pgTable(
+  "feature_requests",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    rawRequest: text("raw_request").notNull(),
+    source: featureSourceEnum("source").notNull().default("manual"),
+    status: featureStatusEnum("status").notNull().default("submitted"),
+    submitterEmail: text("submitter_email"),
+    createdByUserId: text("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    /** Primary list query: all requests for an org filtered by status. */
+    index("idx_feature_requests_org_status").on(t.organizationId, t.status),
+    /** Project-scoped request listing. */
+    index("idx_feature_requests_project_id").on(t.projectId),
+    /** Chronological ordering within an org. */
+    index("idx_feature_requests_org_created").on(t.organizationId, t.createdAt),
+  ],
+);
+
+export const clarificationMessages = pgTable(
+  "clarification_messages",
+  {
+    id: text("id").primaryKey(),
+    featureRequestId: text("feature_request_id")
+      .notNull()
+      .references(() => featureRequests.id, { onDelete: "cascade" }),
+    role: clarificationRoleEnum("role").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_clarification_messages_feature_id").on(t.featureRequestId),
+  ],
+);
