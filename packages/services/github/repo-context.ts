@@ -221,7 +221,13 @@ async function fetchRepoSnippetsUncached(
     }
   }
 
-  return snippets;
+  return snippets.sort((a, b) => {
+    const score = (s: RepoFileSnippet) => {
+      const hay = `${s.path} ${s.excerpt}`.toLowerCase();
+      return keywords.reduce((sum, kw) => sum + (hay.includes(kw) ? 1 : 0), 0);
+    };
+    return score(b) - score(a);
+  });
 }
 
 /**

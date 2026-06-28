@@ -83,10 +83,24 @@ export async function runAgentChatStream(
     actions,
   });
 
+  let walkthroughTaskIdUpdate: string | null | undefined;
+
   const executeTool = async (name: string, args: Record<string, unknown>): Promise<string> => {
     onToolCall(name);
     const result = await baseExecutor(name, args);
     memoryTracker.track(summarizeToolResult(name, result, args));
+    if (name === "advance_task_walkthrough" || name === "explain_engineering_task") {
+      try {
+        const parsed = JSON.parse(result) as { completed?: boolean; taskId?: string };
+        if (name === "advance_task_walkthrough" && parsed.completed) {
+          walkthroughTaskIdUpdate = null;
+        } else if (parsed.taskId) {
+          walkthroughTaskIdUpdate = parsed.taskId;
+        }
+      } catch {
+        // Non-JSON tool errors are surfaced to the model as plain text.
+      }
+    }
     return result;
   };
 
@@ -110,5 +124,6 @@ export async function runAgentChatStream(
     effectiveFocus: prepared.effectiveFocus,
     toolMemory: memoryTracker.getMergedMemory(),
     newToolMemoryEntries: memoryTracker.getNewEntries(),
+    walkthroughTaskId: walkthroughTaskIdUpdate,
   };
 }

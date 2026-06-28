@@ -53,6 +53,8 @@ export type AgentChatResult = {
   effectiveFocus?: AgentFocus;
   toolMemory?: import("./agent-tool-memory").AgentToolMemoryEntry[];
   newToolMemoryEntries?: import("./agent-tool-memory").AgentToolMemoryEntry[];
+  /** Updated when walkthrough tools advance or explain a new task. */
+  walkthroughTaskId?: string | null;
 };
 
 export function isAgentConfigured() {

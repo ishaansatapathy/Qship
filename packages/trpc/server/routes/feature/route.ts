@@ -31,7 +31,7 @@ import {
 } from "@repo/services/review";
 import { guardedUpdateFeatureStatus } from "@repo/services/feature-request";
 import { generateApprovalBriefing, analyzeChangeRequest, generateDeveloperOnboardingGuide } from "@repo/services/feature-ai";
-import { explainEngineeringTaskForUser } from "@repo/services/task-walkthrough";
+import { explainEngineeringTaskForUser, getTaskWalkthroughState } from "@repo/services/task-walkthrough";
 import {
   predictDeliveryTimeline,
   checkPipelineDuplicates,
@@ -448,6 +448,21 @@ export const featureRouter = router({
       try {
         await assertTaskInUserWorkspace(ctx.user.id, input.taskId);
         return explainEngineeringTaskForUser(ctx.user.id, input);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  getTaskWalkthroughState: protectedProcedure
+    .input(
+      z.object({
+        featureId: z.string().uuid(),
+        currentTaskId: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        return getTaskWalkthroughState(ctx.user.id, input);
       } catch (error) {
         mapServiceError(error);
       }
