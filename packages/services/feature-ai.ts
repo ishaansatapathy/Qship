@@ -855,3 +855,115 @@ Be concrete and specific. Generic advice like "read the codebase" is not helpful
     potentialPitfalls: parsed.potentialPitfalls ?? [],
   };
 }
+
+// ── Interactive task walkthrough ───────────────────────────────────────────────
+
+export type TaskWalkthrough = {
+  mode: "plan_only" | "repo_aware";
+  taskTitle: string;
+  taskIndex: number;
+  totalTasks: number;
+  briefSummary: string;
+  pseudoCodeSteps: string[];
+  fullExplanation: string;
+  acceptanceChecklist: string[];
+  repoFindings?: {
+    alreadyImplemented: { file: string; note: string }[];
+    stillNeeded: { action: string; reason: string }[];
+    suggestedSkip: string[];
+  };
+  suggestedUserReplies: string[];
+};
+
+/**
+ * Step-by-step task walkthrough for the agent UI.
+ * `depth=brief` → pseudo-code sketch; `depth=full` → detailed implementation guide.
+ * When repo snippets are supplied, guidance becomes codebase-aware.
+ */
+export async function generateTaskWalkthrough(input: {
+  taskTitle: string;
+  taskDescription: string;
+  taskIndex: number;
+  totalTasks: number;
+  featureTitle: string;
+  prd?: PrdContent | null;
+  depth: "brief" | "full";
+  repoSnippets?: { path: string; excerpt: string }[];
+}): Promise<TaskWalkthrough> {
+  requireOpenAi();
+
+  const mode = input.repoSnippets?.length ? "repo_aware" : "plan_only";
+  const repoBlock =
+    input.repoSnippets?.length ?
+      input.repoSnippets
+        .map((s) => `--- ${s.path} ---\n${s.excerpt.slice(0, 2500)}`)
+        .join("\n\n")
+    : "No repository connected — produce a technology-agnostic plan with pseudo-code only.";
+
+  const depthInstructions =
+    input.depth === "brief" ?
+      "Return ONLY a concise pseudo-code walkthrough (3–6 steps). Keep fullExplanation to 1 short paragraph."
+    : "Expand fullExplanation with file-level guidance, function names, and edge cases. pseudoCodeSteps can be more detailed.";
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a Staff Engineer running an interactive "one task at a time" walkthrough inside ShipFlow Agent.
+
+Mode: ${mode}
+${depthInstructions}
+
+Return JSON with EXACTLY these keys:
+- briefSummary: string (1–2 sentences — what this task accomplishes)
+- pseudoCodeSteps: string[] (ordered pseudo-code / plan steps the developer follows NOW)
+- fullExplanation: string (deeper narrative; shorter when depth=brief)
+- acceptanceChecklist: string[] (2–4 pass/fail checks for THIS task)
+- repoFindings: optional object when repo snippets exist:
+  - alreadyImplemented: { file, note }[] — cite REAL paths from snippets where work is partially/fully done
+  - stillNeeded: { action, reason }[] — what remains, referencing codebase gaps
+  - suggestedSkip: string[] — things the dev can skip because the repo already handles them
+- suggestedUserReplies: string[] — exactly 3 short phrases the user can click/say next: "Explain more", "Mark task done — next task", and one contextual question
+
+For plan_only mode: do NOT invent file paths. Use generic pseudo-code.
+For repo_aware mode: cite actual paths from snippets. Say things like "you already have X in \`path\` — extend it" or "skip building Y, use existing Z".`,
+      },
+      {
+        role: "user",
+        content: [
+          `Feature: ${input.featureTitle}`,
+          `Task ${input.taskIndex} of ${input.totalTasks}: ${input.taskTitle}`,
+          `Description: ${input.taskDescription}`,
+          input.prd?.acceptanceCriteria?.length ?
+            `PRD acceptance criteria:\n${input.prd.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+          : "",
+          `Repository context:\n${repoBlock}`,
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      },
+    ],
+    { jsonObject: true, temperature: 0.2 },
+  );
+
+  const parsed = parseJson<Omit<TaskWalkthrough, "mode" | "taskTitle" | "taskIndex" | "totalTasks">>(
+    content,
+  );
+
+  return {
+    mode,
+    taskTitle: input.taskTitle,
+    taskIndex: input.taskIndex,
+    totalTasks: input.totalTasks,
+    briefSummary: parsed.briefSummary ?? "",
+    pseudoCodeSteps: parsed.pseudoCodeSteps ?? [],
+    fullExplanation: parsed.fullExplanation ?? "",
+    acceptanceChecklist: parsed.acceptanceChecklist ?? [],
+    repoFindings: parsed.repoFindings,
+    suggestedUserReplies: parsed.suggestedUserReplies ?? [
+      "Explain more",
+      "Mark task done — next task",
+      "What should I test first?",
+    ],
+  };
+}

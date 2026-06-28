@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowRight,
+  Bot,
   CheckCircle2,
   ExternalLink,
   GitBranch,
@@ -27,6 +28,7 @@ import { StatSkeletonGrid } from "~/components/app/skeleton-panels";
 import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
 import { WorkflowProgress } from "~/components/app/workflow-progress";
 import { QshipConfirmDialog } from "~/components/app/qship-confirm-dialog";
+import { buildTaskWalkthroughAgentUrl } from "~/lib/shipflow-focus";
 
 type FeatureRow = RouterOutputs["feature"]["list"][number];
 type FeatureDetail = RouterOutputs["feature"]["get"];
@@ -597,14 +599,48 @@ function FeatureDetailPanel({
             <Link href="/tasks" className="qship-req-board-link">
               Open board
             </Link>
+            <Link
+              href={buildTaskWalkthroughAgentUrl({
+                featureId: feature.id,
+                taskId: tasks[0]?.id,
+                taskIndex: 1,
+                analyzeRepo: (repos.data?.length ?? 0) > 0,
+              })}
+              className="qship-req-board-link"
+            >
+              <Bot size={12} style={{ verticalAlign: -2 }} /> Walk with Agent
+            </Link>
           </h3>
           <ul>
-            {tasks.map((t) => (
-              <li key={t.id}>
-                <strong>{t.title}</strong> · {t.status}
+            {tasks.map((t, index) => (
+              <li key={t.id} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "baseline" }}>
+                <span>
+                  <strong>{t.title}</strong> · {t.status}
+                </span>
+                <Link
+                  href={buildTaskWalkthroughAgentUrl({
+                    featureId: feature.id,
+                    taskId: t.id,
+                    taskIndex: index + 1,
+                    analyzeRepo: (repos.data?.length ?? 0) > 0,
+                  })}
+                  className="qship-req-board-link"
+                  style={{ fontSize: 12 }}
+                >
+                  Explain in Agent
+                </Link>
               </li>
             ))}
           </ul>
+          {(repos.data?.length ?? 0) > 0 ? (
+            <p style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>
+              GitHub connected — Agent will compare tasks against your repo and skip work you&apos;ve already done.
+            </p>
+          ) : (
+            <p style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>
+              No repo linked — Agent gives plan-only pseudo-code. Connect GitHub in Settings for codebase-aware walkthrough.
+            </p>
+          )}
         </section>
       ) : null}
 

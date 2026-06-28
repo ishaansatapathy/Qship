@@ -28,6 +28,7 @@ import {
   generateDeveloperOnboardingGuide,
   generateFeaturePrd,
   generateFeatureTasks,
+  generateTaskWalkthrough,
   triageFeatureRequest,
 } from "./feature-ai";
 import {
@@ -54,6 +55,8 @@ import {
   listGithubRepositoriesForUser,
   syncGithubInstallationForUser,
 } from "./github/installation";
+import { getInstallationOctokit } from "./github/client";
+import { fetchRepoSnippetsForTask } from "./github/repo-context";
 import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "./workflow";
 
 export type ShipflowToolContext = {
@@ -411,6 +414,27 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
       required: ["taskId"],
       properties: {
         taskId: { type: "string", description: "Engineering task UUID" },
+      },
+    },
+  },
+  {
+    name: "explain_engineering_task",
+    description:
+      "Interactive task walkthrough for ShipFlow Agent: returns pseudo-code steps (brief) or a full implementation guide (full). When analyzeRepo=true and GitHub is connected, compares the task against the linked codebase and reports what is already implemented vs still needed. Use ONE task at a time in walkthrough mode; wait for the user to say 'explain more' or 'next task'.",
+    inputSchema: {
+      type: "object",
+      required: ["taskId"],
+      properties: {
+        taskId: { type: "string", description: "Engineering task UUID" },
+        depth: {
+          type: "string",
+          enum: ["brief", "full"],
+          description: "brief = pseudo-code sketch only; full = detailed explanation",
+        },
+        analyzeRepo: {
+          type: "boolean",
+          description: "When true, scan linked GitHub repo for codebase-aware guidance",
+        },
       },
     },
   },
@@ -1140,6 +1164,72 @@ export async function executeShipflowTool(
         lines: [guide.summary, `Start: ${guide.firstAction}`],
       });
       return JSON.stringify(guide);
+    }
+
+    case "explain_engineering_task": {
+      const taskId = String(args.taskId ?? "").trim();
+      if (!taskId) return JSON.stringify({ error: "taskId is required" });
+      const depth = args.depth === "full" ? "full" : "brief";
+      const analyzeRepo = args.analyzeRepo === true;
+
+      const { task, feature } = await assertTaskInUserWorkspace(userId, taskId);
+      const featureDetail = await getFeatureRequest(feature.id);
+      const orderedTasks = [...(featureDetail.tasks ?? [])].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.createdAt.getTime() - b.createdAt.getTime(),
+      );
+      const taskIndex = Math.max(
+        1,
+        orderedTasks.findIndex((t) => t.id === task.id) + 1,
+      );
+
+      let repoSnippets: { path: string; excerpt: string }[] | undefined;
+      if (analyzeRepo) {
+        const gh = await getGithubConnectionForUser(userId);
+        if (gh.connected && gh.installationId) {
+          const linkedRepo =
+            featureDetail.pullRequests?.[0]?.repository?.fullName ??
+            (await listGithubRepositoriesForUser(userId))[0]?.fullName;
+          if (linkedRepo) {
+            const [owner, repo] = linkedRepo.split("/");
+            if (owner && repo) {
+              const octokit = getInstallationOctokit(gh.installationId);
+              repoSnippets = await fetchRepoSnippetsForTask(
+                octokit,
+                owner,
+                repo,
+                task.title,
+                task.description,
+              );
+            }
+          }
+        }
+      }
+
+      const walkthrough = await generateTaskWalkthrough({
+        taskTitle: task.title,
+        taskDescription: task.description,
+        taskIndex,
+        totalTasks: orderedTasks.length || 1,
+        featureTitle: feature.title,
+        prd: featureDetail.prd?.content ?? null,
+        depth,
+        repoSnippets,
+      });
+
+      const modeLabel = walkthrough.mode === "repo_aware" ? "codebase-aware" : "plan-only";
+      actions.push({
+        kind: "feature_tasks",
+        title: `Task ${taskIndex}/${walkthrough.totalTasks}: ${task.title}`,
+        detail: `${modeLabel} · ${depth === "brief" ? "pseudo-code" : "full guide"}`,
+        href: `/tasks`,
+        lines: [
+          walkthrough.briefSummary,
+          ...walkthrough.pseudoCodeSteps.slice(0, 3),
+          ...(walkthrough.repoFindings?.alreadyImplemented.slice(0, 2).map((x) => `✓ ${x.file}: ${x.note}`) ??
+            []),
+        ],
+      });
+      return JSON.stringify(walkthrough);
     }
 
     default:

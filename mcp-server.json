@@ -147,6 +147,10 @@
     {
       "name": "update_engineering_task_status",
       "description": "Move an engineering task on the Kanban board (backlog → done)."
+    },
+    {
+      "name": "explain_engineering_task",
+      "description": "Interactive task walkthrough: pseudo-code (brief) or full guide; optional codebase-aware analysis when GitHub is connected."
     }
   ]
 }
