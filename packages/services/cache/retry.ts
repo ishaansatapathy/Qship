@@ -1,5 +1,5 @@
 /**
- * Lightweight exponential-backoff retry wrapper for Corsair / Google API calls.
+ * Lightweight exponential-backoff retry wrapper for generic / Google API calls.
  *
  * Retries on transient errors:
  *  - HTTP 429 (rate limit) — up to 4 attempts
@@ -29,7 +29,7 @@ function isTransient(error: unknown): boolean {
   if (error instanceof Error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code && TRANSIENT_CODES.has(code)) return true;
-    // Corsair / axios errors carry a status field
+    // API / axios errors carry a status field
     const status = (error as { status?: number; response?: { status?: number } }).status
       ?? (error as { response?: { status?: number } }).response?.status;
     if (status !== undefined && TRANSIENT_HTTP_CODES.has(status)) return true;
@@ -47,7 +47,7 @@ function delay(ms: number): Promise<void> {
  * @example
  * ```ts
  * const item = await withRetry(
- *   () => corsair.gmail.api.messages.get({ userId: "me", id: messageId }),
+ *   () => client.gmail.api.messages.get({ userId: "me", id: messageId }),
  *   { maxAttempts: 3, label: "messages.get" },
  * );
  * ```
@@ -56,7 +56,7 @@ export async function withRetry<T>(
   fn: () => Promise<T>,
   opts: RetryOptions = {},
 ): Promise<T> {
-  const { maxAttempts = 3, baseDelayMs = 300, maxDelayMs = 8000, label = "corsair" } = opts;
+  const { maxAttempts = 3, baseDelayMs = 300, maxDelayMs = 8000, label = "api" } = opts;
 
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

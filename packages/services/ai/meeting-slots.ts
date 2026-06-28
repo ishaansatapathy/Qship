@@ -1,7 +1,7 @@
 /**
  * find_meeting_slots — AI-powered scheduling assistant.
  *
- * Given a duration and a preferred date range, queries Corsair Calendar
+ * Given a duration and a preferred date range, queries Google Calendar
  * free/busy and returns up to 5 concrete time slot suggestions formatted for
  * humans. Works for single user or when an attendee email is provided.
  */

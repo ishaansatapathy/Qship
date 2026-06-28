@@ -27,10 +27,6 @@ const nextConfig = {
         destination: `${apiInternalUrl}/auth/:path*`,
       },
       {
-        source: "/api-connect/:path*",
-        destination: `${apiInternalUrl}/auth/corsair/:path*`,
-      },
-      {
         source: "/agent/stream",
         destination: `${apiInternalUrl}/agent/stream`,
       },
