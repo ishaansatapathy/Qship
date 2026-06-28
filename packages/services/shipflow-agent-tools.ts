@@ -25,10 +25,16 @@ import {
 import {
   generateApprovalBriefing,
   analyzeChangeRequest,
+  generateDeveloperOnboardingGuide,
   generateFeaturePrd,
   generateFeatureTasks,
   triageFeatureRequest,
 } from "./feature-ai";
+import {
+  predictDeliveryTimeline,
+  checkPipelineDuplicates,
+  getPipelineHealthSummary,
+} from "./feature-analytics";
 import { checkExistingCapability } from "./feature-education";
 import { ingestFeatureRequest, type FeatureSource } from "./feature-intake";
 import { runFeatureAiReviewWithOptionalPr } from "./github/pr-review";
@@ -364,6 +370,47 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
           type: "string",
           enum: ["backlog", "todo", "in_progress", "review", "done"],
         },
+      },
+    },
+  },
+  {
+    name: "predict_delivery_timeline",
+    description:
+      "Predict when a feature will ship based on project velocity history and feature complexity. Returns per-stage time estimates with confidence levels and an overall ship date. Use when stakeholders ask for ETAs.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "check_pipeline_duplicates",
+    description:
+      "Semantically scan the active pipeline for near-duplicate feature requests. Prevents engineering waste from building the same thing twice. Returns similarity scores, overlapping aspects, and a consolidation recommendation for each match.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID to check for duplicates" } },
+    },
+  },
+  {
+    name: "get_pipeline_health",
+    description:
+      "Get an overview of the entire project pipeline: total active features, distribution by status, top bottleneck stages, features shipped last 30 days, average cycle time, and a health label (healthy / congested / stalled). Use for stand-up summaries and planning.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "get_developer_onboarding_guide",
+    description:
+      "Generate a personalised First-30-Minutes onboarding guide for a developer picking up an engineering task. Returns: implementation approach (step-by-step), key architectural areas to understand, likely file patterns to touch, potential pitfalls, testing strategy, and effort estimate. Call this when a developer is about to start work on a task.",
+    inputSchema: {
+      type: "object",
+      required: ["taskId"],
+      properties: {
+        taskId: { type: "string", description: "Engineering task UUID" },
       },
     },
   },
@@ -1028,6 +1075,71 @@ export async function executeShipflowTool(
       const id = String(args.id ?? "").trim();
       const health = await getReviewLoopHealth(id);
       return JSON.stringify(health);
+    }
+
+    case "predict_delivery_timeline": {
+      const id = String(args.id ?? "").trim();
+      const { ws } = await loadAuthorizedFeature(userId, id);
+      const prediction = await predictDeliveryTimeline(id, ws.project.id);
+      actions.push({
+        kind: "feature_detail",
+        title: `Delivery prediction: ${prediction.featureTitle}`,
+        detail: `Ships in ~${prediction.totalRemainingDays} days (confidence: ${prediction.overallConfidence}%)`,
+        href: `/requests?id=${id}`,
+        lines: [prediction.basisDescription],
+      });
+      return JSON.stringify(prediction);
+    }
+
+    case "check_pipeline_duplicates": {
+      const id = String(args.id ?? "").trim();
+      const { feature, ws } = await loadAuthorizedFeature(userId, id);
+      const result = await checkPipelineDuplicates(id, ws.project.id);
+      actions.push({
+        kind: "feature_detail",
+        title: `Duplicate check: ${feature.title}`,
+        detail: result.hasSimilar
+          ? `${result.topCandidates.length} similar feature(s) found`
+          : "No duplicates detected",
+        href: `/requests?id=${id}`,
+        lines: result.hasSimilar ? [result.consolidationRecommendation] : [],
+      });
+      return JSON.stringify(result);
+    }
+
+    case "get_pipeline_health": {
+      const ws = await getWorkspaceProjectForUser(userId);
+      if (!ws) return JSON.stringify({ error: "Join a workspace first" });
+      const health = await getPipelineHealthSummary(ws.project.id);
+      actions.push({
+        kind: "pipeline_summary",
+        title: `Pipeline: ${health.healthLabel}`,
+        detail: health.insight,
+      });
+      return JSON.stringify(health);
+    }
+
+    case "get_developer_onboarding_guide": {
+      const taskId = String(args.taskId ?? "").trim();
+      if (!taskId) return JSON.stringify({ error: "taskId is required" });
+      const { task, feature } = await assertTaskInUserWorkspace(userId, taskId);
+      const featureDetail = await getFeatureRequest(feature.id);
+      const guide = await generateDeveloperOnboardingGuide({
+        taskTitle: task.title,
+        taskDescription: task.description,
+        taskType: (task as Record<string, unknown>).type as string | undefined,
+        acceptanceCriteria: (task as Record<string, unknown>).acceptanceCriteria as string[] | undefined,
+        featureTitle: feature.title,
+        prd: featureDetail.prd?.content ?? null,
+      });
+      actions.push({
+        kind: "feature_tasks",
+        title: `Onboarding guide: ${task.title}`,
+        detail: `${guide.estimatedComplexity} complexity · ~${guide.estimatedHours}h`,
+        href: `/tasks`,
+        lines: [guide.summary, `Start: ${guide.firstAction}`],
+      });
+      return JSON.stringify(guide);
     }
 
     default:

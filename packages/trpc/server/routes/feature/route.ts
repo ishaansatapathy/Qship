@@ -32,7 +32,12 @@ import {
   getReviewCycleTimes,
   getReviewLoopHealth,
 } from "@repo/services/review";
-import { generateApprovalBriefing, analyzeChangeRequest } from "@repo/services/feature-ai";
+import { generateApprovalBriefing, analyzeChangeRequest, generateDeveloperOnboardingGuide } from "@repo/services/feature-ai";
+import {
+  predictDeliveryTimeline,
+  checkPipelineDuplicates,
+  getPipelineHealthSummary,
+} from "@repo/services/feature-analytics";
 import { ServiceError } from "@repo/services/errors";
 import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES, type EngineeringTaskStatus } from "@repo/services/workflow";
 import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
@@ -863,6 +868,97 @@ export const featureRouter = router({
                   .map((i) => ({ title: i.title, category: i.category })),
               }
             : null,
+        });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  // ── Analytics & intelligence ───────────────────────────────────────────────
+
+  predictDelivery: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/delivery-prediction",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "AI-powered delivery timeline prediction based on project velocity history",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const { ws } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return predictDeliveryTimeline(input.id, ws.project.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  checkDuplicates: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/duplicate-check",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Semantically detect near-duplicate feature requests in the active pipeline",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const { ws } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return checkPipelineDuplicates(input.id, ws.project.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  pipelineHealth: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/pipeline/health",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Pipeline health summary: bottlenecks, velocity, shipped last 30 days",
+      },
+    })
+    .input(zodUndefinedModel)
+    .query(async ({ ctx }) => {
+      try {
+        const ws = await getWorkspaceProjectForUser(ctx.user.id);
+        if (!ws) throw new ServiceError("PRECONDITION_FAILED", "Join a workspace first");
+        return getPipelineHealthSummary(ws.project.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  developerOnboarding: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/tasks/{taskId}/onboarding-guide",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "AI-generated First-30-Minutes onboarding guide for a developer picking up a task",
+      },
+    })
+    .input(z.object({ taskId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const { task, feature } = await assertTaskInUserWorkspace(ctx.user.id, input.taskId);
+        const featureDetail = await getFeatureRequest(feature.id);
+        return generateDeveloperOnboardingGuide({
+          taskTitle: task.title,
+          taskDescription: task.description,
+          taskType: (task as Record<string, unknown>).type as string | undefined,
+          acceptanceCriteria: (task as Record<string, unknown>).acceptanceCriteria as string[] | undefined,
+          featureTitle: feature.title,
+          prd: featureDetail.prd?.content ?? null,
         });
       } catch (error) {
         mapServiceError(error);

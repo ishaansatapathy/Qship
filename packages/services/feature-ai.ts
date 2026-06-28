@@ -667,3 +667,199 @@ If PM says "add tests", specify: which functions, which edge cases, expected ass
   const parsed = parseJson<ChangeRequestAnalysis>(content);
   return { ...parsed, actionItems: parsed.actionItems ?? [] };
 }
+
+// ── Semantic duplicate detection ───────────────────────────────────────────────
+
+export type SimilarityCandidate = {
+  id: string;
+  title: string;
+  status: string;
+  similarityScore: number;
+  overlappingAspects: string[];
+  recommendation: "merge" | "track_as_duplicate" | "continue_separately";
+  reason: string;
+};
+
+export type SimilarityDetectionResult = {
+  hasSimilar: boolean;
+  topCandidates: SimilarityCandidate[];
+  consolidationRecommendation: string;
+};
+
+/**
+ * Semantically detects near-duplicate feature requests in the active pipeline.
+ * Unlike the basic education check (which looks for existing product capabilities),
+ * this compares the new request against OTHER feature requests to surface overlap
+ * BEFORE engineering hours are wasted building the same thing twice.
+ *
+ * Similarity score guide:
+ *  80-100  : Almost certain duplicate — same intent, same scope
+ *  60-79   : High similarity — likely same goal, different framing
+ *  40-59   : Moderate overlap — share some scope but meaningfully distinct
+ */
+export async function detectSimilarFeatureRequests(input: {
+  title: string;
+  rawRequest: string;
+  existingFeatures: Array<{
+    id: string;
+    title: string;
+    rawRequest: string;
+    status: string;
+  }>;
+}): Promise<SimilarityDetectionResult> {
+  requireOpenAi();
+
+  if (input.existingFeatures.length === 0) {
+    return { hasSimilar: false, topCandidates: [], consolidationRecommendation: "No existing features to compare against." };
+  }
+
+  const candidateList = input.existingFeatures
+    .slice(0, 30)
+    .map((f, i) => `[${i}] id=${f.id} status=${f.status}\nTitle: ${f.title}\nRequest: ${f.rawRequest.slice(0, 300)}`)
+    .join("\n---\n");
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a product analyst detecting duplicate or heavily overlapping feature requests.
+Your job is to prevent engineering waste by identifying when a new feature request overlaps with one already in the pipeline.
+
+Analyse the new feature against each candidate and return JSON:
+{
+  "hasSimilar": boolean,
+  "topCandidates": [
+    {
+      "id": string (the candidate's id field),
+      "title": string,
+      "status": string,
+      "similarityScore": number 0-100,
+      "overlappingAspects": string[] (2-4 specific aspects that overlap),
+      "recommendation": "merge" | "track_as_duplicate" | "continue_separately",
+      "reason": string (1 sentence explaining the recommendation)
+    }
+  ],
+  "consolidationRecommendation": string (overall advice: what the PM should do)
+}
+
+Only include candidates with similarityScore >= 40. Sort by similarityScore descending.
+Max 5 candidates in topCandidates.
+
+Recommendations:
+- merge: score >= 75 — same intent, same scope, should be one feature
+- track_as_duplicate: score 55-74 — very similar but may have minor differences
+- continue_separately: score 40-54 — overlaps in parts but is meaningfully distinct`,
+      },
+      {
+        role: "user",
+        content: [
+          `NEW FEATURE:`,
+          `Title: ${input.title}`,
+          `Request: ${input.rawRequest}`,
+          ``,
+          `EXISTING PIPELINE FEATURES:`,
+          candidateList,
+        ].join("\n"),
+      },
+    ],
+    { jsonObject: true, temperature: 0.1 },
+  );
+
+  const parsed = parseJson<SimilarityDetectionResult>(content);
+  return {
+    hasSimilar: parsed.hasSimilar ?? false,
+    topCandidates: parsed.topCandidates ?? [],
+    consolidationRecommendation: parsed.consolidationRecommendation ?? "",
+  };
+}
+
+// ── Developer onboarding guide ─────────────────────────────────────────────────
+
+export type DeveloperOnboardingGuide = {
+  summary: string;
+  implementationApproach: string[];
+  keyAreasToUnderstand: string[];
+  suggestedFilePatterns: string[];
+  potentialPitfalls: string[];
+  testingStrategy: string;
+  estimatedComplexity: "low" | "medium" | "high";
+  estimatedHours: number;
+  firstAction: string;
+};
+
+/**
+ * Generates a personalised "First 30 Minutes" onboarding guide for a developer
+ * picking up an engineering task. Converts abstract task descriptions into a
+ * concrete, step-by-step getting-started plan covering implementation approach,
+ * architectural areas to read, pitfalls to avoid, and testing strategy.
+ *
+ * This bridges the gap between "here's your task" and "here's how to start".
+ */
+export async function generateDeveloperOnboardingGuide(input: {
+  taskTitle: string;
+  taskDescription: string;
+  taskType?: string;
+  acceptanceCriteria?: string[];
+  featureTitle: string;
+  prd?: PrdContent | null;
+  techStack?: string[];
+}): Promise<DeveloperOnboardingGuide> {
+  requireOpenAi();
+
+  const criteriaText = input.acceptanceCriteria?.length
+    ? input.acceptanceCriteria.map((c, i) => `  ${i + 1}. ${c}`).join("\n")
+    : "Not specified.";
+
+  const prdGoals = input.prd?.goals?.length
+    ? input.prd.goals.map((g, i) => `  ${i + 1}. ${g}`).join("\n")
+    : "Not available.";
+
+  const techStackText = input.techStack?.join(", ") ?? "TypeScript monorepo (Next.js, tRPC, Drizzle ORM, PostgreSQL)";
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a Senior Staff Engineer writing a personalised onboarding guide for a developer picking up a task.
+The developer is technically strong but unfamiliar with this specific feature. 
+Your guide should get them productive within 30 minutes.
+
+Return JSON with EXACTLY these keys:
+- summary: string (1-2 sentences: what the task is and why it matters)
+- implementationApproach: string[] (3-6 concrete steps the developer should follow, ordered)
+- keyAreasToUnderstand: string[] (2-5 architectural layers/concepts to understand first, e.g. "tRPC router → service → DB query pattern")
+- suggestedFilePatterns: string[] (3-6 file patterns likely to be touched, e.g. "packages/services/*.ts", "apps/api/src/routes/")
+- potentialPitfalls: string[] (2-4 common mistakes for this type of task, very specific)
+- testingStrategy: string (how to verify the implementation is correct, including specific test scenarios)
+- estimatedComplexity: "low" | "medium" | "high"
+- estimatedHours: number (realistic estimate)
+- firstAction: string (the single most important thing to do in the first 5 minutes)
+
+Be concrete and specific. Generic advice like "read the codebase" is not helpful.`,
+      },
+      {
+        role: "user",
+        content: [
+          `Feature: ${input.featureTitle}`,
+          `Task: ${input.taskTitle}`,
+          `Type: ${input.taskType ?? "not specified"}`,
+          `Description: ${input.taskDescription}`,
+          ``,
+          `Acceptance criteria:\n${criteriaText}`,
+          `Feature goals:\n${prdGoals}`,
+          `Tech stack: ${techStackText}`,
+        ].join("\n"),
+      },
+    ],
+    { jsonObject: true, temperature: 0.2 },
+  );
+
+  const parsed = parseJson<DeveloperOnboardingGuide>(content);
+  return {
+    ...parsed,
+    implementationApproach: parsed.implementationApproach ?? [],
+    keyAreasToUnderstand: parsed.keyAreasToUnderstand ?? [],
+    suggestedFilePatterns: parsed.suggestedFilePatterns ?? [],
+    potentialPitfalls: parsed.potentialPitfalls ?? [],
+  };
+}
