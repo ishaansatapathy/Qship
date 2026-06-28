@@ -31,6 +31,7 @@ import {
 } from "@repo/services/review";
 import { guardedUpdateFeatureStatus } from "@repo/services/feature-request";
 import { generateApprovalBriefing, analyzeChangeRequest, generateDeveloperOnboardingGuide } from "@repo/services/feature-ai";
+import { explainEngineeringTaskForUser } from "@repo/services/task-walkthrough";
 import {
   predictDeliveryTimeline,
   checkPipelineDuplicates,
@@ -421,6 +422,32 @@ export const featureRouter = router({
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return dispatchTaskGeneration(input.id, ctx.user.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  explainTask: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/tasks/{taskId}/explain",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Interactive engineering task walkthrough (brief pseudo-code or full guide)",
+      },
+    })
+    .input(
+      z.object({
+        taskId: z.string().uuid(),
+        depth: z.enum(["brief", "full"]).default("brief"),
+        analyzeRepo: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await assertTaskInUserWorkspace(ctx.user.id, input.taskId);
+        return explainEngineeringTaskForUser(ctx.user.id, input);
       } catch (error) {
         mapServiceError(error);
       }

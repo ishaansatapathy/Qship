@@ -29,7 +29,7 @@ export function buildTaskWalkthroughAgentUrl(input: {
     input.analyzeRepo ?
       " GitHub is connected — use analyzeRepo=true for codebase-aware guidance."
     : " No repo analysis yet — plan-only pseudo-code.";
-  const prompt = `Interactive task walkthrough.${taskHint}${repoHint} Use explain_engineering_task with depth=brief for the current task only. Show pseudo-code steps. Wait for me to say "explain more" or "next task".`;
+  const prompt = `Start interactive task walkthrough.${taskHint}${repoHint} Go one task at a time.`;
   const params = new URLSearchParams({
     focus,
     walkthrough: "1",

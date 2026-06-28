@@ -194,6 +194,7 @@ function FeatureDetailPanel({
   } | null>(null);
   const [clarificationText, setClarificationText] = useState("");
   const detail = trpc.feature.get.useQuery({ id: featureId });
+  const githubStatus = trpc.github.connectionStatus.useQuery({});
   const repos = trpc.github.listRepositories.useQuery({});
   const allReviews = trpc.feature.listReviews.useQuery({ id: featureId }, { staleTime: 10_000 });
   const reviewHealth = trpc.feature.getReviewLoopHealth.useQuery(
@@ -211,6 +212,8 @@ function FeatureDetailPanel({
       staleTime: 60_000,
     },
   );
+
+  const githubConnected = githubStatus.data?.connected === true;
 
   const invalidate = async () => {
     await utils.feature.get.invalidate({ id: featureId });
@@ -604,7 +607,7 @@ function FeatureDetailPanel({
                 featureId: feature.id,
                 taskId: tasks[0]?.id,
                 taskIndex: 1,
-                analyzeRepo: (repos.data?.length ?? 0) > 0,
+                analyzeRepo: githubConnected,
               })}
               className="qship-req-board-link"
             >
@@ -622,7 +625,7 @@ function FeatureDetailPanel({
                     featureId: feature.id,
                     taskId: t.id,
                     taskIndex: index + 1,
-                    analyzeRepo: (repos.data?.length ?? 0) > 0,
+                    analyzeRepo: githubConnected,
                   })}
                   className="qship-req-board-link"
                   style={{ fontSize: 12 }}
@@ -632,9 +635,11 @@ function FeatureDetailPanel({
               </li>
             ))}
           </ul>
-          {(repos.data?.length ?? 0) > 0 ? (
+          {githubConnected ? (
             <p style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>
-              GitHub connected — Agent will compare tasks against your repo and skip work you&apos;ve already done.
+              GitHub connected
+              {repos.data?.[0]?.fullName ? ` (${repos.data[0].fullName})` : ""} — Agent compares tasks against your
+              codebase and skips work you&apos;ve already done.
             </p>
           ) : (
             <p style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>

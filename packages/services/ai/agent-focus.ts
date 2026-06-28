@@ -2,6 +2,10 @@
 export type AgentFocus = {
   contextId?: string;
   eventId?: string;
+  /** Active engineering task for interactive walkthrough mode. */
+  walkthroughTaskId?: string;
+  /** When true, explain_engineering_task should scan the linked GitHub repo. */
+  analyzeRepo?: boolean;
 };
 
 export async function buildFocusSystemAppendix(
@@ -9,7 +13,13 @@ export async function buildFocusSystemAppendix(
   focus: AgentFocus | undefined,
   _userEmail?: string, // reserved for future personalized context
 ): Promise<string> {
-  if (!focus?.contextId?.trim() && !focus?.eventId?.trim()) return "";
+  if (
+    !focus?.contextId?.trim() &&
+    !focus?.eventId?.trim() &&
+    !focus?.walkthroughTaskId?.trim()
+  ) {
+    return "";
+  }
 
   const lines = [
     "",
@@ -42,10 +52,27 @@ export async function buildFocusSystemAppendix(
           `Use get_feature_request with id "${featureId}".`,
         );
       }
-      return lines.filter(Boolean).join("\n");
+    } else {
+      lines.push("Type: WORKSPACE CONTEXT", `contextId: ${contextId}`);
     }
+  }
 
-    lines.push("Type: WORKSPACE CONTEXT", `contextId: ${contextId}`);
+  if (focus.walkthroughTaskId?.trim()) {
+    const taskId = focus.walkthroughTaskId.trim();
+    const analyzeRepo = focus.analyzeRepo === true;
+    lines.push(
+      "",
+      "Type: INTERACTIVE TASK WALKTHROUGH",
+      `currentTaskId: ${taskId}`,
+      `analyzeRepo: ${analyzeRepo}`,
+      "",
+      "WALKTHROUGH RULES (override confirmation gates for this mode only):",
+      `- On the FIRST assistant turn, IMMEDIATELY call explain_engineering_task with taskId="${taskId}", depth=brief, analyzeRepo=${analyzeRepo}.`,
+      "- Present pseudoCodeSteps as a numbered list. Do not dump all tasks.",
+      '- If user says "explain more", call explain_engineering_task with depth=full for the SAME taskId.',
+      '- If user says "next task" / "mark done", call update_engineering_task_status (done), then get_feature_request to find the next task and explain_engineering_task for it.',
+      "- Use suggestedUserReplies from the tool JSON at the end of each walkthrough response.",
+    );
   }
 
   if (focus.eventId?.trim()) {

@@ -28,7 +28,6 @@ import {
   generateDeveloperOnboardingGuide,
   generateFeaturePrd,
   generateFeatureTasks,
-  generateTaskWalkthrough,
   triageFeatureRequest,
 } from "./feature-ai";
 import {
@@ -55,8 +54,7 @@ import {
   listGithubRepositoriesForUser,
   syncGithubInstallationForUser,
 } from "./github/installation";
-import { getInstallationOctokit } from "./github/client";
-import { fetchRepoSnippetsForTask } from "./github/repo-context";
+import { explainEngineeringTaskForUser } from "./task-walkthrough";
 import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "./workflow";
 
 export type ShipflowToolContext = {
@@ -1172,64 +1170,33 @@ export async function executeShipflowTool(
       const depth = args.depth === "full" ? "full" : "brief";
       const analyzeRepo = args.analyzeRepo === true;
 
-      const { task, feature } = await assertTaskInUserWorkspace(userId, taskId);
-      const featureDetail = await getFeatureRequest(feature.id);
-      const orderedTasks = [...(featureDetail.tasks ?? [])].sort(
-        (a, b) => a.sortOrder - b.sortOrder || a.createdAt.getTime() - b.createdAt.getTime(),
-      );
-      const taskIndex = Math.max(
-        1,
-        orderedTasks.findIndex((t) => t.id === task.id) + 1,
-      );
-
-      let repoSnippets: { path: string; excerpt: string }[] | undefined;
-      if (analyzeRepo) {
-        const gh = await getGithubConnectionForUser(userId);
-        if (gh.connected && gh.installationId) {
-          const linkedRepo =
-            featureDetail.pullRequests?.[0]?.repository?.fullName ??
-            (await listGithubRepositoriesForUser(userId))[0]?.fullName;
-          if (linkedRepo) {
-            const [owner, repo] = linkedRepo.split("/");
-            if (owner && repo) {
-              const octokit = getInstallationOctokit(gh.installationId);
-              repoSnippets = await fetchRepoSnippetsForTask(
-                octokit,
-                owner,
-                repo,
-                task.title,
-                task.description,
-              );
-            }
-          }
-        }
-      }
-
-      const walkthrough = await generateTaskWalkthrough({
-        taskTitle: task.title,
-        taskDescription: task.description,
-        taskIndex,
-        totalTasks: orderedTasks.length || 1,
-        featureTitle: feature.title,
-        prd: featureDetail.prd?.content ?? null,
+      const result = await explainEngineeringTaskForUser(userId, {
+        taskId,
         depth,
-        repoSnippets,
+        analyzeRepo,
       });
+      const { walkthrough, taskIndex } = result;
 
       const modeLabel = walkthrough.mode === "repo_aware" ? "codebase-aware" : "plan-only";
+      const implemented = walkthrough.repoFindings?.alreadyImplemented ?? [];
       actions.push({
         kind: "feature_tasks",
-        title: `Task ${taskIndex}/${walkthrough.totalTasks}: ${task.title}`,
+        title: `Task ${taskIndex}/${walkthrough.totalTasks}: ${walkthrough.taskTitle}`,
         detail: `${modeLabel} · ${depth === "brief" ? "pseudo-code" : "full guide"}`,
         href: `/tasks`,
         lines: [
           walkthrough.briefSummary,
           ...walkthrough.pseudoCodeSteps.slice(0, 3),
-          ...(walkthrough.repoFindings?.alreadyImplemented.slice(0, 2).map((x) => `✓ ${x.file}: ${x.note}`) ??
-            []),
+          ...implemented.slice(0, 2).map((x) => `✓ ${x.file}: ${x.note}`),
         ],
       });
-      return JSON.stringify(walkthrough);
+      return JSON.stringify({
+        ...walkthrough,
+        taskId: result.taskId,
+        featureId: result.featureId,
+        repository: result.repository,
+        repoSnippetCount: result.repoSnippetCount,
+      });
     }
 
     default:

@@ -950,6 +950,14 @@ For repo_aware mode: cite actual paths from snippets. Say things like "you alrea
     content,
   );
 
+  const repoFindings = parsed.repoFindings
+    ? {
+        alreadyImplemented: parsed.repoFindings.alreadyImplemented ?? [],
+        stillNeeded: parsed.repoFindings.stillNeeded ?? [],
+        suggestedSkip: parsed.repoFindings.suggestedSkip ?? [],
+      }
+    : undefined;
+
   return {
     mode,
     taskTitle: input.taskTitle,
@@ -959,7 +967,7 @@ For repo_aware mode: cite actual paths from snippets. Say things like "you alrea
     pseudoCodeSteps: parsed.pseudoCodeSteps ?? [],
     fullExplanation: parsed.fullExplanation ?? "",
     acceptanceChecklist: parsed.acceptanceChecklist ?? [],
-    repoFindings: parsed.repoFindings,
+    repoFindings,
     suggestedUserReplies: parsed.suggestedUserReplies ?? [
       "Explain more",
       "Mark task done — next task",
