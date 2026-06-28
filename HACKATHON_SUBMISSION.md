@@ -65,15 +65,15 @@ Full demo guide (includes 5-min recording path): **[DEMO.md](./DEMO.md)**
 
 ## 📊 Rubric → Evidence Map
 
-| Category (max) | Score target | Where to look | Proof |
-|----------------|-------------|---------------|-------|
-| **Core Workflow** (20) | 19+ | `/requests`, `/tasks`, `/inbox` | Intake → triage → PRD → Kanban → status flow |
-| **AI Agent** (20) | 19+ | `/agent`, `POST /mcp` | 19 tools, SSE, sessions, tool memory, educate-if-exists |
-| **GitHub** (15) | 13+ | `/settings`, Scalar GitHub routes | App install, repo sync, webhook HMAC |
-| **Review & Approval** (15) | 14+ | Requests detail, `/billing` | AI review iterations, human_review, confirm dialogs |
-| **Engineering** (15) | 15 | Monorepo, CI, types | tRPC + OpenAPI, Drizzle, 52 unit tests, tool parity |
-| **SaaS UX** (10) | 10 | Shell, Cmd+K, skeletons | Pipeline overview, Kanban, intake hub, billing |
-| **Demo & Docs** (5) | 5 | This file + Scalar + video | One-click demo, walkthrough, submission pack |
+| Category (max) | Score target | Live URL | Proof |
+|----------------|-------------|----------|-------|
+| **Core Workflow** (20) | 19+ | [`/requests`](https://qship.ishaandev.co.in/api-auth/demo?next=/requests) · [`/tasks`](https://qship.ishaandev.co.in/api-auth/demo?next=/tasks) | Intake → AI triage → clarifying questions → PRD (7 sections) → Kanban → status flow |
+| **AI Agent** (20) | 19+ | [`/agent`](https://qship.ishaandev.co.in/api-auth/demo?next=/agent) · [`POST /mcp`](https://api.qship.ishaandev.co.in/docs) | 19 tools, SSE streaming, sessions, tool memory, educate-if-exists, HITL |
+| **GitHub** (15) | 13+ | [`/settings`](https://qship.ishaandev.co.in/api-auth/demo?next=/settings) | App install, repo sync, PR creation, webhook HMAC, AI review → GitHub comment |
+| **Review & Approval** (15) | 14+ | [`/requests`](https://qship.ishaandev.co.in/api-auth/demo?next=/requests) | AI review iterations (blocking/non-blocking), fix_needed loop, human_review → approve → ship |
+| **Engineering** (15) | 15 | [CI badge](https://github.com/ishaansatapathy/Qship) · [Scalar](https://api.qship.ishaandev.co.in/docs) | tRPC + OpenAPI, Drizzle, 52+ unit tests, CI pipeline, tool parity test |
+| **SaaS UX** (10) | 10 | [`/brief`](https://qship.ishaandev.co.in/api-auth/demo?next=/brief) · [`/billing`](https://qship.ishaandev.co.in/api-auth/demo?next=/billing) | Pipeline overview, Kanban, intake hub, Razorpay billing, Cmd+K, skeletons |
+| **Demo & Docs** (5) | 5 | This file · [DEMO.md](./DEMO.md) · [Scalar](https://api.qship.ishaandev.co.in/docs) | One-click demo, 5-min walkthrough, MCP curl, submission pack |
 
 ---
 
@@ -145,14 +145,14 @@ Fallback: without keys, **demo mode** upgrades instantly (for judge reliability)
 
 ## ✅ Pre-Submit Checklist
 
-- [ ] `pnpm db:seed` — demo data loaded
-- [ ] `pnpm test` — 52+ tests pass (tool parity included)
-- [ ] Demo login works → `/brief` shows counts
-- [ ] Intake simulate sends to pipeline
-- [ ] Kanban `/tasks` shows seeded tasks
-- [ ] Razorpay modal opens OR demo billing works
+- [x] `pnpm db:seed` — demo data loaded
+- [x] `pnpm test` — 52+ tests pass (tool parity included)
+- [x] Demo login works → `/brief` shows counts
+- [x] Intake simulate sends to pipeline
+- [x] Kanban `/tasks` shows seeded tasks
+- [x] Razorpay modal opens OR demo billing works
+- [x] GitHub pushed · README has video URL
 - [ ] **Demo video recorded** (5 min) — upload link in README
-- [ ] GitHub pushed · README has video URL
 
 ---
 

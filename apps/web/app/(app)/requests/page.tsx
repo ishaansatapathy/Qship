@@ -9,8 +9,10 @@ import {
   CheckCircle2,
   ExternalLink,
   GitBranch,
+  HelpCircle,
   ListTodo,
   Loader2,
+  MessageSquare,
   Plus,
   Rocket,
   ShieldCheck,
@@ -188,8 +190,10 @@ function FeatureDetailPanel({
     onConfirm: () => void;
     loading?: boolean;
   } | null>(null);
+  const [clarificationText, setClarificationText] = useState("");
   const detail = trpc.feature.get.useQuery({ id: featureId });
   const repos = trpc.github.listRepositories.useQuery({});
+  const allReviews = trpc.feature.listReviews.useQuery({ id: featureId }, { staleTime: 10_000 });
 
   const invalidate = async () => {
     await utils.feature.get.invalidate({ id: featureId });
@@ -265,6 +269,15 @@ function FeatureDetailPanel({
     onError: (e) => toast.error(e.message),
   });
 
+  const addClarification = trpc.feature.addClarification.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      setClarificationText("");
+      toast.success("Clarification recorded");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   if (detail.isLoading) {
     return (
       <aside className="qship-req-detail">
@@ -280,7 +293,8 @@ function FeatureDetailPanel({
   const prd = feature.prd?.content;
   const tasks = feature.tasks ?? [];
   const linkedPr = feature.pullRequests?.[0];
-  const latestReview = feature.aiReviews?.[0];
+  const reviews = allReviews.data ?? [];
+  const latestReview = reviews[0];
   const firstRepo = repos.data?.[0];
   const education = feature.metadata?.education as
     | {
@@ -346,11 +360,34 @@ function FeatureDetailPanel({
           {triage.impactSummary ? <p>{triage.impactSummary}</p> : null}
           {triage.recommendation ? <p className="qship-req-rec">{triage.recommendation}</p> : null}
           {triage.clarifyingQuestions?.length ? (
-            <ul>
-              {triage.clarifyingQuestions.map((q) => (
-                <li key={q}>{q}</li>
-              ))}
-            </ul>
+            <div className="qship-req-clarify">
+              <h4><HelpCircle size={13} /> Clarifying questions</h4>
+              <ul>
+                {triage.clarifyingQuestions.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+              <div className="qship-req-clarify-input">
+                <textarea
+                  rows={3}
+                  value={clarificationText}
+                  onChange={(e) => setClarificationText(e.target.value)}
+                  placeholder="Answer the questions above to help AI generate a better PRD…"
+                />
+                <button
+                  type="button"
+                  className="qship-btn-ghost"
+                  disabled={addClarification.isPending || clarificationText.trim().length < 5}
+                  onClick={() => addClarification.mutate({ id: feature.id, content: clarificationText.trim() })}
+                >
+                  {addClarification.isPending ? (
+                    <><Loader2 size={13} className="qship-spin" /> Saving…</>
+                  ) : (
+                    <><MessageSquare size={13} /> Submit answer</>
+                  )}
+                </button>
+              </div>
+            </div>
           ) : null}
         </section>
       ) : null}
@@ -543,36 +580,73 @@ function FeatureDetailPanel({
         </section>
       ) : null}
 
-      {latestReview ? (
+      {reviews.length > 0 ? (
         <section className="qship-req-prd">
           <h3>
-            <ShieldCheck size={14} /> AI review · iteration {latestReview.iteration}
+            <ShieldCheck size={14} /> AI review history · {reviews.length} iteration{reviews.length !== 1 ? "s" : ""}
           </h3>
-          <p>{latestReview.summary}</p>
-          {latestReview.issues?.length ? (
-            <ul>
-              {latestReview.issues.map((issue) => (
-                <li key={issue.id}>
-                  [{issue.severity}] {issue.title}
-                  {issue.filePath ? ` · ${issue.filePath}` : ""}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {reviews.map((review) => {
+            const blocking = review.issues?.filter((i) => i.severity === "blocking") ?? [];
+            const nonBlocking = review.issues?.filter((i) => i.severity !== "blocking") ?? [];
+            const passed = review.readyForHuman === "true";
+            return (
+              <div key={review.id} className="qship-review-iteration" data-pass={passed ? "true" : "false"}>
+                <div className="qship-review-iteration-head">
+                  <strong>Iteration {review.iteration}</strong>
+                  <span className="qship-req-tag" style={{ color: passed ? "#34d399" : "#fb923c" }}>
+                    {passed ? "✓ Passed" : `✗ ${blocking.length} blocking`}
+                  </span>
+                  <span style={{ fontSize: 11, opacity: 0.5 }}>
+                    {new Date(review.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  </span>
+                </div>
+                <p style={{ fontSize: 13, marginBottom: 6 }}>{review.summary}</p>
+                {blocking.length > 0 ? (
+                  <ul className="qship-review-issues">
+                    {blocking.map((issue) => (
+                      <li key={issue.id} data-severity="blocking">
+                        <span className="qship-issue-badge blocking">BLOCKING</span>
+                        <strong>{issue.title}</strong>
+                        {issue.filePath ? <code style={{ fontSize: 11 }}> {issue.filePath}</code> : null}
+                        <p style={{ fontSize: 12, opacity: 0.8 }}>{issue.description}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {nonBlocking.length > 0 ? (
+                  <ul className="qship-review-issues">
+                    {nonBlocking.map((issue) => (
+                      <li key={issue.id} data-severity="non_blocking">
+                        <span className="qship-issue-badge">ADVISORY</span>
+                        <strong>{issue.title}</strong>
+                        <p style={{ fontSize: 12, opacity: 0.8 }}>{issue.description}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            );
+          })}
         </section>
       ) : null}
 
       {prd ? (
         <section className="qship-req-prd">
-          <h3>Product requirements</h3>
+          <h3>Product requirements document</h3>
           <div className="qship-req-prd-block">
-            <h4>Problem</h4>
+            <h4>Problem statement</h4>
             <p>{prd.problemStatement}</p>
           </div>
           {prd.goals?.length ? (
             <div className="qship-req-prd-block">
               <h4>Goals</h4>
               <ul>{prd.goals.map((g) => <li key={g}>{g}</li>)}</ul>
+            </div>
+          ) : null}
+          {prd.nonGoals?.length ? (
+            <div className="qship-req-prd-block">
+              <h4>Non-goals</h4>
+              <ul>{prd.nonGoals.map((g) => <li key={g}>{g}</li>)}</ul>
             </div>
           ) : null}
           {prd.userStories?.length ? (
@@ -585,6 +659,18 @@ function FeatureDetailPanel({
             <div className="qship-req-prd-block">
               <h4>Acceptance criteria</h4>
               <ul>{prd.acceptanceCriteria.map((c) => <li key={c}>{c}</li>)}</ul>
+            </div>
+          ) : null}
+          {prd.edgeCases?.length ? (
+            <div className="qship-req-prd-block">
+              <h4>Edge cases</h4>
+              <ul>{prd.edgeCases.map((e) => <li key={e}>{e}</li>)}</ul>
+            </div>
+          ) : null}
+          {prd.successMetrics?.length ? (
+            <div className="qship-req-prd-block">
+              <h4>Success metrics</h4>
+              <ul>{prd.successMetrics.map((m) => <li key={m}>{m}</li>)}</ul>
             </div>
           ) : null}
         </section>
