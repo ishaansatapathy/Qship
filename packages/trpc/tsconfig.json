@@ -4,5 +4,6 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["server/", "client/"]
+  "include": ["server/", "client/"],
+  "exclude": ["node_modules", "**/*.test.ts"]
 }

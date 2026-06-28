@@ -38,6 +38,15 @@ jobs:
       - name: ESLint — lint
         run: pnpm lint
 
+      - name: Repo cleanliness — no committed test artifacts
+        run: |
+          if git ls-files 'test-results' 'playwright-report' 'blob-report' '**/error-context.md' | grep -q .; then
+            echo "✗ Committed test artifacts found — these must not be in the repo" >&2
+            git ls-files 'test-results' 'playwright-report' 'blob-report' '**/error-context.md'
+            exit 1
+          fi
+          echo "✓ No test artifacts tracked in git"
+
   # ── Integration tests (requires Postgres) ──────────────────────────────────
   test:
     name: Test & build

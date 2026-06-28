@@ -20,6 +20,14 @@ import { mcpRouter } from "./routes/mcp";
 import { agentStreamRouter } from "./routes/agent-stream";
 import { inngestServe } from "./routes/inngest";
 import { enrichShipflowOpenApi, type OpenApiDocumentWithPaths } from "./openapi-enrichment";
+import {
+  agentRateLimiter,
+  errorHandlerMiddleware,
+  globalRateLimiter,
+  notFoundMiddleware,
+  requestIdMiddleware,
+  trustedOriginMiddleware,
+} from "./middleware";
 
 export const app = express();
 
@@ -39,7 +47,9 @@ app.use(
   }),
 );
 
+app.use(requestIdMiddleware);
 app.use(cookieParser());
+app.use(globalRateLimiter);
 
 app.post(
   "/webhooks/github",
@@ -58,6 +68,9 @@ app.post(
 );
 
 app.use(express.json({ limit: "256kb" }));
+
+// CSRF + trusted-origin guard for mutating requests (webhooks exempt).
+app.use(trustedOriginMiddleware);
 
 app.post(
   "/webhooks/intake",
@@ -157,6 +170,7 @@ import("@scalar/express-api-reference")
 try {
   app.use(
     "/api",
+    authRateLimiter,
     createOpenApiExpressMiddleware({
       router: serverRouter,
       createContext,
@@ -176,8 +190,11 @@ app.use(
   }),
 );
 
-app.use("/mcp", mcpRouter);
-app.use("/agent/stream", agentStreamRouter);
+app.use("/mcp", agentRateLimiter, mcpRouter);
+app.use("/agent/stream", agentRateLimiter, agentStreamRouter);
 app.use("/api/inngest", inngestServe);
+
+app.use(notFoundMiddleware);
+app.use(errorHandlerMiddleware);
 
 export default app;

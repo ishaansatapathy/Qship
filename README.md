@@ -37,6 +37,7 @@
 | **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | 3-minute timed scoring path per rubric criterion |
 | **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** | One-pager: rubric map + differentiators |
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Full technical deep-dive |
+| **[ENGINEERING.md](./ENGINEERING.md)** | Monorepo structure, security middleware, CI gates (rubric map) |
 
 ---
 

@@ -14,6 +14,7 @@ function writeJson(res: http.ServerResponse, status: number, body: unknown) {
 
 async function bootstrap() {
   let expressHandler: http.RequestListener | null = null;
+  let shuttingDown = false;
 
   const server = http.createServer((req, res) => {
     const path = req.url?.split("?")[0] ?? "/";
@@ -73,6 +74,26 @@ async function bootstrap() {
       cause: err instanceof Error ? err.cause : undefined,
     });
   }
+
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    void (async () => {
+      const { logger } = await import("@repo/logger");
+      logger.info(`Received ${signal} — shutting down gracefully`);
+      server.close(() => {
+        logger.info("HTTP server closed");
+        process.exit(0);
+      });
+      setTimeout(() => {
+        logger.error("Forced shutdown after timeout");
+        process.exit(1);
+      }, 10_000).unref();
+    })();
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 bootstrap().catch((err) => {
