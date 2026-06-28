@@ -15,6 +15,8 @@ Full guide (DNS + web project): **`../../DEPLOY.md`**
 | `DATABASE_URL` | `postgresql://...@...neon.tech/neondb?sslmode=require` |
 | `BASE_URL` | `https://api.qship.ishaandev.co.in` |
 | `CLIENT_URL` | `https://qship.ishaandev.co.in` |
+| `BETTER_AUTH_SECRET` | **Same as web** — API tRPC loads `@repo/auth` at boot |
+| `BETTER_AUTH_URL` | `https://qship.ishaandev.co.in` |
 | `OPENAI_API_KEY` | For agent, triage, PRD, review |
 
 Recommended:
@@ -86,6 +88,7 @@ Demo login runs on the **web** app (`/api-auth/demo`) but needs DB + auth env va
 
 | Error | Action |
 |-------|--------|
+| 503 `Missing required env: BETTER_AUTH_SECRET` | Add `BETTER_AUTH_SECRET` + `BETTER_AUTH_URL` on **API** project (same secret as web) → Redeploy |
 | 503 `Missing required environment variables` | Set `DATABASE_URL`, `BASE_URL`, `CLIENT_URL` → Redeploy |
 | 500 `FUNCTION_INVOCATION_FAILED` | Check Vercel → Functions → `api/index.js` logs; confirm Root Directory is `apps/api` |
 | Bundle missing | Build log must show `[vercel-postbuild] Copied dist/` |

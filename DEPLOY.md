@@ -56,6 +56,8 @@ git push origin main
 DATABASE_URL=<Neon pooled URL from .env>
 BASE_URL=https://api.qship.ishaandev.co.in
 CLIENT_URL=https://qship.ishaandev.co.in
+BETTER_AUTH_SECRET=<same value as web Vercel — tRPC session needs this>
+BETTER_AUTH_URL=https://qship.ishaandev.co.in
 NODE_ENV=production
 
 # ── AI ──
