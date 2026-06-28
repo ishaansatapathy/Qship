@@ -1,6 +1,6 @@
 /**
  * OpenAI fetch with exponential backoff on 429 / 5xx.
- * Mirrors packages/services/cache/retry.ts for Corsair calls.
+ * Mirrors packages/services/cache/retry.ts for API calls.
  */
 import { logger } from "@repo/logger";
 

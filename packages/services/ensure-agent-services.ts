@@ -1,5 +1,5 @@
 /**
- * Registers no-op Gmail/Calendar/Queue stubs when Corsair integrations are absent.
+ * Registers no-op Gmail/Calendar/Queue stubs when email/calendar integrations are absent.
  * Lets ShipFlow Agent + MCP run feature/GitHub tools without inbox backend.
  */
 
