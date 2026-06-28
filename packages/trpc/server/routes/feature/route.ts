@@ -12,7 +12,7 @@ import {
   appendFeatureActivity,
 } from "@repo/services/feature-request";
 import { ingestFeatureRequest, getIntakeSummary } from "@repo/services/feature-intake";
-import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration } from "@repo/services/inngest/dispatch";
+import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration, recoverStaleWorkflowRuns } from "@repo/services/inngest/dispatch";
 import { listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
@@ -340,6 +340,7 @@ export const featureRouter = router({
     .query(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.featureId);
+        await recoverStaleWorkflowRuns(input.featureId, ctx.user.id);
         return listWorkflowRunsForFeature(input.featureId);
       } catch (error) {
         mapServiceError(error);
