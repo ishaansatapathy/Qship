@@ -6,42 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  # Cancel in-progress runs on the same branch to save CI minutes.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
-  quality:
+  # ── Static analysis (type check + lint) ────────────────────────────────────
+  static:
+    name: Type check & lint
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dev
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/dev
-      JWT_SECRET: ci-test-jwt-secret-min-16-chars
-      JWT_REFRESH_SECRET: ci-test-refresh-secret-min-16
-      CLIENT_URL: http://localhost:3000
-      BASE_URL: http://localhost:8000
-      NEXT_PUBLIC_API_URL: /trpc
-      API_INTERNAL_URL: http://localhost:8000
-      SEED_USER_EMAIL: demo@qship.dev
-      SEED_DEMO_PASSWORD: DemoPass123!
-      DEMO_LOGIN_ENABLED: "true"
-      NEXT_PUBLIC_DEMO_LOGIN_ENABLED: "true"
-      DEMO_USER_EMAIL: demo@qship.dev
-      DEMO_USER_PASSWORD: DemoPass123!
-      BETTER_AUTH_SECRET: ci-test-better-auth-secret-min-32-chars!!
-      BETTER_AUTH_URL: http://localhost:3000
-      CI: true
 
     steps:
       - uses: actions/checkout@v4
@@ -55,35 +29,180 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm db:migrate
+      - name: TypeScript — check types
+        run: pnpm check-types
 
-      - run: pnpm db:seed
+      - name: ESLint — lint
+        run: pnpm lint
 
-      - run: pnpm check-types
+  # ── Integration tests (requires Postgres) ──────────────────────────────────
+  test:
+    name: Test & build
+    runs-on: ubuntu-latest
 
-      - run: pnpm lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shipflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
-      - run: pnpm test
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shipflow_test
+      DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/shipflow_test
+      JWT_SECRET: ci-test-jwt-secret-min-16-chars
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-min-16
+      CLIENT_URL: http://localhost:3000
+      BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: /trpc
+      API_INTERNAL_URL: http://localhost:8000
+      BETTER_AUTH_SECRET: ci-test-better-auth-secret-min-32-chars!!
+      BETTER_AUTH_URL: http://localhost:3000
+      SEED_USER_EMAIL: demo@shipflow.dev
+      SEED_DEMO_PASSWORD: DemoPass123!
+      DEMO_LOGIN_ENABLED: "true"
+      NEXT_PUBLIC_DEMO_LOGIN_ENABLED: "true"
+      DEMO_USER_EMAIL: demo@shipflow.dev
+      DEMO_USER_PASSWORD: DemoPass123!
+      CI: "true"
 
-      - run: pnpm build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Database — run migrations
+        run: pnpm db:migrate
+
+      - name: Database — seed demo data
+        run: pnpm db:seed
+
+      - name: Unit & integration tests
+        run: pnpm test
+
+      - name: Build all packages and apps
+        run: pnpm build
 
       - name: API readiness gate
+        timeout-minutes: 3
         run: |
           pnpm --filter @repo/api start &
           API_PID=$!
-          trap "kill $API_PID" EXIT
+          trap "kill $API_PID 2>/dev/null || true" EXIT
 
-          for i in {1..45}; do
-            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+          echo "Waiting for API to become ready…"
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
+              echo "✓ API is healthy (attempt $i)"
               break
+            fi
+            if [ "$i" -eq 45 ]; then
+              echo "✗ API did not become healthy after 90s" >&2
+              exit 1
             fi
             sleep 2
           done
 
+          echo "Running endpoint smoke tests…"
           curl -fsS http://127.0.0.1:8000/health
           curl -fsS http://127.0.0.1:8000/ready
           curl -fsS http://127.0.0.1:8000/openapi.json >/dev/null
-      - run: pnpm --filter web exec playwright install chromium --with-deps
-      - run: pnpm --filter web test:e2e
+          echo "✓ All smoke tests passed"
+
+  # ── End-to-end tests (Playwright) ──────────────────────────────────────────
+  e2e:
+    name: E2E tests (Playwright)
+    runs-on: ubuntu-latest
+    # E2E runs only on push to main and on PRs targeting main to keep CI fast.
+    if: github.event_name == 'push' || github.base_ref == 'main'
+    needs: [static, test]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shipflow_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shipflow_e2e
+      DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/shipflow_e2e
+      JWT_SECRET: ci-test-jwt-secret-min-16-chars
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-min-16
+      CLIENT_URL: http://localhost:3000
+      BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8000/trpc
+      API_INTERNAL_URL: http://localhost:8000
+      BETTER_AUTH_SECRET: ci-test-better-auth-secret-min-32-chars!!
+      BETTER_AUTH_URL: http://localhost:3000
+      SEED_USER_EMAIL: demo@shipflow.dev
+      SEED_DEMO_PASSWORD: DemoPass123!
+      DEMO_LOGIN_ENABLED: "true"
+      NEXT_PUBLIC_DEMO_LOGIN_ENABLED: "true"
+      DEMO_USER_EMAIL: demo@shipflow.dev
+      DEMO_USER_PASSWORD: DemoPass123!
+      CI: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install chromium --with-deps
+
+      - name: Database — migrate + seed
+        run: pnpm db:migrate && pnpm db:seed
+
+      - name: Build web app
+        run: pnpm --filter web build
+
+      - name: Run Playwright E2E tests
+        run: pnpm --filter web test:e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
