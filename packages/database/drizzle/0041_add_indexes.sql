@@ -99,6 +99,44 @@ CREATE INDEX IF NOT EXISTS idx_organizations_github_installation
 
 -- ── repositories ─────────────────────────────────────────────────────────────
 
+-- Dedupe rows sharing the same full_name before adding the unique index.
+WITH ranked AS (
+  SELECT
+    id,
+    FIRST_VALUE(id) OVER (
+      PARTITION BY full_name
+      ORDER BY updated_at DESC, created_at DESC
+    ) AS keep_id
+  FROM repositories
+),
+dupes AS (
+  SELECT id AS dupe_id, keep_id
+  FROM ranked
+  WHERE id <> keep_id
+)
+UPDATE pull_requests pr
+SET repository_id = d.keep_id
+FROM dupes d
+WHERE pr.repository_id = d.dupe_id;
+--> statement-breakpoint
+
+DELETE FROM repositories r
+USING (
+  SELECT id AS dupe_id
+  FROM (
+    SELECT
+      id,
+      ROW_NUMBER() OVER (
+        PARTITION BY full_name
+        ORDER BY updated_at DESC, created_at DESC
+      ) AS rn
+    FROM repositories
+  ) x
+  WHERE rn > 1
+) d
+WHERE r.id = d.dupe_id;
+--> statement-breakpoint
+
 -- Webhook routing: incoming events carry `repository.full_name`.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_full_name
   ON repositories(full_name);
