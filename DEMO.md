@@ -1,416 +1,368 @@
-# Qship — ShipFlow Judge Demo Guide
+# ShipFlow AI — Demo Guide
 
-> **ShipFlow AI** is an AI-assisted product delivery platform. Every feature follows a structured loop — not ad-hoc code generation.
-
-**Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review → Human Approval → Ship**
-
----
-
-## Quick Links
-
-| What | Local | Production |
-|------|-------|--------------|
-| Web app | http://localhost:3000 | https://qship.ishaandev.co.in |
-| **Demo login** | http://localhost:3000/api-auth/demo?next=/brief | https://qship.ishaandev.co.in/api-auth/demo?next=/brief |
-| **Scalar API docs** | http://localhost:8000/docs | https://api.qship.ishaandev.co.in/docs |
-| OpenAPI JSON | http://localhost:8000/openapi.json | https://api.qship.ishaandev.co.in/openapi.json |
-| MCP server | `POST http://localhost:8000/mcp` | `POST https://api.qship.ishaandev.co.in/mcp` |
-| GitHub repo | https://github.com/ishaansatapathy/Qship | — |
-
-Deploy: **[DEPLOY.md](./DEPLOY.md)**
+> **Evaluating?** Jump directly to [Judge Walkthrough](#judge-walkthrough-12-steps) below.
+> Timed 3-minute path: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
+> Rubric map: **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)**
 
 ---
 
-## Judge visuals — what to look for
-
-| Screen | What judges should see | Open |
-|--------|------------------------|------|
-| **Pipeline overview** | Real Postgres counts by delivery stage, needs-attention | `/brief` |
-| **External intake** | Email / support / call simulate → same pipeline | `/inbox` |
-| **Feature requests** | Submit, AI triage, PRD, tasks, delivery timeline, confirm dialogs | `/requests` |
-| **Engineering Kanban** | 5 columns, task cards, status dropdown | `/tasks` |
-| **ShipFlow Agent** | SSE streaming, 19 tools, feature attach, sessions | `/agent` |
-| **Billing** | Free / Pro / Enterprise, Razorpay checkout (test mode) | `/billing` |
-| **Settings** | GitHub App connect, repo sync | `/settings` |
-| **Scalar API docs** | Intro guide, tag groups, MCP appendix, curl samples | `/docs` |
-| **Analytics** | Pipeline metrics | `/analytics` |
-
-**Contextual memory (not a stateless chatbot):** Agent **sessions** persist in Postgres, **tool memory** recalls prior tool results, and **feature focus** pins a request into the system prompt.
-
----
-
-## 3-Minute Judge Walkthrough
-
-### Step 1 — Demo login (15s)
+## Live URLs (verify these first)
 
 ```bash
-pnpm db:migrate && pnpm db:seed
+# All three must return 200
+curl -fsS https://qship.ishaandev.co.in              # Web app
+curl -fsS https://api.qship.ishaandev.co.in/health  # API liveness
+curl -fsS https://api.qship.ishaandev.co.in/ready   # API + DB readiness
 ```
 
-Set in `.env`:
+| Service | URL | Auth |
+|---|---|---|
+| Web app | https://qship.ishaandev.co.in | — |
+| **One-click demo login** | https://qship.ishaandev.co.in/api-auth/demo?next=/brief | none |
+| Scalar API docs | https://api.qship.ishaandev.co.in/docs | none |
+| API health | https://api.qship.ishaandev.co.in/health | none |
+| API readiness | https://api.qship.ishaandev.co.in/ready | none |
+| OpenAPI JSON | https://api.qship.ishaandev.co.in/openapi.json | none |
+| MCP server | `POST https://api.qship.ishaandev.co.in/mcp` | none for `tools/list` |
 
-```env
-DEMO_LOGIN_ENABLED=true
-DEMO_USER_EMAIL=demo@qship.dev
-DEMO_USER_PASSWORD=DemoPass123!
-OPENAI_API_KEY=sk-...
-DATABASE_URL=postgresql://...   # Neon recommended
+---
+
+## One-click login
+
+Open in browser → automatically signs in as the demo user:
+
 ```
-
-Open: **http://localhost:3000/api-auth/demo?next=/brief**
+https://qship.ishaandev.co.in/api-auth/demo?next=/brief
+```
 
 | Field | Value |
-|-------|-------|
+|---|---|
 | Email | `demo@qship.dev` |
 | Password | `DemoPass123!` |
 
-**Scoring signal:** Zero-friction judge access, seeded pipeline data.
+---
+
+## Judge walkthrough — 12 steps
+
+### Step 1 · Pipeline overview (`/brief`)
+
+> **URL:** https://qship.ishaandev.co.in/brief
+
+After demo login you land here. You'll see:
+- Counts of features by pipeline stage (submitted, in PRD, in review, shipped)
+- The core delivery loop diagram
+- Quick-access links to pending actions
+
+**What to observe:** Real-time pipeline health at a glance — like a PM's control tower.
 
 ---
 
-### Step 2 — Pipeline overview (`/brief`) ★ Lead feature
+### Step 2 · Submit a feature request (`/requests`)
 
-Open: **http://localhost:3000/brief**
+> **URL:** https://qship.ishaandev.co.in/requests
 
-Shows live counts from Postgres:
-- Total · In delivery · Needs attention · Awaiting approval · Shipped
+Click **"+ New request"** and submit:
 
-Click **Today's focus** CTA or a **Needs attention** card → opens `/requests`.
-
-**Scoring signal:** SaaS dashboard grounded in real workflow state.
-
----
-
-### Step 3 — Multi-channel intake (`/inbox`) ★ Differentiator
-
-Open: **http://localhost:3000/inbox**
-
-1. On **Email** card → click **Simulate**
-2. Pre-filled sample: *CSV export for compliance audit* from `legal@acme.com`
-3. Click **Send to pipeline** → toast: intake received, triage complete
-4. Row appears in **Recent intake** — same pipeline as in-app requests
-
-Production path: signed webhook at `POST /webhooks/intake` · MCP tool `intake_from_channel`.
-
-**Scoring signal:** Email, support tickets, and customer calls feed one delivery pipeline.
-
----
-
-### Step 4 — Feature requests hub (`/requests`) ★ Core loop
-
-Open: **http://localhost:3000/requests**
-
-**Seeded samples (after `pnpm db:seed`):**
-
-| Feature | Status | What to show |
-|---------|--------|--------------|
-| OAuth login for enterprise customers | `prd_ready` | PRD + tasks + delivery timeline |
-| Bulk export for compliance reports | `human_review` | AI review + **Approve for ship** gate |
-| Slack notification when PR is approved | `submitted` | Live triage → PRD demo |
-
-**Live demo flow:**
-1. Select **Slack notification…**
-2. Click **Generate PRD with AI** → confirm dialog (HITL) → **Generate PRD**
-3. Click **Generate engineering tasks** when PRD appears
-4. Show **delivery timeline**, **summary**, **next step**
-5. Click **Open board** → `/tasks`
-
-Optional: **New feature request** → fill Title + What & why → **Submit & triage**
-
-**Scoring signal:** End-to-end discovery → planning with AI + human gates.
-
----
-
-### Step 5 — Engineering Kanban (`/tasks`) ★ Core loop
-
-Open: **http://localhost:3000/tasks**
-
-Five columns: **Backlog · To do · In progress · Review · Done**
-
-1. Find a task card (OAuth feature)
-2. **Move to** dropdown → change **In progress** → **Review**
-3. Card moves optimistically across columns
-
-MCP: `update_engineering_task_status` · REST: `PATCH /api/feature/tasks/{id}/status`
-
-**Scoring signal:** PRD breaks into real engineering tasks on a board.
-
----
-
-### Step 6 — ShipFlow Agent (`/agent`) ★ AI depth
-
-Open: **http://localhost:3000/agent**
-
-The agent has **19 tools** — **full parity** with the MCP server (CI-verified):
-
-| Category | Tools |
-|----------|-------|
-| Workspace | `get_workspace`, `get_pipeline_summary` |
-| Features | `list_feature_requests`, `get_feature_request`, `create_feature_request`, `triage_feature_request`, `generate_feature_prd`, `generate_feature_tasks`, `add_clarification`, `update_feature_status` |
-| Review | `run_ai_review`, `request_human_review`, `list_ai_reviews` |
-| Delivery | `get_feature_delivery`, `check_existing_capability` |
-| Intake | `intake_from_channel` |
-| Kanban | `update_engineering_task_status` |
-| GitHub | `github_connection_status`, `list_github_repositories` |
-
-**Try these prompts:**
 ```
-"What's in my pipeline? Anything stuck in human review?"
-"Check if we already built CSV export — don't duplicate work."
-"Triage the Slack notification feature and list clarifying questions."
-"Get delivery timeline for the OAuth feature and tell me the next step."
-"Run an AI pre-ship review on the compliance export feature."
+Title: Rate limiting on authentication endpoints
+Request: We're seeing brute-force login attempts from multiple IPs.
+         We need per-IP rate limiting on /sign-in and /mfa endpoints
+         with exponential backoff, configurable thresholds, and Redis-backed
+         counters. Lockout after 10 failures in 5 minutes. Alert on repeated lockouts.
 ```
 
-Attach a feature via focus chip before asking feature-specific questions.
-
-**Safety layers:** Prompt injection detection → token limit → rate limit (20/min) → human-in-the-loop confirm for PRD/ship in UI → workspace scoping on every feature tool → `check_existing_capability` educates instead of rebuilding.
-
-**Demo limits:** Demo account gets 3 agent AI runs per browser session.
+**What to observe:** Automatic **duplicate capability check** fires before creation. New feature appears in `submitted` status.
 
 ---
 
-### Step 7 — Human approval (`/requests`) ★ Review gate
+### Step 3 · AI triage
 
-1. Select **Bulk export for compliance reports** (`human_review`)
-2. Show **AI review** section (iteration, blocking/non-blocking issues)
-3. Click **Approve for ship** → confirm dialog → **Approve**
-4. Status → **Approved** → **Mark shipped** available
+On the new feature, click **"Run Triage"**.
 
-**Scoring signal:** AI review + explicit human sign-off before release.
-
----
-
-### Step 8 — Billing + Razorpay (`/billing`) ★ SaaS
-
-Open: **http://localhost:3000/billing**
-
-1. Show **Free · Pro · Enterprise** plans with AI review credits + repo limits
-2. Banner: **Razorpay checkout is live** (when keys set) or demo fallback
-3. **Pay with Razorpay** on Pro → modal → **Netbanking** → **Success** (test mode)
-4. Toast: upgraded · credits update
-
-Test payment tips: use Netbanking Success; avoid international cards in test mode.
-
-**Scoring signal:** Monetization built in — not a hackathon-only UI.
+**What to observe:**
+- Priority: P0 (security) with risk factors enumerated
+- `riskLevel: critical`, `breakingChangeRisk: true`
+- 2–3 clarifying questions generated
+- `stakeholderImpact` covering security + engineering + compliance
 
 ---
 
-### Step 9 — Scalar API docs (★ judge docs)
+### Step 4 · Generate PRD
 
-Open: **http://localhost:8000/docs**
+Click **"Generate PRD"**.
 
-Full **Scalar** reference — every REST route documented with:
+**What to observe (new in this version):**
+- `problemStatement` — cites actual user pain
+- `goals` — 3–5 measurable outcomes
+- `acceptanceCriteria` — 6–12 Given/When/Then testable criteria
+- **`technicalRequirements`** — API surface, performance budgets (p95 targets)
+- **`securityRequirements`** — auth checks, rate limit algorithm, audit logging
+- **`testingStrategy`** — test scenarios per acceptance criterion
+- **`rollbackPlan`** — how to safely revert without data loss
 
-- **Intro panel** — judge quick-start table, architecture diagram, delivery loop, **19 MCP tools appendix**
-- **Tag groups** — Getting started (Health), ShipFlow core (Feature Requests, Workspace, GitHub), AI platform (Agent, MCP & Streaming), Integrations (Webhooks)
-- **Request examples** — create feature, generate PRD, intake, task board, MCP tools/call
-- **Reference paths** — `/mcp`, `/agent/stream`, `/webhooks/github`, `/webhooks/intake`, `/ready`
-- **curl code samples** — MCP tools/list, create feature, readiness probe
+---
 
-**Expand in Scalar (recommended order):**
-1. **Health → GET /ready** — curl sample
-2. **Feature Requests → GET /feature/pipeline-summary**
-3. **Feature Requests → POST /feature/requests** — `runTriage: true`
-4. **Feature Requests → POST /feature/intake** — multi-channel body
-5. **Feature Requests → GET /feature/task-board**
-6. **MCP & Streaming → POST /mcp** — JSON-RPC examples + tool manifest
-7. **MCP & Streaming → POST /agent/stream** — SSE with `focusContextId`
-8. **Webhooks → POST /webhooks/github** — HMAC note
+### Step 5 · Generate engineering tasks
 
-Local JSON: `http://localhost:8000/openapi.json`
+Click **"Generate Tasks"**.
 
-Judge walkthrough: **`JUDGE_WALKTHROUGH.md`**
+**What to observe (new in this version):**
+- Tasks have `type` field: `backend / frontend / infra / testing / docs`
+- Each task has its own `acceptanceCriteria`
+- Testing task is always included (CI enforced)
+- Tasks ordered: schema/API → implementation → UI → tests → docs
+
+---
+
+### Step 6 · Engineering Kanban (`/tasks`)
+
+> **URL:** https://qship.ishaandev.co.in/tasks
+
+**What to observe:** Kanban board — drag tasks across backlog → todo → in_progress → review → done. Moves tracked in activity timeline.
+
+---
+
+### Step 7 · AI review loop
+
+Back on the feature, click **"Run AI Review"**.
+
+**Iteration 1 — full 9-dimension review:**
+
+| Dimension | What it checks |
+|---|---|
+| PRD Requirements | All acceptance criteria mapped to diff |
+| Security | Auth guards, injection, secrets, rate limiting |
+| Performance | N+1 queries, unbounded pagination, blocking calls |
+| Error Handling | Unhandled rejections, silent catch blocks |
+| Type Safety | `any` types, missing null checks |
+| Tests | Test files in diff, coverage signals |
+| Edge Cases | PRD edge cases in implementation |
+| Compatibility | Breaking API changes, migration files |
+| Code Quality | `console.log`, dead code, magic constants |
+
+**Iteration 2+ — delta re-review (differentiator):**
+
+After fixing issues and re-running, the AI specifically checks:
+- `RESOLVED: [issue title]` — fix verified in new diff
+- `UNRESOLVED: [issue title]` — still present, why
+- Any regressions introduced
+
+---
+
+### Step 8 · Review delta and stats
+
+On any feature with 2+ review iterations:
 
 ```bash
-curl -s http://localhost:8000/openapi.json | head -c 400
-curl -fsS http://localhost:8000/ready
+# Via agent chat at /agent:
+"Show me what changed between the last two review iterations"
+"What is the review health for the rate limiting feature?"
+```
+
+**What to observe:**
+- `resolved` / `persisting` / `newIssues` arrays
+- `overallProgress: improved | same | regressed`
+- `iterationCount`, `passRate`, `averageIssuesPerIteration`
+
+---
+
+### Step 9 · Human approval gate
+
+When AI review passes (`readyForHuman: true`), the **"Approve" / "Reject" / "Request Changes"** buttons appear.
+
+**What to observe:**
+- Approval is **blocked** if AI review has blocking issues (`validateHumanApprovalEligibility`)
+- Decision is written to `humanApprovals` table with reviewer, timestamp, notes
+- Activity timeline shows the decision
+- `changes_requested` → sends back to `fix_needed`
+- `approved` → moves to `approved` status, enables ship
+
+**Via agent:**
+```
+"Approve the rate limiting feature — AI review passed all security checks"
+"Request changes on feature X — the error handling in the middleware is incomplete"
 ```
 
 ---
 
-### Step 10 — MCP server (live curl)
+### Step 10 · Ship
+
+Click **"Ship"** (appears after `approved` status).
+
+**What to observe:** Status → `shipped`. Final `humanApprovals` record created. Activity: "Feature shipped to production 🚀".
+
+---
+
+### Step 11 · ShipFlow Agent (`/agent`)
+
+> **URL:** https://qship.ishaandev.co.in/agent
+
+Try these exact prompts:
+
+```
+"Give me a summary of the entire delivery pipeline"
+```
+→ Calls `get_pipeline_summary`, renders counts + chart
+
+```
+"Triage all submitted feature requests and tell me which ones need PRDs"
+```
+→ Calls `list_feature_requests` + `triage_feature_request` in a loop
+
+```
+"Generate a PRD for the most recent submitted feature"
+```
+→ Calls `list_feature_requests`, `generate_feature_prd`, streams progress
+
+```
+"Run an AI review and show me the review history"
+```
+→ Calls `run_ai_review`, `list_ai_reviews`, `get_review_delta`
+
+```
+"Show me all features waiting for human approval"
+```
+→ Calls `list_feature_requests` filtered by status
+
+**What to observe:**
+- Streamed token-by-token responses
+- Action cards rendered inline (feature cards, Kanban updates, review summaries)
+- Agent asks before destructive actions (PRD regeneration, ship)
+- 20/min rate limit enforced
+
+---
+
+### Step 12 · Scalar API docs
+
+> **URL:** https://api.qship.ishaandev.co.in/docs
+
+**What to observe:**
+- Judge quick-start table at the top of the info panel
+- Tag groups: Getting started / ShipFlow core / AI platform / Integrations
+- Interactive code samples with `curl` examples
+- MCP tool manifest with all 25 tool descriptions
+- `/mcp`, `/agent/stream`, `/webhooks/github` documented as reference paths
+
+---
+
+## API verification (curl)
+
+### Health checks
 
 ```bash
-# Initialize
-curl -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+curl -fsS https://api.qship.ishaandev.co.in/health
+# → {"status":"ok","timestamp":"..."}
 
-# List all 19 tools (no auth)
-curl -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
-
-# Pipeline summary (requires auth)
-curl -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -H "Cookie: <session-cookie-from-browser>" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_pipeline_summary","arguments":{}}}'
+curl -fsS https://api.qship.ishaandev.co.in/ready
+# → {"ready":true,"db":"connected","timestamp":"..."}
 ```
 
-Headless auth: set `SHIPFLOW_MCP_API_KEY` + `SHIPFLOW_MCP_USER_ID`, then:
+### MCP tools list (no auth required)
 
 ```bash
-curl -X POST http://localhost:8000/mcp \
-  -H "Authorization: Bearer $SHIPFLOW_MCP_API_KEY" \
+curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_feature_requests","arguments":{"limit":5}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+  | python3 -c "
+import json, sys
+r = json.load(sys.stdin)
+tools = r['result']['tools']
+print(f'Total tools: {len(tools)}')
+for t in tools:
+    print(f'  {t[\"name\"]}')
+"
 ```
 
-MCP exposes: `tools/list`, `tools/call`, `initialize`, `resources/list`, `prompts/list` — MCP 2024-11-05 compliance.
+Expected: **25 tools** listed.
 
-Configure Cursor/Claude: see **`mcp-server.json`**.
+### OpenAPI schema
 
----
+```bash
+curl -s https://api.qship.ishaandev.co.in/openapi.json \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); print('Paths:', len(d.get('paths',{})))"
+```
 
-### Step 11 — GitHub integration
+### GitHub webhook test (HMAC verification)
 
-1. Open **http://localhost:3000/settings**
-2. **Connect GitHub App** → install on your org
-3. **Sync repositories** → list appears in Settings
-4. On `/requests`: **Open GitHub PR** creates branch `shipflow/<uuid>`
-5. Webhook URL: `{API_URL}/webhooks/github` (HMAC verified)
-
-| Capability | Where |
-|------------|-------|
-| GitHub App install | Settings → Connect |
-| List repos | tRPC `github.listRepositories` / MCP `list_github_repositories` |
-| Open PR from feature | **Open GitHub PR** button on `/requests` |
-| Webhook receiver | `POST /webhooks/github` |
-| AI review with diff | `run_ai_review` when PR linked |
+```bash
+# This should return 401 (signature missing) — confirming HMAC guard is live:
+curl -s -X POST https://api.qship.ishaandev.co.in/webhooks/github \
+  -H "Content-Type: application/json" \
+  -H "X-GitHub-Event: ping" \
+  -d '{"zen":"test"}'
+# → {"error":"Missing or malformed GitHub webhook signature"}
+```
 
 ---
 
-### Step 12 — MCP + AI workflows (★ depth for judges)
+## Local setup (5 minutes)
 
-| # | Workflow | How to demo | Signal |
-|---|----------|-------------|--------|
-| 1 | **Intake → Pipeline** | `/inbox` Simulate Email → `/requests` | Multi-channel intake |
-| 2 | **Submit → Triage → PRD** | Requests UI or Agent `create_feature_request` + `generate_feature_prd` | Core loop |
-| 3 | **PRD → Tasks → Kanban** | Generate tasks → `/tasks` move card | Planning + engineering UX |
-| 4 | **Duplicate education** | Agent: *"Do we already have CSV export?"* → `check_existing_capability` | Smart agent, not rebuild-everything |
-| 5 | **AI pre-ship review** | `run_ai_review` on feature with PRD + linked PR diff | Review loop |
-| 6 | **Human approval gate** | Bulk export → **Approve for ship** | HITL |
-| 7 | **Razorpay upgrade** | `/billing` Netbanking Success | SaaS monetization |
-| 8 | **MCP from Cursor** | Point MCP at `/mcp`, call `get_pipeline_summary` | Platform extensibility |
-| 9 | **Delivery timeline** | Feature detail → timeline + summary panel | Audit trail |
+```bash
+git clone https://github.com/ishaansatapathy/Qship.git
+cd Qship
+pnpm install
+cp .env.example .env
+# Edit .env: set DATABASE_URL, BETTER_AUTH_SECRET, OPENAI_API_KEY
+pnpm db:up && pnpm db:migrate && pnpm db:seed
+pnpm dev
+```
 
----
+Open: http://localhost:3000/api-auth/demo?next=/brief
 
-## 5-Minute Demo Recording Path
-
-Use this table when recording your submission video. Full click-level detail is in the steps above.
-
-| Time | Screen | Wow moment |
-|------|--------|------------|
-| 0:00 | Landing → demo login | Problem statement hook |
-| 0:30 | `/brief` | Real pipeline counts from Postgres |
-| 1:00 | `/inbox` → Simulate → Send | Multi-channel intake |
-| 1:45 | `/requests` → PRD (confirm dialog) | HITL + delivery timeline |
-| 2:30 | `/tasks` | Kanban — move task across columns |
-| 3:00 | `/agent` → attach feature | 19 tools, streaming, action cards |
-| 3:45 | `/billing` → Razorpay | SaaS monetization |
-| 4:15 | `:8000/docs` | Scalar + MCP curl |
-| 4:45 | Close on `/brief` | GitHub repo + `#chaicode` |
+Verify locally:
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
+curl -s -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | python3 -m json.tool | grep '"name"' | wc -l
+# → 25
+```
 
 ---
 
-## Feature Table
+## Seeded data
 
-| Feature | Description | APIs / Tools |
-|---------|-------------|--------------|
-| **Pipeline overview** | Counts by delivery stage | `feature.pipelineSummary`, `get_pipeline_summary` |
-| **External intake** | Email, support, call, webhook | `/inbox`, `POST /webhooks/intake`, `intake_from_channel` |
-| **Feature requests hub** | Submit, list, detail, status | `feature.*` tRPC, MCP feature tools |
-| **AI triage** | Priority, effort, clarifying questions | OpenAI + `triage_feature_request` |
-| **Duplicate education** | Warn before rebuilding | `check_existing_capability` |
-| **PRD generation** | Structured PRD JSON | OpenAI + `generate_feature_prd` |
-| **Task breakdown** | Engineering tasks from PRD | `generate_feature_tasks` |
-| **Engineering Kanban** | 5-column board | `/tasks`, `update_engineering_task_status` |
-| **Delivery timeline** | Activity log + summary + next step | `get_feature_delivery`, `feature.delivery` |
-| **ShipFlow Agent (19 tools)** | Streaming copilot with sessions | `/agent/stream`, MCP parity |
-| **MCP server (19 tools)** | JSON-RPC for external AI clients | `POST /mcp` |
-| **GitHub App** | Connect org, open PR, webhooks | `github.*` tRPC, Octokit |
-| **AI pre-ship review** | PRD/task/PR diff review | `run_ai_review`, `list_ai_reviews` |
-| **Human review gate** | `human_review` → `approved` → `shipped` | UI confirm + agent tool |
-| **Billing** | Razorpay checkout, plan tiers | `billing.*` tRPC, `/webhooks/razorpay` |
-| **Scalar API docs** | OpenAPI from tRPC, judge intro | `/docs` |
-| **Demo mode** | One-click login + AI limits | `/api-auth/demo` |
+`pnpm db:seed` creates:
 
-**Agent tools: 19** · **MCP tools: 19** (verified by CI parity test)
+| Item | Details |
+|---|---|
+| User | `demo@qship.dev` / `DemoPass123!` |
+| Organisation | ShipFlow Demo Org |
+| Project | Core Platform |
+| Feature 1 | `submitted` — "Rate limiting on auth endpoints" |
+| Feature 2 | `prd_ready` — "CSV export for audit log" |
+| Feature 3 | `human_review` — "Dark mode toggle" (AI review passed) |
 
 ---
 
-## Integration Map
+## Engineering highlights
 
-| Capability | Where | API / Tool |
-|-----------|-------|------------|
-| Submit feature request | `/requests`, Agent, MCP | `create_feature_request`, `POST /feature/requests` |
-| AI triage | Requests UI, Agent, MCP | `triage_feature_request`, OpenAI |
-| Duplicate check | Create + Agent | `check_existing_capability` |
-| Generate PRD | Requests UI, Agent, MCP | `generate_feature_prd`, `POST /feature/requests/{id}/prd` |
-| Generate tasks | Requests UI, Agent, MCP | `generate_feature_tasks` |
-| Kanban board | `/tasks` | `GET /feature/task-board`, `update_engineering_task_status` |
-| Pipeline summary | `/brief`, Agent, MCP | `get_pipeline_summary` |
-| Delivery timeline | Requests detail | `get_feature_delivery` |
-| Multi-channel intake | `/inbox`, webhook | `intake_from_channel`, `POST /webhooks/intake` |
-| AI pre-ship review | Requests UI, Agent | `run_ai_review`, `list_ai_reviews` |
-| Human approval | Requests UI | `human_review` → `approved` → `shipped` |
-| GitHub App | `/settings` | `github_connection_status`, Octokit |
-| Open PR | `/requests` | `POST /feature/requests/{id}/pull-request` |
-| GitHub webhooks | API | `POST /webhooks/github` (HMAC) |
-| Agent streaming | `/agent` | `POST /agent/stream` (SSE) |
-| MCP server | External clients | `POST /mcp` (JSON-RPC) |
-| Razorpay billing | `/billing` | `billing.createCheckout`, `/webhooks/razorpay` |
-| OpenAPI docs | Scalar | `/docs`, `/openapi.json` |
+| Area | Implementation |
+|---|---|
+| **Monorepo** | Turborepo + pnpm — shared types, zero duplication |
+| **Type safety** | 100% TypeScript, `pnpm check-types` zero errors enforced in CI |
+| **Database** | 42 Drizzle migrations, 14 perf indexes, proper boolean/integer types (not text) |
+| **AI prompts** | 9-dimension PR review checklist, delta re-review, technical PRD with rollback plan |
+| **GitHub** | 55-min token cache, paginated repo sync, idempotent webhook delivery |
+| **CI** | Parallel static + integration + E2E jobs, Playwright artifacts on failure |
+| **Security** | HMAC-SHA256 webhooks, approval gate validation, scoped tool execution |
+| **MCP** | 25 tools, CI parity test, JSON-RPC 2.0 spec-compliant |
 
 ---
 
-## Engineering highlights (production quality)
+## Scoring checklist (self-assessment)
 
-### Security
-- **Prompt injection detection** on every agent message
-- **Workspace scoping** on all feature MCP/agent tools
-- **GitHub webhook HMAC** — timing-safe compare
-- **MCP API key** bound to single user id
-- **Rate limiting** — agent 20/min/user, MCP 60/min/user
-- **Intake webhook** — shared secret when configured
-
-### Architecture
-- **Shared tool executor** — `shipflow-agent-tools.ts` used by agent + MCP
-- **CI tool parity** — agent tools === MCP manifest (`tool-parity.test.ts`)
-- **Session persistence** — Postgres agent sessions + tool memory
-- **Monorepo** — Turborepo, tRPC, Drizzle, BetterAuth, Inngest workflows
-
-### Observability
-- Structured logging via `@repo/logger`
-- tRPC request IDs in errors
-- `/health` + `/ready` endpoints
-
----
-
-## Scoring checklist
-
-| Criterion | Evidence in this repo |
-|-----------|----------------------|
-| Interactive API docs | Scalar at `/docs` |
-| Demo without setup pain | `/api-auth/demo` + `pnpm db:seed` |
-| Core workflow | `/inbox`, `/requests`, `/tasks` full loop |
-| AI agent + MCP | 19 tools, streaming, parity test |
-| GitHub integration | Settings + webhook + open PR |
-| Human-in-the-loop | Confirm dialogs, `human_review`, agent guards |
-| SaaS UX | Billing, Kanban, intake, Cmd+K |
-| README + walkthrough | README.md, DOCS.md, JUDGE_WALKTHROUGH.md, HACKATHON_SUBMISSION.md |
-
----
-
-## Related docs
-
-| Doc | Purpose |
-|-----|---------|
-| [README.md](./README.md) | Setup, stack, deployment |
-| [DOCS.md](./DOCS.md) | Full technical reference |
-| [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | Timed 3-min path |
-| [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | One-pager + rubric map |
-| [mcp-server.json](./mcp-server.json) | MCP client config |
+| Criterion | Evidence | Location |
+|---|---|---|
+| Working demo | One-click login, all pages load | https://qship.ishaandev.co.in |
+| API live | `/health`, `/ready`, `/docs` all 200 | https://api.qship.ishaandev.co.in |
+| AI agent quality | 9-dim review, delta re-review, 25 tools | `/agent`, `feature-ai.ts` |
+| Review loop | Iteration tracking, delta, approval gate | `review.ts`, `/requests` |
+| Human approval | Validate → approve/reject/changes | UI + agent tools |
+| GitHub integration | Webhooks, PR link, AI comment | `packages/services/github/` |
+| MCP | 25 tools, spec-compliant, public list | `POST /mcp` |
+| Documentation | README + DEMO + JUDGE_WALKTHROUGH + ARCHITECTURE | This repo |
+| Code quality | TypeScript strict, CI green, Drizzle migrations | `.github/workflows/ci.yml` |
+| Deployment | Vercel (web + API) + Neon DB | live URLs above |

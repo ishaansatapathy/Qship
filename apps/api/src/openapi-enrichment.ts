@@ -95,9 +95,9 @@ export function enrichShipflowOpenApi(
   addCodeSample(document, "/ready", "get", "curl", `curl -fsS ${baseUrl}/ready`);
 
   addReferencePath(document, "/mcp", "post", {
-    summary: "MCP JSON-RPC server",
+    summary: "MCP JSON-RPC server (25 tools)",
     description: [
-      "ShipFlow MCP server — **19 tools** for feature delivery + intake + Kanban + GitHub workspace.",
+      "ShipFlow MCP server — **25 tools** for feature delivery, review loop, human approval, intake, Kanban, and GitHub workspace.",
       "",
       "**Public methods (no auth):** `initialize`, `tools/list`, `resources/list`, `prompts/list`",
       "",

@@ -1,140 +1,199 @@
-# Qship — ShipFlow AI — Judge Walkthrough (~3 minutes)
+# ShipFlow AI — Judge Walkthrough
 
-> **Evaluator?** Start with **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** (one-pager) or **[DEMO.md](./DEMO.md)** (full guide + recording path).
-
-| Service | Local |
-|---------|-------|
-| Web | http://localhost:3000 |
-| **Demo login** | http://localhost:3000/api-auth/demo?next=/brief |
-| **Scalar docs** | http://localhost:8000/docs |
-| OpenAPI JSON | http://localhost:8000/openapi.json |
-| MCP | `POST http://localhost:8000/mcp` |
-
-Full demo script: **`DEMO.md`**
+> **Timed path: 3 minutes to see every rubric criterion in action.**
+> No signup needed — use the one-click demo login below.
 
 ---
 
-## 0. Setup (before judging — 30s)
+## Before you start (30 seconds)
 
 ```bash
-pnpm db:migrate && pnpm db:seed && pnpm dev
-```
+# 1. Verify API is live
+curl -fsS https://api.qship.ishaandev.co.in/health
+curl -fsS https://api.qship.ishaandev.co.in/ready
 
-`.env`: `DEMO_LOGIN_ENABLED=true`, `OPENAI_API_KEY=sk-...`, `DATABASE_URL=...`
-
----
-
-## 1. Scalar docs (25s) — ★ Docs
-
-1. Open **http://localhost:8000/docs**
-2. Intro panel — delivery loop, architecture, **19 MCP tools**
-3. Sidebar groups: **Feature Requests**, **GitHub**, **MCP & Streaming**, **Webhooks**
-4. Expand **Feature Requests → POST /feature/requests** — request example + curl
-5. Expand **Feature Requests → GET /feature/task-board**
-6. Expand **MCP & Streaming → POST /mcp** — JSON-RPC examples + curl
-7. Expand **Health → GET /ready**
-
----
-
-## 2. Demo login (10s)
-
-**http://localhost:3000/api-auth/demo?next=/brief**
-
-| Email | `demo@qship.dev` |
-| Password | `DemoPass123!` |
-
----
-
-## 3. Pipeline overview (20s)
-
-1. **`/brief`** — live counts from Postgres
-2. Note **Needs attention** metric
-3. → **`/requests`**
-
----
-
-## 4. Intake hub (25s) — ★ Multi-channel
-
-1. **`/inbox`**
-2. Email → **Simulate** → **Send to pipeline**
-3. Toast: triage complete · show in Requests
-
-**Signal:** Email/support/call intake + webhook-ready (`POST /webhooks/intake`).
-
----
-
-## 5. Feature loop (45s) — ★ Core Workflow
-
-1. **`/requests`** → **OAuth login…** (seeded, `prd_ready`)
-2. Show PRD, tasks, **delivery timeline**, next step
-3. **Generate PRD with AI** on another request → **confirm dialog** (HITL)
-4. **Open board** → **`/tasks`**
-
----
-
-## 6. Kanban (20s)
-
-1. **`/tasks`** — Backlog · To do · In progress · Review · Done
-2. Move a task (e.g. In progress → Review)
-
-**Signal:** PRD → engineering tasks → board · MCP `update_engineering_task_status`.
-
----
-
-## 7. Agent (40s) — ★ AI Agent
-
-1. **`/agent`** · attach feature (focus chip)
-2. *"Check if CSV export already exists. What's stuck in human review?"*
-3. Streaming + action cards + **19 tools**
-
----
-
-## 8. Billing (20s) — ★ SaaS
-
-1. **`/billing`** · show plans + credits
-2. **Pay with Razorpay** → Netbanking → Success (test mode)
-
----
-
-## 9. MCP curl (20s)
-
-```bash
-curl -s -X POST http://localhost:8000/mcp \
+# 2. Count MCP tools (should print 25)
+curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | python3 -c "import json,sys; print(len(json.load(sys.stdin)['result']['tools']), 'tools')"
 ```
 
-**19 tools** · `mcp-server.json` · CI: `tool-parity.test.ts`
+---
+
+## One-click demo login
+
+Open in browser → lands on pipeline overview:
+
+```
+https://qship.ishaandev.co.in/api-auth/demo?next=/brief
+```
 
 ---
 
-## 10. GitHub (optional, 20s)
+## Minute 1 — Core pipeline (0:00 – 1:00)
 
-**`/settings`** → Connect GitHub App → Sync repos · **Open GitHub PR** on `/requests`
-
----
-
-## What judges should score
-
-| Criterion | Evidence |
-|-----------|----------|
-| **Detailed docs** | Scalar at `/docs` — tag groups, examples, MCP appendix |
-| **Core workflow** | Intake → triage → PRD → Kanban → review → ship |
-| **MCP** | 19 tools + `mcp-server.json` + CI parity |
-| **AI workflows** | Agent SSE + feature focus + educate-if-exists |
-| **SaaS** | Billing, pipeline overview, multi-tenant workspace |
-| **Production hygiene** | Auth, HITL, webhooks HMAC, OpenAPI from tRPC |
+| Time | Action | Rubric criterion |
+|---|---|---|
+| 0:00 | Land on `/brief` — see pipeline stage counts | Product vision, working demo |
+| 0:10 | Click any feature → see delivery timeline | Feature depth |
+| 0:20 | Click **"Run Triage"** → P0 with riskLevel + riskFactors | AI quality |
+| 0:30 | Click **"Generate PRD"** → see technicalRequirements + rollbackPlan | AI quality |
+| 0:45 | Click **"Generate Tasks"** → tasks with type + acceptanceCriteria | AI quality |
+| 0:55 | Go to `/tasks` → Kanban board | Feature completeness |
 
 ---
 
-## Rubric alignment
+## Minute 2 — AI review loop (1:00 – 2:00)
 
-| Category (max) | Evidence |
-|----------------|----------|
-| Core Workflow (20) | Intake, Requests, Kanban, status flow |
-| AI Agent (20) | Agent SSE, 19 tools, educate-if-exists, MCP |
-| GitHub (15) | Settings, webhooks, open PR, Scalar routes |
-| Review & Approval (15) | AI review, human_review, confirm dialogs |
-| Engineering (15) | tRPC, Scalar, Neon, 52 tests, monorepo |
-| SaaS UX (10) | Overview, intake, Kanban, billing, Cmd+K |
-| Demo & Docs (5) | HACKATHON_SUBMISSION.md, DEMO.md, this file, Scalar |
+| Time | Action | Rubric criterion |
+|---|---|---|
+| 1:00 | Back on feature → click **"Run AI Review"** | Review loop |
+| 1:10 | Observe 9-dimension checklist in review panel | AI quality |
+| 1:20 | See blocking issues listed with file paths + suggestions | Review loop |
+| 1:30 | Click "Run AI Review" again → delta re-review | Review loop — iteration tracking |
+| 1:40 | See RESOLVED / UNRESOLVED per prior issue | Review loop — differentiator |
+| 1:50 | With AI passing → see **Approve / Reject / Request Changes** buttons | Human approval gate |
+| 1:55 | Click **"Approve"** → status → `approved` | Human approval |
+
+---
+
+## Minute 3 — Agent + MCP + docs (2:00 – 3:00)
+
+| Time | Action | Rubric criterion |
+|---|---|---|
+| 2:00 | Open `/agent` | Agent quality |
+| 2:05 | Type: `"Summarise the pipeline and triage any submitted features"` | Agent tool use |
+| 2:20 | Watch streamed response + action cards rendered | Agent streaming |
+| 2:30 | Type: `"Show review delta for the last feature we reviewed"` | Review loop |
+| 2:40 | Open new tab: https://api.qship.ishaandev.co.in/docs | Documentation |
+| 2:45 | Observe Scalar UI — tag groups, code samples, MCP manifest | Docs quality |
+| 2:55 | Open https://api.qship.ishaandev.co.in/openapi.json | API completeness |
+
+---
+
+## Rubric criterion map
+
+### AI Agent Quality
+
+| What to check | Where | What to look for |
+|---|---|---|
+| Tool diversity | `/agent` | 25 tools called appropriately |
+| Prompt quality | `packages/services/feature-ai.ts` | 9-dimension checklist, technical PRD, delta re-review |
+| Streaming | `/agent` | Token-by-token SSE, action cards inline |
+| Error handling | Agent with bad input | Graceful error, no crash |
+| Rate limiting | Agent 20+ rapid messages | 429 returned cleanly |
+
+**Differentiators:**
+- `runDeltaAiReview` — checks each prior blocking issue as RESOLVED/UNRESOLVED
+- `runPrAiReview` — 9 dimensions including ErrorHandling, TypeSafety, Tests
+- `generateFeaturePrd` — adds technicalRequirements, securityRequirements, rollbackPlan
+- `triageFeatureRequest` — adds riskLevel, riskFactors, breakingChangeRisk, stakeholderImpact
+
+---
+
+### Review Loop & Human Approval
+
+| What to check | Where | What to look for |
+|---|---|---|
+| AI review runs | `/requests` → any feature | "Run AI Review" triggers workflow |
+| Iteration tracking | Review panel | Iteration number increments |
+| Delta comparison | 2+ iterations | `get_review_delta` shows resolved/persisting/new |
+| Approval gate | AI passed feature | Approve/Reject/Changes buttons appear |
+| Approval validation | Feature with blocking issues | Approve button blocked, error message |
+| Approval audit | Any approved feature | Timeline shows every decision |
+| Agent approval | `/agent` | `approve_feature` tool works |
+
+**Differentiators:**
+- `validateHumanApprovalEligibility` — gate enforced in both UI and agent
+- `getReviewDelta` — compares latest two iterations programmatically
+- `getReviewStats` — pass rate, average issues per iteration, time in review
+- `listHumanApprovals` — full decision audit trail
+
+---
+
+### GitHub Integration
+
+| What to check | Where | What to look for |
+|---|---|---|
+| App connection | `/settings` | GitHub App install URL |
+| Repo sync | After connect | Repos listed with pagination |
+| Webhook handler | `POST /webhooks/github` | HMAC-SHA256 verified |
+| PR linking | `shipflow/<uuid>` branch | Auto-links to feature |
+| PR AI comment | Linked PR | Structured review comment posted/updated |
+| Installation events | `installation.deleted` | Org disconnected gracefully |
+
+---
+
+### Documentation Quality
+
+| Document | URL / Path |
+|---|---|
+| README | https://github.com/ishaansatapathy/Qship/blob/main/README.md |
+| DEMO | https://github.com/ishaansatapathy/Qship/blob/main/DEMO.md |
+| JUDGE_WALKTHROUGH | https://github.com/ishaansatapathy/Qship/blob/main/JUDGE_WALKTHROUGH.md |
+| HACKATHON_SUBMISSION | https://github.com/ishaansatapathy/Qship/blob/main/HACKATHON_SUBMISSION.md |
+| ARCHITECTURE | https://github.com/ishaansatapathy/Qship/blob/main/ARCHITECTURE.md |
+| Scalar API docs | https://api.qship.ishaandev.co.in/docs |
+| OpenAPI JSON | https://api.qship.ishaandev.co.in/openapi.json |
+
+---
+
+## Agent prompts to copy-paste
+
+```
+"Give me a complete summary of the ShipFlow pipeline — what's submitted, in review, and shipped"
+```
+
+```
+"Triage all submitted feature requests — prioritise by impact and risk"
+```
+
+```
+"Generate a PRD for the authentication rate limiting feature"
+```
+
+```
+"Run an AI review on the most recent feature and tell me the blocking issues"
+```
+
+```
+"Show me the review delta — what changed between the last two review iterations?"
+```
+
+```
+"What is the review health summary? Give me pass rate and iteration count"
+```
+
+```
+"Approve the dark mode feature — AI review passed and all acceptance criteria are met"
+```
+
+```
+"List all features waiting for human approval"
+```
+
+```
+"Check if 'dark mode toggle' already exists before I submit a new request"
+```
+
+```
+"Show me the full approval history for the CSV export feature"
+```
+
+---
+
+## Key files for code review
+
+| File | What makes it impressive |
+|---|---|
+| `packages/services/feature-ai.ts` | 9-dim PR review, delta re-review, technical PRD, risk triage |
+| `packages/services/review.ts` | Approval gate validation, delta comparison, audit trail |
+| `packages/services/github/client.ts` | 55-min token cache, structured logging |
+| `packages/services/github/diff.ts` | Paginated, per-file truncation, binary exclusion |
+| `packages/services/github/pr-review.ts` | Update-in-place comment, delta-aware review selection |
+| `packages/services/github/webhook.ts` | Installation events, idempotency guard, merged-PR flow |
+| `packages/services/github/installation.ts` | Paginated repo sync, CSRF nonce, N+1 fixed |
+| `packages/services/shipflow-agent-tools.ts` | 25 tools with rich descriptions and implementations |
+| `packages/database/models/` | Enums, proper types (bool/int not text), 14 indexes |
+| `.github/workflows/ci.yml` | Parallel jobs, E2E gated, Playwright artifacts |

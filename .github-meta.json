@@ -1,0 +1,56 @@
+{
+  "project": "ShipFlow AI",
+  "tagline": "AI-assisted product delivery platform — request → PRD → tasks → code → review → approval → ship",
+  "hackathon": "ChaiCode Hackathon 2026",
+  "team": "ishaansatapathy",
+  "repository": "https://github.com/ishaansatapathy/Qship",
+  "live": {
+    "app": "https://qship.ishaandev.co.in",
+    "demo_login": "https://qship.ishaandev.co.in/api-auth/demo?next=/brief",
+    "api": "https://api.qship.ishaandev.co.in",
+    "api_health": "https://api.qship.ishaandev.co.in/health",
+    "api_ready": "https://api.qship.ishaandev.co.in/ready",
+    "api_docs": "https://api.qship.ishaandev.co.in/docs",
+    "openapi_json": "https://api.qship.ishaandev.co.in/openapi.json",
+    "mcp": "https://api.qship.ishaandev.co.in/mcp"
+  },
+  "demo_credentials": {
+    "email": "demo@qship.dev",
+    "password": "DemoPass123!"
+  },
+  "tech_stack": [
+    "Next.js 16",
+    "Express",
+    "tRPC v11",
+    "BetterAuth",
+    "PostgreSQL 16 + Drizzle ORM",
+    "OpenAI gpt-4o-mini",
+    "MCP 2024-11-05",
+    "GitHub App (Octokit)",
+    "Inngest",
+    "Razorpay",
+    "Turborepo + pnpm",
+    "Scalar OpenAPI",
+    "Playwright",
+    "Vitest",
+    "GitHub Actions"
+  ],
+  "agent_tools": 25,
+  "mcp_tools": 25,
+  "db_migrations": 42,
+  "db_indexes": 14,
+  "ci": "https://github.com/ishaansatapathy/Qship/actions",
+  "docs": {
+    "readme": "README.md",
+    "demo": "DEMO.md",
+    "judge_walkthrough": "JUDGE_WALKTHROUGH.md",
+    "submission": "HACKATHON_SUBMISSION.md",
+    "architecture": "ARCHITECTURE.md",
+    "scalar_ui": "https://api.qship.ishaandev.co.in/docs"
+  },
+  "verify_commands": [
+    "curl -fsS https://api.qship.ishaandev.co.in/health",
+    "curl -fsS https://api.qship.ishaandev.co.in/ready",
+    "curl -s -X POST https://api.qship.ishaandev.co.in/mcp -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}'"
+  ]
+}

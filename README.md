@@ -1,76 +1,106 @@
-# Qship — ShipFlow AI
+# ShipFlow AI
 
-> **Judge / Evaluator?** → **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** · **[DEMO.md](./DEMO.md)** · **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
-
-AI-assisted **product delivery platform** — move features from **request → PRD → tasks → code → AI review → human approval → ship**.
-
-Built for the **ChaiCode hackathon** as a production-style **tRPC monorepo SaaS**.
-
-**GitHub:** https://github.com/ishaansatapathy/Qship
+> **AI-assisted product delivery platform** — move features from **request → PRD → tasks → code → AI review → human approval → ship**.
 
 ---
 
-## 🎬 Demo video
+## 🔗 Live demo (zero setup — open in browser)
 
-> **[▶ Watch 5-min demo](https://youtu.be/PLACEHOLDER)** — record this and replace the link before submission
+| Resource | URL |
+|---|---|
+| **Web app** | **https://qship.ishaandev.co.in** |
+| **One-click demo login** | **https://qship.ishaandev.co.in/api-auth/demo?next=/brief** |
+| **Scalar API docs** | **https://api.qship.ishaandev.co.in/docs** |
+| **API health** | https://api.qship.ishaandev.co.in/health |
+| **API readiness** | https://api.qship.ishaandev.co.in/ready |
+| **MCP tools list** | `POST https://api.qship.ishaandev.co.in/mcp` |
+| **OpenAPI JSON** | https://api.qship.ishaandev.co.in/openapi.json |
 
----
-
-## ⚡ Live demo (zero setup)
-
-| | URL |
-|---|-----|
-| **App** | https://qship.ishaandev.co.in/api-auth/demo?next=/brief |
-| **Scalar API docs** | https://api.qship.ishaandev.co.in/docs |
-| **MCP server** | `POST https://api.qship.ishaandev.co.in/mcp` |
-
-| Field | Value |
-|-------|-------|
+| Demo credential | Value |
+|---|---|
 | Email | `demo@qship.dev` |
 | Password | `DemoPass123!` |
 
 ---
 
-## Local setup
+## 🎬 Demo video
 
-| Step | Action |
-|------|--------|
-| 1 | `pnpm install` |
-| 2 | Copy `.env.example` → `.env`, add `OPENAI_API_KEY` + `DATABASE_URL` |
-| 3 | `pnpm db:migrate && pnpm db:seed` |
-| 4 | Set `DEMO_LOGIN_ENABLED=true` in `.env` |
-| 5 | `pnpm dev` |
-| 6 | Open **http://localhost:3000/api-auth/demo?next=/brief** |
-
-Full guide: **[DEMO.md](./DEMO.md)** · Timed walkthrough: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
+> **[▶ Watch 5-min walkthrough](https://youtu.be/PLACEHOLDER)**
 
 ---
 
-## Feature table
+## 📋 Judge / evaluator? Start here
 
-| Feature | Description | APIs / Tools |
-|---------|-------------|--------------|
-| **Pipeline overview** | Counts by delivery stage | `/brief`, `get_pipeline_summary` |
-| **Feature requests** | Submit, triage, PRD, tasks, timeline | `feature.*` tRPC, MCP feature tools |
-| **AI triage** | Priority, effort, clarifying questions | OpenAI + `triage_feature_request` |
-| **PRD generation** | Structured PRD (goals, stories, AC) | `generate_feature_prd` |
-| **Task breakdown** | Engineering tasks from PRD | `generate_feature_tasks` |
-| **Delivery timeline** | Activity log + summary + next step | `feature.delivery` |
-| **ShipFlow Agent** | Streaming copilot, 19 tools, sessions | `/agent/stream` |
-| **MCP server** | JSON-RPC for Cursor/Claude | `POST /mcp` — 19 tools |
-| **GitHub App** | Connect org, list repos, webhooks | `github.*`, Octokit |
-| **AI pre-ship review** | Review PRD + tasks before release | `run_ai_review` |
-| **Human approval gate** | `human_review` → `approved` → `shipped` | UI + agent tool |
-| **Scalar API docs** | Production-grade Scalar judge documentation | `/docs` |
-
-**Agent tools: 19** · **MCP tools: 19** (CI parity test verified)
+| Document | Purpose |
+|---|---|
+| **[DEMO.md](./DEMO.md)** | Step-by-step judge guide with curl proofs and agent prompts |
+| **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | 3-minute timed scoring path per rubric criterion |
+| **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** | One-pager: rubric map + differentiators |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Full technical deep-dive |
 
 ---
 
-## Core loop
+## Core delivery loop
 
 ```
-Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review → Human Approval → Ship
+Feature Request → Triage → Clarifying Questions → PRD → Engineering Tasks
+      → Code (GitHub PR) → AI Review → Fix Loop → Human Approval → Ship
+```
+
+Every stage is tracked in real time, queryable via tRPC, accessible via 25 MCP tools, and navigable through the ShipFlow Agent chat.
+
+---
+
+## Feature map
+
+| Feature | Where to see it | tRPC / MCP / API |
+|---|---|---|
+| **Pipeline overview** | `/brief` — counts by stage, next actions | `get_pipeline_summary` |
+| **Feature requests** | `/requests` — submit, triage, timeline | `feature.*`, `list_feature_requests` |
+| **AI triage** | Click "Run Triage" on any request | `triage_feature_request` |
+| **Clarifying questions** | Auto-generated after triage | `add_clarification` |
+| **PRD generation** | "Generate PRD" button | `generate_feature_prd` |
+| **Task breakdown** | "Generate Tasks" after PRD | `generate_feature_tasks` |
+| **Engineering Kanban** | `/tasks` — backlog → done | `update_engineering_task_status` |
+| **Delivery timeline** | Right panel on any request | `get_feature_delivery` |
+| **AI pre-ship review** | "Run AI Review" button | `run_ai_review` |
+| **Delta re-review** | Automatic on iteration ≥ 2 | `get_review_delta`, `get_review_stats` |
+| **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
+| **Approval audit trail** | Timeline events per decision | `get_approval_history` |
+| **ShipFlow Agent** | `/agent` — 25-tool streaming copilot | `POST /agent/stream` |
+| **MCP server** | Cursor / Claude integration | `POST /mcp` — 25 tools |
+| **GitHub App connect** | `/settings` — install + repo sync | `github.*` tRPC |
+| **GitHub PR webhook** | Auto-links PRs to features | `POST /webhooks/github` |
+| **Duplicate detection** | Before every new feature | `check_existing_capability` |
+| **Multi-channel intake** | Email / support / API ingestion | `intake_from_channel` |
+| **Analytics** | `/analytics` — delivery metrics | `shipflow-observability` |
+| **Billing** | `/billing` — Razorpay checkout | billing tRPC |
+| **Scalar API docs** | Production OpenAPI reference | `GET /docs` |
+
+---
+
+## ShipFlow Agent — 25 tools
+
+The streaming agent at `/agent` and the MCP server at `/mcp` share the same 25 tools, verified by CI parity test.
+
+| Category | Tools |
+|---|---|
+| **Workspace** | `get_workspace`, `get_pipeline_summary` |
+| **Features** | `list_feature_requests`, `get_feature_request`, `create_feature_request`, `triage_feature_request`, `generate_feature_prd`, `generate_feature_tasks`, `add_clarification`, `update_feature_status`, `get_feature_delivery` |
+| **Review loop** | `run_ai_review`, `list_ai_reviews`, `get_review_delta`, `get_review_stats` |
+| **Human approval** | `request_human_review`, `approve_feature`, `reject_feature`, `request_changes`, `get_approval_history` |
+| **Kanban** | `update_engineering_task_status` |
+| **Intake** | `create_feature_request`, `intake_from_channel`, `check_existing_capability` |
+| **GitHub** | `github_connection_status`, `list_github_repositories` |
+
+### Sample agent prompts
+
+```
+"Triage all submitted features and generate PRDs for the P0 ones"
+"Run the AI review on the authentication feature and tell me what's blocking"
+"Show me what changed between the last two review iterations on feature <id>"
+"Approve the OAuth feature — it passed all acceptance criteria in the last review"
+"What's the current state of my delivery pipeline?"
 ```
 
 ---
@@ -78,77 +108,77 @@ Feature Request → PRD → Tasks → Code → AI Review → Fixes → Re-Review
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Browser                             │
-│  Next.js (apps/web)                                         │
-│  ├── /brief     — Pipeline overview                         │
-│  ├── /requests  — Feature hub (submit, triage, PRD)         │
-│  ├── /agent     — ShipFlow Agent (SSE streaming)            │
-│  ├── /analytics — Delivery metrics                          │
-│  └── /settings  — GitHub App + approval toggles             │
-└────────────────────┬────────────────────────────────────────┘
-                     │  tRPC + REST (OpenAPI)
-┌────────────────────▼────────────────────────────────────────┐
-│                    Express API (apps/api)                    │
-│  ├── /trpc          — Type-safe tRPC procedures             │
-│  ├── /api           — REST (trpc-to-openapi)                  │
-│  ├── /mcp           — MCP 2024-11 / JSON-RPC 2.0 (19 tools)  │
-│  ├── /agent/stream  — SSE streaming agent                   │
-│  ├── /webhooks/github — GitHub App events (HMAC)            │
-│  ├── /health        — Liveness                              │
-│  ├── /ready         — Readiness (DB)                        │
-│  └── /docs          — Scalar OpenAPI reference              │
-└──────────┬──────────────────────┬───────────────────────────┘
-           │                      │
-┌──────────▼──────────┐  ┌────────▼────────────────────────────┐
-│   PostgreSQL        │  │   OpenAI + GitHub App                │
-│   Drizzle ORM       │  │   Triage, PRD, agent, Octokit repos  │
-│   features, PRDs,   │  └─────────────────────────────────────┘
-│   tasks, sessions   │
-└─────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                          Browser (Next.js)                         │
+│  /brief      Pipeline overview + counts by stage                   │
+│  /requests   Feature hub — submit, triage, PRD, tasks, timeline    │
+│  /agent      ShipFlow Agent — SSE streaming, 25 tools              │
+│  /tasks      Engineering Kanban (backlog → todo → done)            │
+│  /analytics  Delivery metrics + throughput                         │
+│  /settings   GitHub App connect + repo sync + approval toggles     │
+│  /billing    Razorpay subscription management                      │
+└────────────────────────┬───────────────────────────────────────────┘
+                         │  tRPC + REST (OpenAPI/Scalar)
+┌────────────────────────▼───────────────────────────────────────────┐
+│                     Express API (apps/api)                         │
+│  /trpc              Type-safe tRPC procedures (all features)        │
+│  /api/*             REST — trpc-to-openapi auto-generated           │
+│  /mcp               MCP 2024-11-05 JSON-RPC — 25 ShipFlow tools    │
+│  /agent/stream      SSE streaming agent (rate-limited, guardrailed) │
+│  /webhooks/github   GitHub App events (HMAC-SHA256 verified)       │
+│  /health  /ready    Liveness + readiness probes                    │
+│  /docs              Scalar OpenAPI reference (judge UI)            │
+└──────────┬──────────────────────────────┬──────────────────────────┘
+           │                              │
+┌──────────▼───────────┐      ┌───────────▼────────────────────────┐
+│  PostgreSQL + Drizzle │      │  OpenAI (gpt-4o-mini)              │
+│  features, PRDs,      │      │  Triage, PRD, tasks, pre-ship      │
+│  tasks, reviews,      │      │  review, delta re-review           │
+│  approvals, GitHub,   │      ├────────────────────────────────────┤
+│  agent sessions       │      │  GitHub App (Octokit)              │
+│  42 migrations        │      │  Install, repo sync, PR webhooks,  │
+│  14 performance idx   │      │  AI review comments, token cache   │
+└───────────────────────┘      └────────────────────────────────────┘
 ```
 
-### Key packages
+### Package structure
 
 | Package | Purpose |
-|---------|---------|
-| `apps/web` | Next.js frontend |
-| `apps/api` | Express API server |
-| `packages/trpc` | Shared tRPC routers |
-| `packages/services` | Domain + agent + GitHub |
-| `packages/database` | Drizzle schema + migrations |
-| `packages/auth` | BetterAuth + demo seed |
+|---|---|
+| `apps/web` | Next.js 16 — full UI with custom Qship design system |
+| `apps/api` | Express + tRPC + OpenAPI/Scalar + MCP + agent SSE |
+| `packages/trpc` | Shared type-safe tRPC routers |
+| `packages/services` | Domain logic — features, AI, GitHub, review, billing |
+| `packages/database` | Drizzle ORM — schema, migrations, relations, indexes |
+| `packages/auth` | BetterAuth — Google OAuth + email/password + demo |
 
 ---
 
 ## Tech stack
 
-| Layer | Choice |
-|-------|--------|
-| Monorepo | Turborepo + pnpm |
-| Web | Next.js 16, custom Qship UI |
-| API | Express + tRPC + OpenAPI/Scalar |
-| Auth | BetterAuth (Google OAuth + email/password) |
-| Database | PostgreSQL + Drizzle ORM |
-| GitHub | GitHub App + Octokit + webhooks |
-| AI | OpenAI via Vercel AI SDK patterns |
-| MCP | MCP 2024-11-05 — 19 ShipFlow tools |
+| Layer | Technology |
+|---|---|
+| **Monorepo** | Turborepo + pnpm workspaces |
+| **Frontend** | Next.js 16, React 19, custom Qship design system |
+| **API** | Express, tRPC v11, trpc-to-openapi, Scalar |
+| **Auth** | BetterAuth — Google OAuth, email/password, demo login |
+| **Database** | PostgreSQL 16 + Drizzle ORM — 42 migrations, 14 perf indexes |
+| **AI** | OpenAI `gpt-4o-mini` — triage, PRD, tasks, 9-dim PR review, delta re-review |
+| **MCP** | MCP 2024-11-05 — 25 tools, JSON-RPC 2.0, CI parity test |
+| **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |
+| **Background jobs** | Inngest — PRD gen, task gen, AI review workflows |
+| **Billing** | Razorpay — subscription checkout + webhook |
+| **CI** | GitHub Actions — parallel type-check + test + E2E + Playwright artifacts |
 
 ---
 
-## Prerequisites
+## Local setup
 
-- **Node.js** 20+
-- **pnpm** 9+
-- **PostgreSQL** (Docker Compose or Neon)
-- **OpenAI API key** (for AI features)
-- **GitHub App** (optional — for repo integration)
+### Prerequisites
 
----
+- Node.js 20+, pnpm 9+, PostgreSQL 16 (or Docker)
 
-## Quick start
-
-### 1. Clone and install
+### 1. Clone + install
 
 ```bash
 git clone https://github.com/ishaansatapathy/Qship.git
@@ -162,7 +192,7 @@ pnpm install
 cp .env.example .env
 ```
 
-Minimum for local demo:
+Minimum for local demo (edit `.env`):
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dev
@@ -172,182 +202,155 @@ CLIENT_URL=http://localhost:3000
 BASE_URL=http://localhost:8000
 OPENAI_API_KEY=sk-...
 
-# Judge demo
+# One-click demo login
 DEMO_LOGIN_ENABLED=true
 DEMO_USER_EMAIL=demo@qship.dev
 DEMO_USER_PASSWORD=DemoPass123!
 NEXT_PUBLIC_DEMO_LOGIN_ENABLED=true
 ```
 
-See [`.env.example`](./.env.example) for GitHub App, Google OAuth, MCP keys.
+See [`.env.example`](./.env.example) for all optional variables (GitHub App, Razorpay, MCP, Inngest).
 
 ### 3. Database
 
 ```bash
-pnpm db:up
-pnpm db:migrate
-pnpm db:seed
+pnpm db:up        # Start Postgres via Docker Compose
+pnpm db:migrate   # Run 42 Drizzle migrations
+pnpm db:seed      # Create demo user + 3 sample feature requests
 ```
 
-### 4. Start dev servers
+### 4. Start
 
 ```bash
 pnpm dev
 ```
 
 | Service | URL |
-|---------|-----|
-| Web | http://localhost:3000 |
+|---|---|
+| Web app | http://localhost:3000 |
+| One-click login | http://localhost:3000/api-auth/demo?next=/brief |
 | API | http://localhost:8000 |
+| Scalar API docs | http://localhost:8000/docs |
 | tRPC | http://localhost:8000/trpc |
-| **API docs (Scalar)** | http://localhost:8000/docs |
-| Demo login | http://localhost:3000/api-auth/demo?next=/brief |
+
+### 5. Verify API
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
+curl -s -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python3 -m json.tool
+```
 
 ---
 
 ## Development commands
 
 ```bash
-pnpm dev              # Start all services
-pnpm build            # Production build
-pnpm check-types      # TypeScript (all packages)
-pnpm lint             # ESLint
+pnpm dev              # Start all services (web + API)
+pnpm build            # Production build (all packages)
+pnpm check-types      # TypeScript — all packages (zero errors enforced)
+pnpm lint             # ESLint across monorepo
 pnpm test             # Vitest unit tests
+pnpm format           # Prettier
 pnpm db:migrate       # Run Drizzle migrations
 pnpm db:seed          # Demo user + sample features
-pnpm db:studio        # Drizzle Studio
+pnpm db:studio        # Drizzle Studio (visual DB editor)
+pnpm db:generate      # Regenerate Drizzle client after schema changes
 ```
 
 ---
 
-## MCP server
+## MCP integration
 
-ShipFlow exposes an MCP endpoint at **`POST /mcp`** with **19 tools** (feature pipeline + GitHub + intake + Kanban).
+ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **25 tools**.
 
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /mcp` | ShipFlow domain tools (19) — features, review, intake, Kanban, GitHub |
+### Configure in Cursor / Claude Desktop
 
-Configure Cursor/Claude using **`mcp-server.json`**:
+Create `mcp-server.json` in your project:
 
 ```json
 {
   "mcpServers": {
     "shipflow": {
-      "url": "http://localhost:8000/mcp",
+      "url": "https://api.qship.ishaandev.co.in/mcp",
       "type": "http"
     }
   }
 }
 ```
 
-Auth: BetterAuth session cookies (sign in first) or `Authorization: Bearer <SHIPFLOW_MCP_API_KEY>` with matching `SHIPFLOW_MCP_USER_ID`.
-
-### Quick test
+### Test without auth (tools/list is public)
 
 ```bash
-curl -X POST http://localhost:8000/mcp \
+curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+  | python3 -c "import json,sys; tools=json.load(sys.stdin)['result']['tools']; print(f'{len(tools)} tools:'); [print(f'  {t[\"name\"]}') for t in tools]"
 ```
 
-Full tool list: **`mcp-server.json`** · CI parity: `packages/services/ai/tool-parity.test.ts`
+### Authentication
 
----
-
-## API documentation (Scalar)
-
-Available at **http://localhost:8000/docs** — Scalar UI with:
-
-- Judge quick-start intro panel
-- Architecture + delivery loop diagram
-- Tag groups (Feature Requests, GitHub, Agent, MCP)
-- MCP tool appendix (19 tools)
-- Reference paths: `/mcp`, `/agent/stream`, `/webhooks/github`, `/ready`
-- curl code samples
-
-| Doc | URL / path |
-|-----|------------|
-| Scalar UI | `{BASE_URL}/docs` |
-| OpenAPI JSON | `{BASE_URL}/openapi.json` |
-| Full technical guide | `DOCS.md` |
-| Judge walkthrough | `JUDGE_WALKTHROUGH.md` |
-| Demo script | `DEMO.md` |
+- **Browser:** BetterAuth session cookie (sign in first at `/sign-in`)
+- **Headless:** `Authorization: Bearer <SHIPFLOW_MCP_API_KEY>` — set `SHIPFLOW_MCP_API_KEY` + `SHIPFLOW_MCP_USER_ID` in `.env`
 
 ---
 
 ## GitHub integration
 
-1. Create a GitHub App with repository + PR + webhook permissions
-2. Set webhook URL to `{API_URL}/webhooks/github`
-3. Add `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET` to `.env`
+1. Create a **GitHub App** with: `Repository contents (read/write)`, `Pull requests (read/write)`, `Webhooks (receive)`
+2. Set webhook URL: `https://api.qship.ishaandev.co.in/webhooks/github`
+3. Set in `.env`: `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET`
 4. Connect from **Settings → GitHub** in the web app
 
----
-
-## Demo mode
-
-### One-click login
-
-```bash
-pnpm db:seed
-```
-
-Set `DEMO_LOGIN_ENABLED=true`, then open:
-
-```
-http://localhost:3000/api-auth/demo?next=/brief
-```
-
-### Seeded data
-
-- **Org:** ShipFlow Demo Org
-- **Project:** Core Platform
-- **Features:** 3 sample requests (submitted, prd_ready, human_review)
-
-### Demo AI limits
-
-Demo account: 3 agent AI runs per browser session (configurable via `NEXT_PUBLIC_DEMO_AGENT_LIMIT`).
+**What happens automatically after connection:**
+- Repositories synced via paginated Octokit (handles 100+ repos)
+- Push to `shipflow/<feature-uuid>` branch → PR auto-linked to feature
+- PR opened/synchronized → AI review triggered, structured comment posted
+- PR merged → feature moves to `approved`
+- `installation.deleted` webhook → org disconnected gracefully
 
 ---
 
-## Security notes
+## CI/CD
 
-- Human-in-the-loop: confirm dialogs on PRD generation and ship actions; agent asks before sensitive mutations
-- Agent guardrails: prompt injection detection, rate limits (20/min), token budget
-- Feature tools scoped to user's workspace via `assertFeatureInUserWorkspace`
-- GitHub webhooks: HMAC-SHA256 verification
-- MCP API key bound to single user — no arbitrary impersonation
+GitHub Actions (`.github/workflows/ci.yml`):
+
+| Job | What it does |
+|---|---|
+| `static` | TypeScript type-check + ESLint (parallel, no DB needed) |
+| `test` | DB migrations → seed → unit tests → build → API smoke test |
+| `e2e` | Playwright E2E tests (gated on `static` + `test` passing) |
+
+- Concurrency group cancels stale PR runs automatically
+- Playwright failure artifacts uploaded (7-day retention)
+- Postgres 16-alpine with 5s health checks
+
+---
+
+## Security
+
+- **Human-in-the-loop:** Confirmation dialogs on PRD generation and ship actions
+- **Agent guardrails:** Prompt injection detection, 20/min rate limit, token budget enforcement
+- **Feature scoping:** `assertFeatureInUserWorkspace` on every agent tool call
+- **GitHub webhooks:** HMAC-SHA256 with `crypto.timingSafeEqual` + delivery-ID idempotency guard
+- **MCP key:** Bound to single user ID — no impersonation
+- **Approval gate:** `validateHumanApprovalEligibility` prevents human approval if AI review has blocking issues
+- **DB:** SQL injection impossible via Drizzle ORM parameterized queries
 
 ---
 
 ## Documentation index
 
 | File | Purpose |
-|------|---------|
-| [DEMO.md](./DEMO.md) | Judge demo guide + curl + scoring |
-| [DOCS.md](./DOCS.md) | Full technical reference |
-| [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | 3-minute timed path |
-| [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | One-pager + rubric map |
-| [mcp-server.json](./mcp-server.json) | MCP client manifest |
-| [SOCIAL_POST.md](./SOCIAL_POST.md) | LinkedIn/X post draft |
-
----
-
-## Roadmap
-
-- [x] Monorepo + tRPC + BetterAuth
-- [x] ShipFlow database schema + migrations
-- [x] Feature requests + AI triage + PRD
-- [x] ShipFlow Agent (19 tools) + MCP parity
-- [x] GitHub App connect + repo sync
-- [x] Delivery timeline + summary UI
-- [x] Scalar docs + judge walkthrough
-- [ ] GitHub PR webhook → feature link
-- [ ] PR diff AI review
-- [ ] Inngest background jobs
-- [ ] Razorpay billing
-- [ ] Demo video upload
+|---|---|
+| [DEMO.md](./DEMO.md) | Judge demo guide — step-by-step with curl proofs and agent prompts |
+| [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | 3-minute timed scoring path per rubric criterion |
+| [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | One-pager — rubric map + differentiators |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Full technical deep-dive |
+| [.env.example](./.env.example) | All environment variables with inline documentation |
+| [mcp-server.json](./mcp-server.json) | MCP client manifest for Cursor / Claude Desktop |
 
 ---
 
