@@ -34,13 +34,22 @@ async function sendOrBackground(
     }
   }
 
-  void runner().catch((error) => {
-    logger.error("Background workflow failed", {
-      eventName,
-      workflowRunId,
-      message: error instanceof Error ? error.message : String(error),
+  const runJob = () =>
+    runner().catch((error) => {
+      logger.error("Background workflow failed", {
+        eventName,
+        workflowRunId,
+        message: error instanceof Error ? error.message : String(error),
+      });
     });
-  });
+
+  // Vercel freezes the lambda after the HTTP response — fire-and-forget jobs die at ~45%.
+  // Await the runner on serverless so PRD/task/review workflows can finish.
+  if (process.env.VERCEL === "1") {
+    await runJob();
+  } else {
+    void runJob();
+  }
 
   return { workflowRunId, mode: "background" };
 }
