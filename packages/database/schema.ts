@@ -1,4 +1,5 @@
 /** ShipFlow domain + BetterAuth schema. */
+export * from "./models/user";
 export * from "./models/auth";
 export * from "./models/organization";
 export * from "./models/project";
