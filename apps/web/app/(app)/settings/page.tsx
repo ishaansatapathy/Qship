@@ -7,6 +7,7 @@ import { ShieldCheck, User, CheckCircle2, LogOut, ListChecks, Unlink, Github } f
 import { trpc } from "~/trpc/client";
 import { useQshipUser, initials } from "~/components/app/use-qship-user";
 import { useDemoMode } from "~/hooks/use-demo-mode";
+import { signOutShipflow } from "~/lib/sign-out";
 
 function ConnectionRow({
   connected,
@@ -171,7 +172,7 @@ export default function SettingsPage() {
   const logout = trpc.auth.logout.useMutation({
     onSettled: async () => {
       await utils.auth.me.reset();
-      window.location.assign("/");
+      await signOutShipflow("/sign-in");
     },
   });
 
