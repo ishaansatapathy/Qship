@@ -74,6 +74,7 @@ Every stage is tracked in real time, queryable via tRPC, accessible via 33 MCP t
 | **Clarifying questions** | Auto-generated after triage | `add_clarification` |
 | **PRD generation** | "Generate PRD" button | `generate_feature_prd` |
 | **Task breakdown** | "Generate Tasks" after PRD | `generate_feature_tasks` |
+| **Task walkthrough (Agent)** | "Explain in Agent" on any task | `explain_engineering_task`, `advance_task_walkthrough` |
 | **Engineering Kanban** | `/tasks` — backlog → done | `update_engineering_task_status` |
 | **Delivery timeline** | Right panel on any request | `get_feature_delivery` |
 | **AI pre-ship review** | "Run AI Review" button | `run_ai_review` |
@@ -81,7 +82,7 @@ Every stage is tracked in real time, queryable via tRPC, accessible via 33 MCP t
 | **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
 | **Approval audit trail** | Timeline events per decision | `get_approval_history` |
 | **ShipFlow Agent** | `/agent` — 33-tool streaming copilot | `POST /agent/stream` |
-| **MCP server** | Cursor / Claude integration | `POST /mcp` — 33 tools |
+| **MCP server** | Cursor / Claude integration | `POST /mcp` — 35 tools |
 | **GitHub App connect** | `/settings` — install + repo sync | `github.*` tRPC |
 | **GitHub PR webhook** | Auto-links PRs to features | `POST /webhooks/github` |
 | **Duplicate detection** | Before every new feature | `check_existing_capability` |
@@ -92,15 +93,16 @@ Every stage is tracked in real time, queryable via tRPC, accessible via 33 MCP t
 
 ---
 
-## ShipFlow Agent — 33 tools
+## ShipFlow Agent — 35 tools
 
-The streaming agent at `/agent` and the MCP server at `/mcp` share the same 33 tools, verified by CI parity test.
+The streaming agent at `/agent` and the MCP server at `/mcp` share the same 35 tools, verified by CI parity test.
 
 | Category | Tools |
 |---|---|
 | **Workspace** | `get_workspace`, `get_pipeline_summary` |
 | **Features** | `list_feature_requests`, `get_feature_request`, `create_feature_request`, `triage_feature_request`, `generate_feature_prd`, `generate_feature_tasks`, `add_clarification`, `update_feature_status`, `get_feature_delivery` |
 | **Review loop** | `run_ai_review`, `list_ai_reviews`, `get_review_delta`, `get_review_stats` |
+| **Task walkthrough** | `explain_engineering_task`, `advance_task_walkthrough` |
 | **Human approval** | `request_human_review`, `approve_feature`, `reject_feature`, `request_changes`, `get_approval_history` |
 | **Kanban** | `update_engineering_task_status` |
 | **Intake** | `create_feature_request`, `intake_from_channel`, `check_existing_capability` |
@@ -149,7 +151,7 @@ CLIENT_URL=https://qship.ishaandev.co.in
 │              Browser (Next.js on Vercel — qship.ishaandev.co.in)   │
 │  /brief      Pipeline overview + counts by stage                   │
 │  /requests   Feature hub — submit, triage, PRD, tasks, timeline    │
-│  /agent      ShipFlow Agent — SSE streaming, 33 tools              │
+│  /agent      ShipFlow Agent — SSE streaming, 35 tools              │
 │  /tasks      Engineering Kanban (backlog → todo → done)            │
 │  /analytics  Delivery metrics + throughput                         │
 │  /settings   GitHub App connect + repo sync + approval toggles     │
@@ -174,7 +176,7 @@ CLIENT_URL=https://qship.ishaandev.co.in
 │ tasks, reviews,      │      ├────────────────────────────────────┤
 │ approvals, GitHub,   │      │  GitHub App (Octokit)              │
 │ agent sessions       │      │  Install, repo sync, PR webhooks,  │
-│ 42 migrations        │      │  AI review comments, token cache   │
+│ 43 migrations        │      │  AI review comments, token cache   │
 │ 14 performance idx   │      │                                    │
 └───────────────────────┘      └────────────────────────────────────┘
 ```
@@ -200,9 +202,9 @@ CLIENT_URL=https://qship.ishaandev.co.in
 | **Frontend** | Next.js 16, React 19, custom Qship design system |
 | **API** | Express, tRPC v11, trpc-to-openapi, Scalar |
 | **Auth** | BetterAuth — Google OAuth, email/password, demo login |
-| **Database** | PostgreSQL 16 + Drizzle ORM — 42 migrations, 14 perf indexes |
+| **Database** | PostgreSQL 16 + Drizzle ORM — 43 migrations, 14 perf indexes |
 | **AI** | OpenAI `gpt-4o-mini` — triage, PRD, tasks, 9-dim PR review, delta re-review |
-| **MCP** | MCP 2024-11-05 — 33 tools, JSON-RPC 2.0, CI parity test |
+| **MCP** | MCP 2024-11-05 — 35 tools, JSON-RPC 2.0, CI parity test |
 | **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |
 | **Background jobs** | In-process workflows on Railway (PRD gen, task gen, AI review); Inngest optional |
 | **Billing** | Razorpay — subscription checkout + webhook |
@@ -302,7 +304,7 @@ pnpm db:generate      # Regenerate Drizzle client after schema changes
 
 ## MCP integration
 
-ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **33 tools**.
+ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **35 tools**.
 
 ### Configure in Cursor / Claude Desktop
 

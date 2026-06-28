@@ -161,6 +161,8 @@ export const agentRouter = router({
               eventId: z.string().optional(),
               contextLabel: z.string().optional(),
               eventLabel: z.string().optional(),
+              walkthroughTaskId: z.string().uuid().optional(),
+              analyzeRepo: z.boolean().optional(),
             })
             .optional(),
         })
@@ -193,6 +195,8 @@ export const agentRouter = router({
             eventId: z.string().optional(),
             contextLabel: z.string().optional(),
             eventLabel: z.string().optional(),
+            walkthroughTaskId: z.string().uuid().optional(),
+            analyzeRepo: z.boolean().optional(),
           })
           .nullable()
           .optional(),

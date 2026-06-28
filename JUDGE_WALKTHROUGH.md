@@ -39,8 +39,8 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | 0:10 | Click any feature → see delivery timeline | Feature depth |
 | 0:20 | Click **"Run Triage"** → P0 with riskLevel + riskFactors | AI quality |
 | 0:30 | Click **"Generate PRD"** → see technicalRequirements + rollbackPlan | AI quality |
-| 0:45 | Click **"Generate Tasks"** → tasks with type + acceptanceCriteria | AI quality |
-| 0:55 | Go to `/tasks` → Kanban board | Feature completeness |
+| 1:45 | Click **"Explain in Agent"** on a task → pseudo-code walkthrough | Task walkthrough |
+| 1:55 | Say **"Explain more"** then **"Next task"** | Agent + codebase mode |
 
 ---
 
@@ -78,7 +78,7 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 
 | What to check | Where | What to look for |
 |---|---|---|
-| Tool diversity | `/agent` | 33 tools called appropriately |
+| Tool diversity | `/agent` | 35 tools called appropriately |
 | Prompt quality | `packages/services/feature-ai.ts` | 9-dimension checklist, technical PRD, delta re-review |
 | Streaming | `/agent` | Token-by-token SSE, action cards inline |
 | Error handling | Agent with bad input | Graceful error, no crash |
@@ -194,6 +194,6 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | `packages/services/github/pr-review.ts` | Update-in-place comment, delta-aware review selection |
 | `packages/services/github/webhook.ts` | Installation events, idempotency guard, merged-PR flow |
 | `packages/services/github/installation.ts` | Paginated repo sync, CSRF nonce, N+1 fixed |
-| `packages/services/shipflow-agent-tools.ts` | 33 tools with rich descriptions and implementations |
+| `packages/services/shipflow-agent-tools.ts` | 35 tools with rich descriptions and implementations |
 | `packages/database/models/` | Enums, proper types (bool/int not text), 14 indexes |
 | `.github/workflows/ci.yml` | Parallel jobs, E2E gated, Playwright artifacts |

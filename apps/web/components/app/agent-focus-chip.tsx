@@ -9,6 +9,8 @@ export type AgentFocusState = {
   eventId?: string;
   contextLabel?: string;
   eventLabel?: string;
+  walkthroughTaskId?: string;
+  analyzeRepo?: boolean;
 };
 
 type AgentFocusChipProps = {

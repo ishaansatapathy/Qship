@@ -1,4 +1,4 @@
-import { index, integer, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { featureRequests } from "./feature-request";
 
@@ -21,6 +21,8 @@ export const engineeringTasks = pgTable(
     title: text("title").notNull(),
     description: text("description").notNull(),
     status: taskStatusEnum("status").notNull().default("backlog"),
+    taskType: text("task_type"),
+    acceptanceCriteria: jsonb("acceptance_criteria").$type<string[]>().notNull().default([]),
     /** Zero-based position for drag-and-drop Kanban ordering. */
     sortOrder: integer("sort_order").notNull().default(0),
     assigneeUserId: text("assignee_user_id"),

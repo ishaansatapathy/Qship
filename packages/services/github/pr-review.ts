@@ -311,7 +311,11 @@ export async function runFeatureAiReviewWithOptionalPr(
     title: feature.title,
     rawRequest: feature.rawRequest,
     prd: feature.prd?.content ?? null,
-    taskTitles: feature.tasks?.map((t) => t.title) ?? [],
+    engineeringTasks: (feature.tasks ?? []).map((t) => ({
+      title: t.title,
+      taskType: t.taskType,
+      acceptanceCriteria: t.acceptanceCriteria,
+    })),
   });
 
   const { persistAiReview } = await import("../review");

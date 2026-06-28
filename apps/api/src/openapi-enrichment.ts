@@ -95,9 +95,9 @@ export function enrichShipflowOpenApi(
   addCodeSample(document, "/ready", "get", "curl", `curl -fsS ${baseUrl}/ready`);
 
   addReferencePath(document, "/mcp", "post", {
-    summary: "MCP JSON-RPC server (33 tools)",
+    summary: "MCP JSON-RPC server (35 tools)",
     description: [
-      "ShipFlow MCP server — **33 tools** for feature delivery, review loop, human approval, analytics, intake, Kanban, and GitHub workspace.",
+      "ShipFlow MCP server — **35 tools** for feature delivery, review loop, human approval, analytics, intake, Kanban, and GitHub workspace.",
       "",
       "**Public methods (no auth):** `initialize`, `tools/list`, `resources/list`, `prompts/list`",
       "",
@@ -153,7 +153,7 @@ export function enrichShipflowOpenApi(
   addReferencePath(document, "/agent/stream", "post", {
     summary: "Agent SSE streaming",
     description:
-      "Stream ShipFlow Agent responses via Server-Sent Events. Uses the same 33 tools as MCP. Rate limit: 20/min/user.",
+      "Stream ShipFlow Agent responses via Server-Sent Events. Uses the same 35 tools as MCP. Rate limit: 20/min/user.",
     tags: ["MCP & Streaming"],
     requestBody: {
       content: {
