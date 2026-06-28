@@ -11,7 +11,7 @@ type EmailMessageBodyProps = {
 
 const PURIFY_OPTIONS = {
   ADD_ATTR: ["target", "rel"] as string[],
-  ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
 };
 
 export function EmailMessageBody({ bodyHtml, body, snippet, className }: EmailMessageBodyProps) {

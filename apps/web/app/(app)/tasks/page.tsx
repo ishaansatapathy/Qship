@@ -79,7 +79,7 @@ export default function TasksPage() {
     },
   });
 
-  const tasks = board.data?.tasks ?? [];
+  const tasks = useMemo(() => board.data?.tasks ?? [], [board.data?.tasks]);
   const byColumn = useMemo(() => {
     const map = new Map<TaskRow["status"], TaskRow[]>();
     for (const col of COLUMNS) map.set(col.id, []);

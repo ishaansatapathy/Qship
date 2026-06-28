@@ -1,4 +1,3 @@
-import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 
 export type AgentFocus = {
   contextId?: string;
@@ -8,7 +7,7 @@ export type AgentFocus = {
 export async function buildFocusSystemAppendix(
   tenantId: string,
   focus: AgentFocus | undefined,
-  _userEmail?: string,
+  _userEmail?: string, // reserved for future personalized context
 ): Promise<string> {
   if (!focus?.contextId?.trim() && !focus?.eventId?.trim()) return "";
 

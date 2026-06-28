@@ -53,9 +53,7 @@ export function summarizeToolResult(
 
   const at = new Date().toISOString();
   const data = safeParseJson(rawResult);
-  const contextId = typeof args.contextId === "string" ? args.contextId.trim() : undefined;
   const eventId = typeof args.eventId === "string" ? args.eventId.trim() : undefined;
-  const query = typeof args.query === "string" ? args.query.trim() : undefined;
   const featureId = typeof args.id === "string" ? args.id.trim() : undefined;
 
   switch (toolName) {

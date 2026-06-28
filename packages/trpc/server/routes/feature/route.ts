@@ -13,7 +13,6 @@ import {
   appendFeatureActivity,
 } from "@repo/services/feature-request";
 import { ingestFeatureRequest, getIntakeSummary } from "@repo/services/feature-intake";
-import { checkExistingCapability } from "@repo/services/feature-education";
 import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration } from "@repo/services/inngest/dispatch";
 import { listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
@@ -29,7 +28,6 @@ import {
   getLatestAiReview,
   resolveReviewIssue,
   getIssueResolutionSummary,
-  getReviewCycleTimes,
   getReviewLoopHealth,
 } from "@repo/services/review";
 import { generateApprovalBriefing, analyzeChangeRequest, generateDeveloperOnboardingGuide } from "@repo/services/feature-ai";
@@ -795,7 +793,7 @@ export const featureRouter = router({
         notes: z.string().optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ ctx: _ctx, input }) => {
       try {
         return resolveReviewIssue(input.issueId, input.resolved, input.notes);
       } catch (error) {
@@ -814,7 +812,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ reviewId: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx: _ctx, input }) => {
       try {
         return getIssueResolutionSummary(input.reviewId);
       } catch (error) {

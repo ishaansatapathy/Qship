@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, Clock3, Loader2, Sparkles, User } from "lucide-react";
+import { Bot, Clock3, Sparkles, User } from "lucide-react";
 
 import { trpc } from "~/trpc/client";
 import { SkeletonList } from "~/components/app/skeleton-list";

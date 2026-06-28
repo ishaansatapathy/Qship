@@ -70,14 +70,6 @@ export type PrAiReviewResult = FeatureAiReview & {
   issues: PrReviewIssue[];
 };
 
-export type ReviewDelta = {
-  resolvedIssues: string[];
-  newIssues: string[];
-  persistingIssues: string[];
-  overallProgress: "improved" | "same" | "regressed";
-  iterationSummary: string;
-};
-
 // ── AI functions ───────────────────────────────────────────────────────────────
 
 /**

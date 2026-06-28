@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Settings,
@@ -15,7 +14,6 @@ import {
   Menu,
   X,
   Sun,
-  Mail,
   Rocket,
   CreditCard,
   Kanban,

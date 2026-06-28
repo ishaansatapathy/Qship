@@ -9,7 +9,7 @@
 
 import { eq, ne, and } from "@repo/database";
 import db from "@repo/database";
-import { featureRequests, engineeringTasks, aiReviews } from "@repo/database/schema";
+import { featureRequests, aiReviews } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
 import { ServiceError } from "./errors";

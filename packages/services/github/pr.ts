@@ -1,6 +1,6 @@
 import { and, eq } from "@repo/database";
 import db from "@repo/database";
-import { featureRequests, pullRequests, repositories } from "@repo/database/schema";
+import { pullRequests, repositories } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
 import { ServiceError } from "../errors";
@@ -294,16 +294,3 @@ export async function createFeaturePullRequest(input: {
   };
 }
 
-/** Returns a feature request by ID, asserting it exists in the organization. */
-async function assertFeatureInOrg(featureId: string, organizationId: string) {
-  const feature = await db.query.featureRequests.findFirst({
-    where: and(
-      eq(featureRequests.id, featureId),
-      eq(featureRequests.organizationId, organizationId),
-    ),
-  });
-  if (!feature) {
-    throw new ServiceError("NOT_FOUND", "Feature request not found");
-  }
-  return feature;
-}

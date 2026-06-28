@@ -240,7 +240,6 @@ export async function runPullRequestAiReview(pullRequestId: string) {
     featureRequestId: feature.id,
     pullRequestId: prRow.id,
     review,
-    prd: feature.prd?.content ?? null,
   });
 
   await updateFeatureMetadata(feature.id, {

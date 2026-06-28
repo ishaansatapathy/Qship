@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { and, db, eq } from "@repo/database";
+import { db, eq } from "@repo/database";
 import { organizations, repositories } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
