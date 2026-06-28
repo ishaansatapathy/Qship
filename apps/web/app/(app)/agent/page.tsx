@@ -29,6 +29,7 @@ import { AgentFocusChip, type AgentFocusState } from "~/components/app/agent-foc
 import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
 import { fromFeatureFocusId, isFeatureFocusId } from "~/lib/shipflow-focus";
 import { AgentSessionSidebar } from "~/components/app/agent-session-sidebar";
+import { TaskWalkthroughPanel } from "~/components/app/task-walkthrough-panel";
 import { SkeletonList } from "~/components/app/skeleton-list";
 import { QueryErrorState } from "~/components/app/query-error-state";
 import {
@@ -412,6 +413,11 @@ function AgentPageContent() {
   const [focus, setFocus] = useState<AgentFocusState>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [activeWalkthroughTaskId, setActiveWalkthroughTaskId] = useState("");
+  const [walkthroughExplain, setWalkthroughExplain] =
+    useState<RouterOutputs["feature"]["explainTask"]>();
+  const [walkthroughDepth, setWalkthroughDepth] = useState<"brief" | "full">("brief");
+  const walkthroughPrefetched = useRef(false);
 
   const feedRef = useRef<HTMLDivElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
@@ -438,10 +444,50 @@ function AgentPageContent() {
     refetchOnMount: "always",
   });
   const meQuery = trpc.auth.me.useQuery({});
+  const ready = status.data?.ready === true;
+
+  const walkthroughFeatureId =
+    urlWalkthrough && isFeatureFocusId(focus.contextId ?? urlContextId) ?
+      fromFeatureFocusId(focus.contextId ?? urlContextId)
+    : null;
+
+  const walkthroughStateQuery = trpc.feature.getTaskWalkthroughState.useQuery(
+    {
+      featureId: walkthroughFeatureId!,
+      currentTaskId: activeWalkthroughTaskId || undefined,
+    },
+    { enabled: Boolean(walkthroughFeatureId), staleTime: 5_000 },
+  );
+
+  const explainTaskMutation = trpc.feature.explainTask.useMutation({
+    onSuccess: (data) => setWalkthroughExplain(data),
+  });
+
+  const refreshWalkthroughExplain = useCallback(
+    async (taskId: string, depth: "brief" | "full", analyzeRepo: boolean) => {
+      if (!taskId) return;
+      setWalkthroughDepth(depth);
+      await explainTaskMutation.mutateAsync({ taskId, depth, analyzeRepo });
+    },
+    [explainTaskMutation],
+  );
+
+  useEffect(() => {
+    if (urlTaskId) setActiveWalkthroughTaskId(urlTaskId);
+  }, [urlTaskId]);
+
+  useEffect(() => {
+    walkthroughPrefetched.current = false;
+  }, [urlTaskId, urlAnalyzeRepo, walkthroughFeatureId]);
+
+  useEffect(() => {
+    if (!urlWalkthrough || !activeWalkthroughTaskId || !ready || walkthroughPrefetched.current) return;
+    walkthroughPrefetched.current = true;
+    void refreshWalkthroughExplain(activeWalkthroughTaskId, "brief", urlAnalyzeRepo);
+  }, [urlWalkthrough, activeWalkthroughTaskId, urlAnalyzeRepo, ready, refreshWalkthroughExplain]);
 
   const agentAutoApprove = approvalDefaults.data?.autoApproveAgentEmail ?? false;
   const approvalSettingsReady = !approvalDefaults.isLoading && approvalDefaults.data !== undefined;
-  const ready = status.data?.ready === true;
 
   const agentBadge = approvalSettingsReady
     ? agentAutoApprove
@@ -639,8 +685,9 @@ function AgentPageContent() {
         focusEventId: focus.eventId,
         focusContextLabel: focus.contextLabel,
         focusEventLabel: focus.eventLabel,
-        walkthroughTaskId: urlTaskId || undefined,
-        analyzeRepo: urlAnalyzeRepo || undefined,
+        walkthroughTaskId:
+          walkthroughFeatureId ? activeWalkthroughTaskId || undefined : undefined,
+        analyzeRepo: walkthroughFeatureId ? urlAnalyzeRepo || undefined : undefined,
       }),
       signal: abortController.signal,
     })
@@ -686,6 +733,10 @@ function AgentPageContent() {
                   const actions = (data.actions as ActionCard[]) ?? [];
                   const nextToolMemory = (data.toolMemory as ToolMemoryEntry[]) ?? toolMemory;
                   const focusCleared = Boolean(data.focusCleared);
+                  const nextWalkthroughTaskId =
+                    data.walkthroughTaskId === null || data.walkthroughTaskId === undefined ?
+                      activeWalkthroughTaskId
+                    : String(data.walkthroughTaskId ?? "");
 
                   setMessages((prev) => {
                     const last = prev[prev.length - 1];
@@ -701,6 +752,14 @@ function AgentPageContent() {
                   }
                   setStreamStatus(null);
                   dismissBriefFocusFromAgentActions(actions);
+
+                  if (urlWalkthrough && nextWalkthroughTaskId) {
+                    setActiveWalkthroughTaskId(nextWalkthroughTaskId);
+                    const depth =
+                      message.toLowerCase().includes("explain more") ? "full" : walkthroughDepth;
+                    void walkthroughStateQuery.refetch();
+                    void refreshWalkthroughExplain(nextWalkthroughTaskId, depth, urlAnalyzeRepo);
+                  }
 
                   const focusedContextId = focus.contextId ?? urlContextId;
                   if (
@@ -956,12 +1015,28 @@ function AgentPageContent() {
             </form>
           </div>
 
-          <ActionPanel
-            actions={lastActions}
-            agentAutoApprove={agentAutoApprove}
-            onQueueResolved={() => setLastActions([])}
-            userEmail={meQuery.data?.email}
-          />
+          <div className="qship-agent-side">
+            {walkthroughFeatureId ? (
+              <TaskWalkthroughPanel
+                state={walkthroughStateQuery.data}
+                explain={walkthroughExplain}
+                loading={walkthroughStateQuery.isLoading}
+                explaining={explainTaskMutation.isPending}
+                depth={walkthroughDepth}
+                onSelectTask={(taskId) => {
+                  setActiveWalkthroughTaskId(taskId);
+                  void refreshWalkthroughExplain(taskId, "brief", urlAnalyzeRepo);
+                }}
+              />
+            ) : null}
+
+            <ActionPanel
+              actions={lastActions}
+              agentAutoApprove={agentAutoApprove}
+              onQueueResolved={() => setLastActions([])}
+              userEmail={meQuery.data?.email}
+            />
+          </div>
         </div>
       </div>
     </div>

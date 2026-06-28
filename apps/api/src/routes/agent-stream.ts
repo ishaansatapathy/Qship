@@ -173,6 +173,11 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
 
     const persistedSessionId = sessionId;
 
+    const persistedWalkthroughTaskId =
+      result.walkthroughTaskId !== undefined ?
+        result.walkthroughTaskId ?? undefined
+      : effectiveFocus.walkthroughTaskId;
+
     if (sessionId) {
       const updated = await appendAgentSessionTurn(user.id, sessionId, {
         userMessage: message.trim(),
@@ -186,7 +191,7 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
               eventId: effectiveFocus.eventId,
               contextLabel: effectivecontextLabel,
               eventLabel: effectiveEventLabel,
-              walkthroughTaskId: effectiveFocus.walkthroughTaskId,
+              walkthroughTaskId: persistedWalkthroughTaskId,
               analyzeRepo: effectiveFocus.analyzeRepo,
             },
       });
@@ -202,6 +207,7 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
       focusCleared: result.focusCleared ?? false,
       effectiveFocus: result.effectiveFocus ?? effectiveFocus,
       toolMemory: result.toolMemory ?? effectiveToolMemory,
+      walkthroughTaskId: persistedWalkthroughTaskId ?? null,
     });
   } catch (error) {
     if (abortController.signal.aborted) return;

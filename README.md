@@ -60,7 +60,7 @@ Feature Request → Triage → Clarifying Questions → PRD → Engineering Task
       → Code (GitHub PR) → AI Review → Fix Loop → Human Approval → Ship
 ```
 
-Every stage is tracked in real time, queryable via tRPC, accessible via 33 MCP tools, and navigable through the ShipFlow Agent chat.
+Every stage is tracked in real time, queryable via tRPC, accessible via 35 MCP tools, and navigable through the ShipFlow Agent chat.
 
 ---
 
@@ -81,7 +81,7 @@ Every stage is tracked in real time, queryable via tRPC, accessible via 33 MCP t
 | **Delta re-review** | Automatic on iteration ≥ 2 | `get_review_delta`, `get_review_stats` |
 | **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
 | **Approval audit trail** | Timeline events per decision | `get_approval_history` |
-| **ShipFlow Agent** | `/agent` — 33-tool streaming copilot | `POST /agent/stream` |
+| **ShipFlow Agent** | `/agent` — 35-tool streaming copilot | `POST /agent/stream` |
 | **MCP server** | Cursor / Claude integration | `POST /mcp` — 35 tools |
 | **GitHub App connect** | `/settings` — install + repo sync | `github.*` tRPC |
 | **GitHub PR webhook** | Auto-links PRs to features | `POST /webhooks/github` |
@@ -162,7 +162,7 @@ CLIENT_URL=https://qship.ishaandev.co.in
 │        Express API (apps/api on Railway — long-lived process)      │
 │  /trpc              Type-safe tRPC procedures (all features)        │
 │  /api/*             REST — trpc-to-openapi auto-generated           │
-│  /mcp               MCP 2024-11-05 JSON-RPC — 33 ShipFlow tools    │
+│  /mcp               MCP 2024-11-05 JSON-RPC — 35 ShipFlow tools    │
 │  /agent/stream      SSE streaming agent (rate-limited, guardrailed) │
 │  /webhooks/github   GitHub App events (HMAC-SHA256 verified)       │
 │  /health  /ready    Liveness + readiness probes                    │

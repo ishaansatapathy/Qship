@@ -8,6 +8,7 @@ import { ServiceError } from "./errors";
 import type { TaskWalkthrough } from "./feature-ai";
 import { generateTaskWalkthrough } from "./feature-ai";
 import {
+  assertFeatureInUserWorkspace,
   assertTaskInUserWorkspace,
   getFeatureRequest,
   getWorkspaceProjectForUser,
@@ -154,6 +155,55 @@ export async function getNextEngineeringTaskId(
   const idx = ordered.findIndex((t) => t.id === task.id);
   if (idx < 0 || idx >= ordered.length - 1) return null;
   return ordered[idx + 1]!.id;
+}
+
+export type TaskWalkthroughState = {
+  featureId: string;
+  featureTitle: string;
+  tasks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    taskType: string | null;
+  }>;
+  currentTaskId: string | null;
+  completedCount: number;
+  totalCount: number;
+  githubConnected: boolean;
+  repository: string | null;
+};
+
+export async function getTaskWalkthroughState(
+  userId: string,
+  input: { featureId: string; currentTaskId?: string },
+): Promise<TaskWalkthroughState> {
+  const { feature } = await assertFeatureInUserWorkspace(userId, input.featureId);
+  const featureDetail = await getFeatureRequest(feature.id);
+  const ordered = orderTasks(featureDetail.tasks ?? []);
+  const currentTaskId =
+    input.currentTaskId && ordered.some((t) => t.id === input.currentTaskId) ?
+      input.currentTaskId
+    : ordered.find((t) => t.status !== "done")?.id ?? ordered[0]?.id ?? null;
+
+  const gh = await getGithubConnectionForUser(userId);
+  const repository =
+    gh.connected ? await resolveFeatureRepositoryFullName(userId, feature.id) : null;
+
+  return {
+    featureId: feature.id,
+    featureTitle: feature.title,
+    tasks: ordered.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      taskType: t.taskType,
+    })),
+    currentTaskId,
+    completedCount: ordered.filter((t) => t.status === "done").length,
+    totalCount: ordered.length,
+    githubConnected: gh.connected,
+    repository,
+  };
 }
 
 export type AdvanceTaskWalkthroughResult =

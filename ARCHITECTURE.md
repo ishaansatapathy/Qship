@@ -12,7 +12,7 @@
 │                                                                             │
 │  /brief       Pipeline overview — stage counts, next actions                │
 │  /requests    Feature hub — submit, triage, PRD, tasks, review, approve     │
-│  /agent       ShipFlow Agent — SSE streaming copilot (33 tools)             │
+│  /agent       ShipFlow Agent — SSE streaming copilot (35 tools)             │
 │  /tasks       Engineering Kanban (backlog → todo → in_progress → done)      │
 │  /analytics   Delivery metrics — throughput, cycle time, stage funnel       │
 │  /inbox       Multi-channel intake (email, support, API)                    │
@@ -81,7 +81,7 @@ shipflow-ai/
 │   ├── services/         Domain logic
 │   │   ├── feature-ai.ts          OpenAI prompts (triage, PRD, review)
 │   │   ├── review.ts              Review persistence + approval gate
-│   │   ├── shipflow-agent-tools.ts 33 tools (agent + MCP parity)
+│   │   ├── shipflow-agent-tools.ts 35 tools (agent + MCP parity)
 │   │   ├── github/                GitHub App integration
 │   │   │   ├── client.ts          Octokit + 55-min token cache
 │   │   │   ├── config.ts          Env + validation
@@ -318,7 +318,7 @@ Searches for existing `<!-- shipflow-ai-review -->` comment and **updates it in-
 
 ---
 
-## MCP server (33 tools)
+## MCP server (35 tools)
 
 Endpoint: `POST /mcp` — MCP 2024-11-05, JSON-RPC 2.0
 
@@ -338,7 +338,7 @@ Protected: `tools/call` — session cookie or `Authorization: Bearer <SHIPFLOW_M
 | Intake | `intake_from_channel`, `check_existing_capability` | 2 |
 | GitHub | `github_connection_status`, `list_github_repositories` | 2 |
 
-**Total: 33 tools**
+**Total: 35 tools**
 
 CI parity test: `packages/services/ai/tool-parity.test.ts`
 

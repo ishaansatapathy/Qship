@@ -21,7 +21,7 @@ shipflow-ai/                    # Turborepo + pnpm workspaces
 │   └── eslint-config/          # Shared ESLint flat config (incl. turbo env vars)
 ├── .github/workflows/ci.yml    # Parallel static / test / e2e jobs
 ├── turbo.json                  # Task graph + declared env vars
-└── mcp-server.json             # MCP tool manifest (33 tools, CI parity verified)
+└── mcp-server.json             # MCP tool manifest (35 tools, CI parity verified)
 ```
 
 ### Package dependency graph
@@ -85,7 +85,7 @@ BetterAuth also enforces `trustedOrigins` in `packages/auth/index.ts`.
 ## Database layer
 
 - **ORM:** Drizzle with typed schema in `packages/database/models/`
-- **Migrations:** `packages/database/drizzle/` — 42 migrations, 14 performance indexes
+- **Migrations:** `packages/database/drizzle/` — 43 migrations, 14 performance indexes
 - **Type safety:** booleans/integers (not text), SQL enums for `billing_status`, `clarification_role`
 - **Health:** `packages/database/health.ts` — `pingDatabase()`, used by `/health` and `/ready`
 - **Pool:** Configurable timeouts, Neon SSL detection in `packages/database/pg.ts`
@@ -107,7 +107,7 @@ BetterAuth also enforces `trustedOrigins` in `packages/auth/index.ts`.
 packages/services/security/trusted-origin.test.ts   # CSRF / origin validation
 packages/services/review-health.test.ts             # Review loop scoring
 packages/services/feature-analytics.test.ts         # Pipeline health derivation
-packages/services/ai/tool-parity.test.ts            # Agent ↔ MCP 33-tool parity
+packages/services/ai/tool-parity.test.ts            # Agent ↔ MCP 35-tool parity
 packages/trpc/server/error-handler.test.ts          # No stack trace leaks
 ```
 
@@ -140,7 +140,7 @@ pnpm test          # Vitest unit tests
 | Liveness | `GET /health` | `{ healthy: true, database: "ok" }` |
 | Readiness | `GET /ready` | `{ ready: true }` — requires DB |
 | Docs | `GET /docs` | Scalar OpenAPI UI |
-| MCP | `POST /mcp` | JSON-RPC `tools/list` → 33 tools |
+| MCP | `POST /mcp` | JSON-RPC `tools/list` → 35 tools |
 
 Production boot sequence (`apps/api/src/index.ts`):
 1. HTTP server starts immediately (503 until Express loads)
