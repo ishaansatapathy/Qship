@@ -78,12 +78,20 @@ export function WorkflowProgress({ featureId }: { featureId: string }) {
         {rows.slice(0, 3).map((run) => {
           const isActive = run.status === "pending" || run.status === "running";
           const isCancelled = run.error === "Cancelled by user";
+          const isFailed = run.status === "failed" && !isCancelled;
           return (
             <li key={run.id} style={{ marginBottom: 6 }}>
               <span style={{ textTransform: "capitalize" }}>{run.type.replace(/_/g, " ")}</span>
               {" · "}
-              <span>{isCancelled ? "cancelled" : run.status}</span>
+              <span style={isFailed ? { color: "#f87171" } : undefined}>
+                {isCancelled ? "cancelled" : run.status}
+              </span>
               {run.message && !isCancelled ? ` — ${run.message}` : ""}
+              {isFailed && run.error ? (
+                <div style={{ fontSize: 11, color: "#f87171", marginTop: 2, opacity: 0.9 }}>
+                  {run.error}
+                </div>
+              ) : null}
               {isActive ? (
                 <Loader2 size={12} className="qship-spin" style={{ marginLeft: 6, verticalAlign: -2 }} />
               ) : null}
