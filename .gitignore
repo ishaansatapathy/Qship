@@ -36,6 +36,10 @@ service-account*.json
 
 coverage
 
+test-results/
+
+playwright-report/
+
 
 
 # Turbo
