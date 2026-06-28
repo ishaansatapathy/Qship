@@ -1,6 +1,6 @@
 import { logger } from "@repo/logger";
 
-import { createWorkflowRun, updateWorkflowRun } from "../workflow-runs";
+import { createWorkflowRun, listWorkflowRunsForFeature, updateWorkflowRun } from "../workflow-runs";
 import { runPrdGenerationWorkflow } from "../workflows/prd-generation";
 import { runTaskGenerationWorkflow } from "../workflows/task-generation";
 import { runAiReviewWorkflow } from "../workflows/ai-review-workflow";
@@ -71,6 +71,52 @@ export async function dispatchTaskGeneration(featureId: string, _userId: string)
     { featureId, workflowRunId: run.id, userId: _userId },
     () => runTaskGenerationWorkflow({ featureId, workflowRunId: run.id }),
   );
+}
+
+const STALE_PENDING_MS = 90_000;
+
+/** Re-run background workers for workflow runs stuck in pending (e.g. Inngest never picked up). */
+export async function recoverStaleWorkflowRuns(featureId: string, userId?: string) {
+  const runs = await listWorkflowRunsForFeature(featureId);
+  const stale = runs.filter(
+    (r) =>
+      r.status === "pending" &&
+      Date.now() - r.createdAt.getTime() > STALE_PENDING_MS,
+  );
+
+  for (const run of stale) {
+    logger.warn("Recovering stale pending workflow", { workflowRunId: run.id, type: run.type });
+    switch (run.type) {
+      case "prd_generation":
+        void runPrdGenerationWorkflow({ featureId, workflowRunId: run.id }).catch((error) => {
+          logger.error("Stale PRD recovery failed", {
+            workflowRunId: run.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        });
+        break;
+      case "task_generation":
+        void runTaskGenerationWorkflow({ featureId, workflowRunId: run.id }).catch((error) => {
+          logger.error("Stale task recovery failed", {
+            workflowRunId: run.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        });
+        break;
+      case "ai_review":
+        if (userId) {
+          void runAiReviewWorkflow({ featureId, userId, workflowRunId: run.id }).catch((error) => {
+            logger.error("Stale AI review recovery failed", {
+              workflowRunId: run.id,
+              message: error instanceof Error ? error.message : String(error),
+            });
+          });
+        }
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 export async function dispatchAiReview(featureId: string, userId: string) {
