@@ -85,6 +85,20 @@ const SUGGESTIONS = [
   },
 ];
 
+const WALKTHROUGH_SUGGESTIONS = [
+  { label: "Explain more", icon: Sparkles, prompt: "Explain more — full implementation detail for this task." },
+  {
+    label: "Next task",
+    icon: CheckCircle2,
+    prompt: "Mark this task done and walk me through the next engineering task.",
+  },
+  {
+    label: "Scan repo",
+    icon: Github,
+    prompt: "Re-run explain_engineering_task with analyzeRepo=true for the current task.",
+  },
+];
+
 const SHIPFLOW_ACTION_KINDS = new Set([
   "feature_list",
   "feature_created",
@@ -383,6 +397,7 @@ function AgentPageContent() {
   const urlPrompt = deepLink.prompt;
   const urlContextId = deepLink.contextId;
   const urlEventId = deepLink.eventId;
+  const urlWalkthrough = searchParams.get("walkthrough") === "1";
   const isDeepLink = Boolean(urlPrompt);
 
   const [input, setInput] = useState("");
@@ -872,9 +887,9 @@ function AgentPageContent() {
                 </div>
               ) : null}
 
-              {!isPending && messages.length === 0 ? (
+              {!isPending && (messages.length === 0 || urlWalkthrough) ? (
                 <div className="qship-agent-suggest">
-                  {SUGGESTIONS.map((s) => (
+                  {(urlWalkthrough ? WALKTHROUGH_SUGGESTIONS : SUGGESTIONS).map((s) => (
                     <button
                       key={s.label}
                       type="button"
