@@ -4,9 +4,9 @@ import { organizations, pullRequests } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
 import type { PrReviewIssue as PrAiReviewIssue } from "../feature-ai";
-import { runFeatureAiReview, runPrAiReview } from "../feature-ai";
+import { runDeltaAiReview, runFeatureAiReview, runPrAiReview } from "../feature-ai";
 import { getFeatureRequest, updateFeatureMetadata, updateFeatureStatus } from "../feature-request";
-import { consumeAiReviewCredit, persistAiReview } from "../review";
+import { consumeAiReviewCredit, getPreviousBlockingIssues, persistAiReview } from "../review";
 import { getInstallationOctokit } from "./client";
 import { fetchPullRequestDiff } from "./diff";
 
@@ -210,17 +210,30 @@ export async function runPullRequestAiReview(pullRequestId: string) {
     });
   }
 
-  // ── Run AI review ─────────────────────────────────────────────────────────────
+  // ── Run AI review (full on iteration 1, delta-aware on subsequent) ───────────
   const taskTitles = feature.tasks?.map((t) => t.title) ?? [];
-  const review = await runPrAiReview({
-    title: feature.title,
-    rawRequest: feature.rawRequest,
-    prd: feature.prd?.content ?? null,
-    taskTitles,
-    diffText: diff.diffText,
-    prTitle: diff.title,
-    changedFiles: diff.files.map((f) => f.filename),
-  });
+  const previousReview = await getPreviousBlockingIssues(feature.id);
+
+  const review = previousReview && previousReview.blockingIssues.length > 0
+    ? await runDeltaAiReview({
+        title: feature.title,
+        rawRequest: feature.rawRequest,
+        prd: feature.prd?.content ?? null,
+        taskTitles,
+        diffText: diff.diffText,
+        prTitle: diff.title,
+        changedFiles: diff.files.map((f) => f.filename),
+        previousReview,
+      })
+    : await runPrAiReview({
+        title: feature.title,
+        rawRequest: feature.rawRequest,
+        prd: feature.prd?.content ?? null,
+        taskTitles,
+        diffText: diff.diffText,
+        prTitle: diff.title,
+        changedFiles: diff.files.map((f) => f.filename),
+      });
 
   // ── Persist review record ─────────────────────────────────────────────────────
   const { reviewId, iteration, nextStatus } = await persistAiReview({

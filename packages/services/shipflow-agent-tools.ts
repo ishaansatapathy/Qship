@@ -30,7 +30,14 @@ import {
 import { checkExistingCapability } from "./feature-education";
 import { ingestFeatureRequest, type FeatureSource } from "./feature-intake";
 import { runFeatureAiReviewWithOptionalPr } from "./github/pr-review";
-import { listAiReviewsForFeature } from "./review";
+import {
+  listAiReviewsForFeature,
+  getReviewDelta,
+  getReviewStats,
+  listHumanApprovals,
+  recordHumanApproval,
+  validateHumanApprovalEligibility,
+} from "./review";
 import {
   getGithubConnectionForUser,
   listGithubRepositoriesForUser,
@@ -211,7 +218,70 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "list_ai_reviews",
-    description: "List AI QA review iterations for a feature request with blocking/non-blocking issues.",
+    description: "List all AI QA review iterations for a feature, newest first. Shows per-iteration pass/fail, blocking issue titles, and overall progress.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "get_review_delta",
+    description: "Compare the latest two AI review iterations — which blocking issues were resolved, which persisted, and whether the review loop is progressing or regressing. Use before running a re-review to orient the developer.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "get_review_stats",
+    description: "Get aggregate AI review health statistics: iteration count, total issues, pass rate, and time spent in review. Useful for pipeline health dashboards.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID" } },
+    },
+  },
+  {
+    name: "approve_feature",
+    description: "Grant human approval for a feature — moves it to 'approved' status. Only call after the AI review has passed (use list_ai_reviews or get_review_stats to verify). Requires an optional note explaining the approval rationale.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: {
+        id: { type: "string", description: "Feature request UUID" },
+        notes: { type: "string", description: "Approval notes / sign-off rationale (recommended)" },
+      },
+    },
+  },
+  {
+    name: "reject_feature",
+    description: "Reject a feature request — moves it to 'rejected' status. Use when the feature direction is fundamentally wrong or should not be built. A clear rejection reason is required.",
+    inputSchema: {
+      type: "object",
+      required: ["id", "reason"],
+      properties: {
+        id: { type: "string", description: "Feature request UUID" },
+        reason: { type: "string", description: "Why the feature is being rejected (required — this is logged for the activity trail)" },
+      },
+    },
+  },
+  {
+    name: "request_changes",
+    description: "Request changes on a feature before approval — moves it back to 'fix_needed'. Use when the AI review passed but human review found additional issues. Must include specific change requests.",
+    inputSchema: {
+      type: "object",
+      required: ["id", "notes"],
+      properties: {
+        id: { type: "string", description: "Feature request UUID" },
+        notes: { type: "string", description: "Specific changes required before this can be approved (required)" },
+      },
+    },
+  },
+  {
+    name: "get_approval_history",
+    description: "Get the full human approval audit trail for a feature — every approve, reject, and changes_requested decision with reviewer notes and timestamps.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -644,16 +714,124 @@ export async function executeShipflowTool(
       });
       return JSON.stringify({
         featureId: id,
+        iterationCount: reviews.length,
+        latestPass: reviews[0]?.readyForHuman ?? null,
         reviews: reviews.map((r) => ({
           id: r.id,
           iteration: r.iteration,
           pass: r.readyForHuman,
           summary: r.summary,
-          issues: r.issues?.map((issue) => ({
+          blockingIssues: r.issues?.filter((i) => i.severity === "blocking").map((issue) => ({
             severity: issue.severity,
             title: issue.title,
             category: issue.category,
+            filePath: issue.filePath,
           })),
+          advisoryCount: r.issues?.filter((i) => i.severity !== "blocking").length ?? 0,
+          createdAt: r.createdAt,
+        })),
+      });
+    }
+
+    case "get_review_delta": {
+      const id = String(args.id ?? "").trim();
+      await loadAuthorizedFeature(userId, id);
+      const delta = await getReviewDelta(id);
+      if (!delta) {
+        return JSON.stringify({ featureId: id, message: "Only one review iteration exists — no delta available yet" });
+      }
+      return JSON.stringify({ featureId: id, ...delta });
+    }
+
+    case "get_review_stats": {
+      const id = String(args.id ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const stats = await getReviewStats(id);
+      actions.push({
+        kind: "ai_review",
+        title: `Review health: ${feature.title}`,
+        detail: `${stats.iterationCount} iteration(s) · ${stats.passRate}% pass rate`,
+        href: `/requests?id=${id}`,
+      });
+      return JSON.stringify({ featureId: id, ...stats });
+    }
+
+    case "approve_feature": {
+      const id = String(args.id ?? "").trim();
+      const notes = String(args.notes ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+
+      await validateHumanApprovalEligibility(id);
+
+      const result = await recordHumanApproval({
+        featureRequestId: id,
+        reviewerUserId: userId,
+        decision: "approved",
+        notes: notes || undefined,
+      });
+      actions.push({
+        kind: "feature_detail",
+        title: `Approved: ${feature.title}`,
+        detail: "approved",
+        href: `/requests?id=${id}`,
+      });
+      return JSON.stringify({ featureId: id, decision: result.decision, nextStatus: result.nextStatus, approvalId: result.id });
+    }
+
+    case "reject_feature": {
+      const id = String(args.id ?? "").trim();
+      const reason = String(args.reason ?? "").trim();
+      if (!reason) return JSON.stringify({ error: "reason is required to reject a feature" });
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const result = await recordHumanApproval({
+        featureRequestId: id,
+        reviewerUserId: userId,
+        decision: "rejected",
+        notes: reason,
+      });
+      actions.push({
+        kind: "feature_detail",
+        title: `Rejected: ${feature.title}`,
+        detail: "rejected",
+        href: `/requests?id=${id}`,
+      });
+      return JSON.stringify({ featureId: id, decision: result.decision, nextStatus: result.nextStatus, approvalId: result.id });
+    }
+
+    case "request_changes": {
+      const id = String(args.id ?? "").trim();
+      const notes = String(args.notes ?? "").trim();
+      if (!notes) return JSON.stringify({ error: "notes describing the required changes are required" });
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const result = await recordHumanApproval({
+        featureRequestId: id,
+        reviewerUserId: userId,
+        decision: "changes_requested",
+        notes,
+      });
+      actions.push({
+        kind: "feature_detail",
+        title: `Changes requested: ${feature.title}`,
+        detail: "fix_needed",
+        href: `/requests?id=${id}`,
+      });
+      return JSON.stringify({ featureId: id, decision: result.decision, nextStatus: result.nextStatus, approvalId: result.id });
+    }
+
+    case "get_approval_history": {
+      const id = String(args.id ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const approvals = await listHumanApprovals(id);
+      return JSON.stringify({
+        featureId: id,
+        featureTitle: feature.title,
+        approvalCount: approvals.length,
+        approvals: approvals.map((a) => ({
+          id: a.id,
+          decision: a.decision,
+          notes: a.notes,
+          reviewerUserId: a.reviewerUserId,
+          createdAt: a.createdAt,
         })),
       });
     }
