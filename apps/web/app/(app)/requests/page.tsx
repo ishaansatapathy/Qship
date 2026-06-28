@@ -294,7 +294,7 @@ function FeatureDetailPanel({
   const tasks = feature.tasks ?? [];
   const linkedPr = feature.pullRequests?.[0];
   const reviews = allReviews.data ?? [];
-  const latestReview = reviews[0];
+  const _latestReview = reviews[0];
   const firstRepo = repos.data?.[0];
   const education = feature.metadata?.education as
     | {

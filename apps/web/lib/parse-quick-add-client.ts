@@ -111,7 +111,7 @@ function parseTimeRange(text: string): {
   );
   if (compact) {
     let start = parseClockToken(compact[1] ?? "");
-    let end = parseClockToken(compact[2] ?? "");
+    const end = parseClockToken(compact[2] ?? "");
     if (start && end) {
       const endToken = (compact[2] ?? "").toLowerCase();
       const startToken = (compact[1] ?? "").toLowerCase();

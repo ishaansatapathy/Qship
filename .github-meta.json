@@ -35,8 +35,8 @@
     "Vitest",
     "GitHub Actions"
   ],
-  "agent_tools": 25,
-  "mcp_tools": 25,
+  "agent_tools": 33,
+  "mcp_tools": 33,
   "db_migrations": 42,
   "db_indexes": 14,
   "ci": "https://github.com/ishaansatapathy/Qship/actions",

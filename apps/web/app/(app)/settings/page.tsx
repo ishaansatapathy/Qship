@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ShieldCheck, User, CheckCircle2, LogOut, ListChecks, Unlink, Github } from "lucide-react";
+import { ShieldCheck, User, LogOut, ListChecks, Unlink, Github } from "lucide-react";
 
 import { trpc } from "~/trpc/client";
 import { useQshipUser, initials } from "~/components/app/use-qship-user";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 
 const TESTIMONIALS = [
   {
@@ -110,7 +110,7 @@ export function QshipTestimonials() {
                 <div className="qship-testimonial-highlight-ring" aria-hidden />
               )}
 
-              <div className="qship-testimonial-quote-mark">"</div>
+              <div className="qship-testimonial-quote-mark">&ldquo;</div>
 
               <p className="qship-testimonial-quote">{t.quote}</p>
 

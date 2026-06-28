@@ -5,7 +5,6 @@ import {
   aiReviews,
   humanApprovals,
   organizations,
-  type PrdContent,
 } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
@@ -15,7 +14,7 @@ import type { PrAiReviewResult } from "./feature-ai";
 
 // ── Credit management ─────────────────────────────────────────────────────────
 
-export async function getAiReviewCredits(organizationId: string): Promise<number> {
+async function getAiReviewCredits(organizationId: string): Promise<number> {
   const org = await db.query.organizations.findFirst({
     where: eq(organizations.id, organizationId),
     columns: { aiReviewCredits: true },
@@ -51,7 +50,6 @@ export async function persistAiReview(input: {
   featureRequestId: string;
   pullRequestId: string;
   review: PrAiReviewResult;
-  prd?: PrdContent | null;
 }) {
   const prior = await db.query.aiReviews.findMany({
     where: eq(aiReviews.featureRequestId, input.featureRequestId),
@@ -586,6 +584,7 @@ function buildHealthSummary(
 
   if (stats.iterationCount === 0) return "No AI review has been run yet.";
 
+  parts.push(`Health score: ${score}/100.`);
   parts.push(`${stats.iterationCount} review iteration${stats.iterationCount === 1 ? "" : "s"}.`);
 
   if (stats.latestPass) {

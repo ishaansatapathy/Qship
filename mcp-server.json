@@ -1,7 +1,7 @@
 {
   "$schema": "https://modelcontextprotocol.io/schemas/mcp-server.json",
   "name": "shipflow-mcp",
-  "description": "ShipFlow MCP — 19 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration.",
+  "description": "ShipFlow MCP — 33 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration + analytics.",
   "version": "1.0.0",
   "transport": {
     "type": "http",
@@ -87,6 +87,62 @@
     {
       "name": "get_feature_delivery",
       "description": "Delivery timeline, summary, and recommended next step for a feature."
+    },
+    {
+      "name": "get_review_delta",
+      "description": "Compare last two AI review iterations — resolved, persisting, and new issues."
+    },
+    {
+      "name": "get_review_stats",
+      "description": "Aggregate AI review statistics: pass rate, avg issues, iteration count."
+    },
+    {
+      "name": "get_review_loop_health",
+      "description": "Comprehensive review loop health score 0–100 with SLA status and cycle times."
+    },
+    {
+      "name": "resolve_review_issue",
+      "description": "Mark an individual AI review issue as resolved or reopen it, with optional notes."
+    },
+    {
+      "name": "approve_feature",
+      "description": "Grant human approval — blocked if AI has unresolved blocking issues."
+    },
+    {
+      "name": "reject_feature",
+      "description": "Reject a feature request with a required reason."
+    },
+    {
+      "name": "request_changes",
+      "description": "Request changes before approval — moves feature to fix_needed."
+    },
+    {
+      "name": "get_approval_history",
+      "description": "Full audit trail of every human approval decision for a feature."
+    },
+    {
+      "name": "get_approval_briefing",
+      "description": "AI-generated pre-approval briefing: risk level, recommendation, and specific items to verify."
+    },
+    {
+      "name": "analyze_change_request",
+      "description": "Convert PM change-request notes into structured developer action items."
+    },
+    {
+      "name": "predict_delivery_timeline",
+      "description": "Predict feature ship date from project velocity history and complexity."
+    },
+    {
+      "name": "check_pipeline_duplicates",
+      "description": "Semantically detect near-duplicate feature requests in the active pipeline."
+    },
+    {
+      "name": "get_pipeline_health",
+      "description": "Pipeline health: bottlenecks, velocity, shipped last 30 days, health label."
+    },
+    {
+      "name": "get_developer_onboarding_guide",
+      "description": "AI First-30-Minutes guide for a developer picking up an engineering task."
     },
     {
       "name": "update_engineering_task_status",
