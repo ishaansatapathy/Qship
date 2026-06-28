@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Settings,
   Search,
@@ -28,6 +28,7 @@ import { ShortcutsHelp } from "./shortcuts-help";
 import { useQshipUser, initials } from "./use-qship-user";
 import { useSyncEvents } from "~/hooks/use-sync-events";
 import { DemoBar } from "./demo-bar";
+import { signOutShipflow } from "~/lib/sign-out";
 
 const NAV = [
   { label: "Overview", href: "/brief", icon: Sun },
@@ -52,7 +53,6 @@ const PAGE_META: Record<string, { title: string; sub: string }> = {
 
 export function QshipAppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, isLoading, isError } = useQshipUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -219,7 +219,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
                 type="button"
                 className="qship-app-menu-item"
                 data-danger="true"
-                onClick={() => router.push("/")}
+                onClick={() => void signOutShipflow("/sign-in")}
               >
                 <LogOut size={14} />
                 Sign out
