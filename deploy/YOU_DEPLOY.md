@@ -17,6 +17,7 @@ pnpm db:seed
 - New project → repo `Qship` → **Root: `apps/api`**
 - **Pehle saari env vars add karo, phir Deploy** (build ke liye `DATABASE_URL` zaroori)
 - Env vars: open `deploy/vercel-api.env.template` → har line Vercel mein paste (`.env` se values)
+- **`BETTER_AUTH_SECRET` web jaisa same** — API bina iske boot nahi hota
 - Deploy → `/health` check on `*.vercel.app` URL
 
 ## 3. Vercel — Web
