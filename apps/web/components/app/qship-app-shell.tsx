@@ -219,7 +219,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
                 type="button"
                 className="qship-app-menu-item"
                 data-danger="true"
-                onClick={() => void signOutShipflow("/sign-in")}
+                onClick={() => void signOutShipflow("/")}
               >
                 <LogOut size={14} />
                 Sign out
