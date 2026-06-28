@@ -11,42 +11,24 @@
   },
 
   "include": [
-
-    "index.ts",
-
-    "errors.ts",
-
-    "workflow.ts",
-
-    "feature-request.ts",
-
-    "organization.ts",
-
-    "constants.ts",
-
-    "env.ts",
-
-    "feature-ai.ts",
-
-    "shipflow-agent-tools.ts",
-    "ensure-agent-services.ts",
-
-    "github/**/*.ts",
-
+    "*.ts",
     "ai/**/*.ts",
-
-    "inbox/**/*.ts",
-
-    "queue/**/*.ts",
-
+    "auth/**/*.ts",
+    "billing/**/*.ts",
+    "cache/**/*.ts",
     "calendar/**/*.ts",
-
-    "settings/**/*.ts",
-
+    "clients/**/*.ts",
     "contacts/**/*.ts",
-
-    "cache/**/*.ts"
-
+    "github/**/*.ts",
+    "inbox/**/*.ts",
+    "inngest/**/*.ts",
+    "observability/**/*.ts",
+    "queue/**/*.ts",
+    "settings/**/*.ts",
+    "types/**/*.ts",
+    "user/**/*.ts",
+    "validation/**/*.ts",
+    "workflows/**/*.ts"
   ],
 
   "exclude": ["node_modules"]
