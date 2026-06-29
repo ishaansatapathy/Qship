@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-import { BILLING_PLAN_LIST } from "@repo/services/billing/plans";
+import { formatPlanPrice, getVisibleBillingPlans } from "@repo/services/billing/plans";
 
 import { useQshipUser } from "~/components/app/use-qship-user";
 import { useRazorpayCheckout } from "~/components/app/use-razorpay-checkout";
@@ -118,7 +118,7 @@ export default function BillingPage() {
   });
 
   const data = summary.data;
-  const plans = data?.plans ?? BILLING_PLAN_LIST;
+  const plans = data?.plans ?? getVisibleBillingPlans();
   const activeTier = data?.planTier ?? "free";
   const checkoutReady = summary.isSuccess && Boolean(data);
   const paying = checkout.isPending || confirmPayment.isPending;
@@ -202,12 +202,13 @@ export default function BillingPage() {
                 {active ? <span className="qship-req-status-pill">Current</span> : null}
               </div>
               <p style={{ margin: "8px 0", fontSize: 28, fontWeight: 600 }}>
-                {plan.priceInr === 0
-                  ? "Free"
-                  : plan.id === "test"
-                    ? `₹${plan.priceInr}`
-                    : `₹${plan.priceInr}/mo`}
+                {formatPlanPrice(plan)}
               </p>
+              {plan.priceInr > 0 ? (
+                <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--qship-dim)" }}>
+                  One-time purchase · credits added to your workspace
+                </p>
+              ) : null}
               <ul style={{ margin: "12px 0", paddingLeft: 18, fontSize: 13, opacity: 0.85 }}>
                 {plan.features.map((f) => (
                   <li key={f}>{f}</li>
