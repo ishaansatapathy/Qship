@@ -610,12 +610,7 @@ export async function getFeatureDeliveryView(featureId: string, userId?: string)
 
   const summaryParts = [
     `"${feature.title}" is at ${statusLabel}.`,
-    hasPrd
-      ? `PRD covers ${feature.prd!.content.goals?.length ?? 0} goals and ${feature.prd!.content.acceptanceCriteria?.length ?? 0} acceptance criteria.`
-      : "No PRD yet.",
-    taskCount > 0 ? `${taskCount} engineering task(s) on the board.` : "No engineering tasks yet.",
     lastReview?.summary ? `Latest AI review: ${lastReview.summary}` : null,
-    `Suggested next step: ${nextStep}`,
   ].filter(Boolean);
 
   return {
