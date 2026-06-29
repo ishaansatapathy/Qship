@@ -9,6 +9,7 @@ export const INNGEST_EVENTS = {
   prdGenerate: "shipflow/prd.generate",
   tasksGenerate: "shipflow/tasks.generate",
   aiReview: "shipflow/ai.review",
+  codeImplement: "shipflow/code.implement",
 } as const;
 
 /**

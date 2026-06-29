@@ -4,6 +4,7 @@ import { createWorkflowRun, getActiveWorkflowOfType, listWorkflowRunsForFeature,
 import { runPrdGenerationWorkflow } from "../workflows/prd-generation";
 import { runTaskGenerationWorkflow } from "../workflows/task-generation";
 import { runAiReviewWorkflow } from "../workflows/ai-review-workflow";
+import { runCodeImplementationWorkflow } from "../workflows/code-implementation";
 
 import { inngest, INNGEST_EVENTS, isInngestCloudConfigured } from "./client";
 
@@ -154,6 +155,46 @@ export async function dispatchAiReview(featureId: string, userId: string) {
     INNGEST_EVENTS.aiReview,
     { featureId, workflowRunId: run.id, userId },
     () => runAiReviewWorkflow({ featureId, userId, workflowRunId: run.id }),
+  );
+}
+
+export async function dispatchCodeImplementation(input: {
+  featureId: string;
+  userId: string;
+  organizationId: string;
+  installationId: string;
+  repositoryId: string;
+}) {
+  const existing = await getActiveWorkflowOfType(input.featureId, "pr_processing");
+  if (existing) {
+    return { workflowRunId: existing.id, mode: "background" as const };
+  }
+
+  const run = await createWorkflowRun({
+    featureRequestId: input.featureId,
+    type: "pr_processing",
+    message: "AI code implementation queued…",
+  });
+
+  return sendOrBackground(
+    INNGEST_EVENTS.codeImplement,
+    {
+      featureId: input.featureId,
+      workflowRunId: run.id,
+      userId: input.userId,
+      organizationId: input.organizationId,
+      installationId: input.installationId,
+      repositoryId: input.repositoryId,
+    },
+    () =>
+      runCodeImplementationWorkflow({
+        featureId: input.featureId,
+        userId: input.userId,
+        organizationId: input.organizationId,
+        installationId: input.installationId,
+        repositoryId: input.repositoryId,
+        workflowRunId: run.id,
+      }),
   );
 }
 

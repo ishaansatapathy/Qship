@@ -35,6 +35,7 @@ import { checkExistingCapability } from "./feature-education";
 import { ingestFeatureRequest, type FeatureSource } from "./feature-intake";
 import {
   dispatchAiReview,
+  dispatchCodeImplementation,
   dispatchPrdGeneration,
   dispatchTaskGeneration,
 } from "./inngest/dispatch";
@@ -129,11 +130,24 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "generate_feature_tasks",
-    description: "Break a PRD into engineering tasks and move the feature to planning.",
+    description: "Break a PRD into engineering tasks via the orchestrated workflow engine.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: { id: { type: "string", description: "Feature request UUID (must have PRD)" } },
+    },
+  },
+  {
+    name: "implement_feature_code",
+    description:
+      "Generate real implementation code with AI, commit files to the feature GitHub branch, and open a pull request. Requires PRD, tasks, and a linked repository.",
+    inputSchema: {
+      type: "object",
+      required: ["id", "repositoryId"],
+      properties: {
+        id: { type: "string", description: "Feature request UUID" },
+        repositoryId: { type: "string", description: "Linked GitHub repository ID in workspace" },
+      },
     },
   },
   {
@@ -650,6 +664,47 @@ export async function executeShipflowTool(
         workflowRunId: dispatch.workflowRunId,
         mode: dispatch.mode,
         message: "Task generation queued via workflow engine",
+      });
+    }
+
+    case "implement_feature_code": {
+      const id = String(args.id ?? "").trim();
+      const repositoryId = String(args.repositoryId ?? "").trim();
+      if (!repositoryId) return JSON.stringify({ error: "repositoryId is required" });
+
+      const { feature, ws } = await loadAuthorizedFeature(userId, id);
+      if (!feature.prd?.content) {
+        return JSON.stringify({ error: "Generate a PRD first (generate_feature_prd)" });
+      }
+      if (!feature.tasks?.length) {
+        return JSON.stringify({ error: "Generate tasks first (generate_feature_tasks)" });
+      }
+
+      const gh = await getGithubConnectionForUser(userId);
+      if (!gh.connected || !gh.installationId) {
+        return JSON.stringify({ error: "Connect GitHub in Settings first" });
+      }
+
+      const dispatch = await dispatchCodeImplementation({
+        featureId: id,
+        userId,
+        organizationId: ws.organization.id,
+        installationId: gh.installationId,
+        repositoryId,
+      });
+
+      actions.push({
+        kind: "feature_detail",
+        title: `Implementing: ${feature.title}`,
+        detail: "AI code generation queued",
+        href: `/requests?id=${id}`,
+      });
+
+      return JSON.stringify({
+        featureId: id,
+        workflowRunId: dispatch.workflowRunId,
+        mode: dispatch.mode,
+        message: "Code implementation queued — commits + PR will open when complete",
       });
     }
 
