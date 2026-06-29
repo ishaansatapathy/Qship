@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Check, CreditCard, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -9,21 +10,65 @@ import { useQshipUser } from "~/components/app/use-qship-user";
 import { useRazorpayCheckout } from "~/components/app/use-razorpay-checkout";
 import { trpc } from "~/trpc/client";
 
+const PENDING_PAYMENT_KEY = "qship-pending-payment";
+
+type PendingPayment = {
+  planTier: "test" | "pro" | "enterprise";
+  orderId: string;
+  paymentId: string;
+  signature: string;
+};
+
+function readPendingPayment(): PendingPayment | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(PENDING_PAYMENT_KEY);
+    return raw ? (JSON.parse(raw) as PendingPayment) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function BillingPage() {
   const utils = trpc.useUtils();
   const { user } = useQshipUser();
   const { ready: razorpayReady, openCheckout } = useRazorpayCheckout();
+  const pendingPaymentRef = useRef<PendingPayment | null>(null);
   const summary = trpc.billing.summary.useQuery(
     {},
     { retry: 1, refetchOnWindowFocus: false },
   );
+
   const confirmPayment = trpc.billing.confirmPayment.useMutation({
     onSuccess: async (result) => {
+      sessionStorage.removeItem(PENDING_PAYMENT_KEY);
+      pendingPaymentRef.current = null;
       toast.success(`Upgraded to ${result.planName}`);
       await utils.billing.summary.invalidate();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e, variables) => {
+      toast.error(e.message, {
+        action: {
+          label: "Retry activation",
+          onClick: () => confirmPayment.mutate(variables),
+        },
+      });
+    },
   });
+
+  useEffect(() => {
+    const pending = readPendingPayment();
+    if (!pending) return;
+    pendingPaymentRef.current = pending;
+    toast.message("Payment received — tap Retry activation if your plan did not update.", {
+      action: {
+        label: "Retry activation",
+        onClick: () => confirmPayment.mutate(pending),
+      },
+    });
+    // Only prompt once on page load for a stored pending payment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const checkout = trpc.billing.createCheckout.useMutation({
     onSuccess: async (result) => {
       if (result.mode === "demo") {
@@ -51,12 +96,15 @@ export default function BillingPage() {
           },
           theme: { color: "#dc2626" },
           handler: (response) => {
-            confirmPayment.mutate({
+            const payload: PendingPayment = {
               planTier: result.planTier as "test" | "pro" | "enterprise",
               orderId: response.razorpay_order_id,
               paymentId: response.razorpay_payment_id,
               signature: response.razorpay_signature,
-            });
+            };
+            pendingPaymentRef.current = payload;
+            sessionStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify(payload));
+            confirmPayment.mutate(payload);
           },
           modal: {
             ondismiss: () => toast.message("Checkout closed"),
