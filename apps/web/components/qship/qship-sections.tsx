@@ -332,7 +332,6 @@ export function QshipFooter() {
     <footer className="qship-shell">
       <div className="qship-frame qship-footer">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <QshipLogoMark size={22} />
           <QshipWordmark size="sm" />
           <span style={{ color: "var(--qship-line)" }}>|</span>
           <Github size={14} style={{ opacity: 0.4 }} />

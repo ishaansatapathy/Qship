@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Github, ArrowRight, Menu, X } from "lucide-react";
-import { QshipLogoMark, QshipWordmark } from "./qship-logo";
+import { QshipWordmark } from "./qship-logo";
 import { useQshipAuth } from "./qship-auth-provider";
 import { useQshipUser } from "~/components/app/use-qship-user";
 
@@ -43,7 +43,6 @@ export function QshipNav() {
           className="qship-nav-brand"
           onClick={closeMenu}
         >
-          <QshipLogoMark size={26} />
           <QshipWordmark size="sm" />
         </Link>
 

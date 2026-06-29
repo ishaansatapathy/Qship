@@ -19,13 +19,13 @@ const qshipHero = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "ShipFlow — AI-assisted product delivery",
+  title: "Qship — AI-assisted product delivery",
   description:
-    "Feature request to PRD, engineering tasks, GitHub PRs, AI QA review, human approval, and ship — built for ChaiCode.",
+    "Feature request to PRD, engineering tasks, GitHub PRs, AI QA review, human approval, and ship.",
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [{ url: "/qship-icon.png", type: "image/png" }],
+    shortcut: "/qship-icon.png",
+    apple: "/apple-icon.png",
   },
 };
 
@@ -50,7 +50,7 @@ export default function RootLayout({
             __html: "html,body{background:#020202!important;color:#fff}",
           }}
         />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/qship-icon.png" type="image/png" />
         <meta
           name="google-site-verification"
           content="0-M21tVL5Opq0r0Ibk-8iE3aISFbUUgT3npGo7Lcu9A"

@@ -11,24 +11,28 @@ const heights = { sm: 32, md: 40, lg: 52 } as const;
 
 export function QshipLogo({ href = "/", size = "md", showWordmark = true }: QshipLogoProps) {
   const h = heights[size];
+  const wordmarkWidth = Math.round(h * (406 / 156));
 
-  const content = (
-    <span className="inline-flex items-center gap-2.5">
-      <Image
-        src="/mascot-standing.png"
-        alt="Qship"
-        width={h}
-        height={h}
-        className="object-contain"
-        priority
-      />
-      {showWordmark && (
-        <span className="font-bold italic tracking-tight" style={{ fontSize: h * 0.55 }}>
-          <span className="text-[#e31e24]">Q</span>
-          <span className="text-white">ship</span>
-        </span>
-      )}
-    </span>
+  const content = showWordmark ? (
+    <Image
+      src="/qship-logo.png"
+      alt="Qship"
+      width={wordmarkWidth}
+      height={h}
+      className="object-contain"
+      style={{ width: wordmarkWidth, height: h }}
+      priority
+    />
+  ) : (
+    <Image
+      src="/qship-icon.png"
+      alt="Qship"
+      width={h}
+      height={h}
+      className="object-contain"
+      style={{ width: h, height: h }}
+      priority
+    />
   );
 
   if (!href) return content;
