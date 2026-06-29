@@ -14,7 +14,7 @@ export class AgentTrace {
     meta?: Record<string, unknown>;
   }> = [];
 
-  constructor(traceId = crypto.randomUUID()) {
+  constructor(traceId: string = crypto.randomUUID()) {
     this.traceId = traceId;
   }
 

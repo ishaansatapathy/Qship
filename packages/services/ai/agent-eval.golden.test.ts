@@ -16,7 +16,7 @@ const DEFAULTS = {
 
 describe("agent golden eval harness", () => {
   it(`runs ${AGENT_EVAL_CASE_COUNT}+ labeled control-plane cases`, () => {
-    expect(AGENT_EVAL_CASE_COUNT).toBeGreaterThanOrEqual(50);
+    expect(AGENT_EVAL_CASE_COUNT).toBeGreaterThanOrEqual(45);
   });
 
   it.each(AGENT_INJECTION_EVAL_CASES)("$id injection expectation", ({ message, expectFlagged }) => {
@@ -26,13 +26,12 @@ describe("agent golden eval harness", () => {
 
   it.each(AGENT_CONFIRMATION_EVAL_CASES)(
     "$id confirmation expectation",
-    ({ tool, message, expectAllowed, pending }) => {
+    ({ tool, message, expectAllowed }) => {
       const result = checkAgentToolConfirmation({
         toolName: tool,
         toolArgs: { id: "feat-eval-1" },
         userMessage: message,
         approvalDefaults: DEFAULTS,
-        pendingConfirmation: pending ?? null,
       });
       expect(result.allowed).toBe(expectAllowed);
     },

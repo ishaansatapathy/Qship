@@ -2,7 +2,7 @@ import { logger } from "@repo/logger";
 import { ServiceError } from "../errors";
 import { isOpenAiConfigured } from "./openai";
 import type { OpenAiConversationMessage } from "./openai-tools";
-import { runOpenAiToolLoop } from "./openai-tools";
+import { runOpenAiToolLoop, MAX_TOOL_ROUNDS } from "./openai-tools";
 import {
   detectInjectionAttempt,
   estimateTokenCount,
@@ -13,7 +13,6 @@ import { buildToolExecutor } from "./agent-executor";
 import { createToolMemoryTracker, loadAgentApprovalDefaults, prepareAgentRun, trimAgentHistory } from "./agent-run";
 import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
-import type { AgentPendingConfirmation } from "./agent-pending-confirm";
 import { AgentTrace } from "./agent-trace";
 
 export type AgentHistoryMessage = {
@@ -57,7 +56,6 @@ export type AgentChatResult = {
   newToolMemoryEntries?: import("./agent-tool-memory").AgentToolMemoryEntry[];
   /** Updated when walkthrough tools advance or explain a new task. */
   walkthroughTaskId?: string | null;
-  pendingConfirmation?: AgentPendingConfirmation | null;
   traceId?: string;
   traceSpans?: ReturnType<AgentTrace["toSpans"]>;
 };
@@ -74,7 +72,6 @@ export async function runAgentChat(
     userEmail?: string;
     focus?: AgentFocus;
     toolMemory?: import("./agent-tool-memory").AgentToolMemoryEntry[];
-    pendingConfirmation?: AgentPendingConfirmation | null;
   },
 ): Promise<AgentChatResult> {
   if (!isOpenAiConfigured()) {
@@ -113,7 +110,6 @@ export async function runAgentChat(
   const actions: AgentActionCard[] = [];
   const approvalDefaults = await loadAgentApprovalDefaults(tenantId);
   const trace = new AgentTrace();
-  let pendingConfirmation = input.pendingConfirmation ?? null;
 
   const prepared = await prepareAgentRun(tenantId, input, approvalDefaults);
   const memoryTracker = createToolMemoryTracker(prepared, input.toolMemory ?? []);
@@ -123,10 +119,6 @@ export async function runAgentChat(
     actions,
     userMessage: input.message.trim(),
     approvalDefaults,
-    pendingConfirmation,
-    onPendingChange: (next) => {
-      pendingConfirmation = next;
-    },
     trace,
   });
 
@@ -143,7 +135,7 @@ export async function runAgentChat(
   ];
 
   const { content } = await runOpenAiToolLoop(messages, AGENT_TOOLS, executeTool, {
-    maxRounds: 6,
+    maxRounds: MAX_TOOL_ROUNDS,
     timeoutMs: 120_000,
   });
 
@@ -152,7 +144,6 @@ export async function runAgentChat(
     tenantId,
     toolCalls: memoryTracker.getNewEntries().length,
     focusCleared: prepared.focusCleared,
-    hasPendingConfirmation: Boolean(pendingConfirmation),
   });
 
   return {
@@ -162,7 +153,6 @@ export async function runAgentChat(
     effectiveFocus: prepared.effectiveFocus,
     toolMemory: memoryTracker.getMergedMemory(),
     newToolMemoryEntries: memoryTracker.getNewEntries(),
-    pendingConfirmation,
     traceId: trace.traceId,
     traceSpans: trace.toSpans(),
   };

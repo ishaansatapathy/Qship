@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { createPendingConfirmation } from "./agent-pending-confirm";
 import { AGENT_CONFIRMATION_TOOLS, checkAgentToolConfirmation } from "./agent-tool-confirm";
 
 const DEFAULTS = {
@@ -19,7 +18,7 @@ describe("checkAgentToolConfirmation", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("blocks destructive tools when user did not confirm", () => {
+  it("blocks sensitive tools on unrelated user messages when auto-approve is off", () => {
     const result = checkAgentToolConfirmation({
       toolName: "generate_feature_prd",
       toolArgs: { id: "feat-1" },
@@ -27,12 +26,9 @@ describe("checkAgentToolConfirmation", () => {
       approvalDefaults: DEFAULTS,
     });
     expect(result.allowed).toBe(false);
-    if (!result.allowed) {
-      expect(result.setPending?.tool).toBe("generate_feature_prd");
-    }
   });
 
-  it("allows destructive tools when user explicitly requests the action", () => {
+  it("allows sensitive tools when user explicitly requests the action", () => {
     const result = checkAgentToolConfirmation({
       toolName: "generate_feature_prd",
       toolArgs: { id: "feat-1" },
@@ -42,23 +38,14 @@ describe("checkAgentToolConfirmation", () => {
     expect(result).toMatchObject({ allowed: true, reason: "explicit_intent" });
   });
 
-  it("requires pending action for affirmative follow-up", () => {
-    const withoutPending = checkAgentToolConfirmation({
+  it("does not require a second yes/go-ahead turn", () => {
+    const result = checkAgentToolConfirmation({
       toolName: "run_ai_review",
       toolArgs: { id: "feat-1" },
       userMessage: "yes go ahead",
       approvalDefaults: DEFAULTS,
     });
-    expect(withoutPending.allowed).toBe(false);
-
-    const withPending = checkAgentToolConfirmation({
-      toolName: "run_ai_review",
-      toolArgs: { id: "feat-1" },
-      userMessage: "yes go ahead",
-      approvalDefaults: DEFAULTS,
-      pendingConfirmation: createPendingConfirmation("run_ai_review", { id: "feat-1" }),
-    });
-    expect(withPending).toMatchObject({ allowed: true, reason: "affirmative" });
+    expect(result.allowed).toBe(false);
   });
 
   it("allows all confirmation tools when auto-approve is enabled", () => {

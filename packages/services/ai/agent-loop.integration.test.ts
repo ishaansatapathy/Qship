@@ -10,7 +10,7 @@ vi.mock("./openai", () => ({
 
 const DEFAULTS: ApprovalDefaults = {
   autoApproveEmail: false,
-  autoApproveAgentEmail: false,
+  autoApproveAgentEmail: true,
   autoApproveCalendar: false,
 };
 
@@ -26,6 +26,7 @@ const MOCK_TOOLS = new Set([
 
 vi.mock("./openai-tools", () => ({
   runOpenAiToolLoop: vi.fn(),
+  MAX_TOOL_ROUNDS: 8,
 }));
 
 vi.mock("../shipflow-agent-tools", async (importOriginal) => {
@@ -49,7 +50,6 @@ function registerDefaults(overrides?: Partial<ApprovalDefaults>) {
 async function runTrajectory(
   userMessage: string,
   tools: Array<{ name: string; args?: Record<string, unknown> }>,
-  opts?: { pendingConfirmation?: import("./agent-pending-confirm").AgentPendingConfirmation | null },
 ) {
   const { runOpenAiToolLoop } = await import("./openai-tools");
   vi.mocked(runOpenAiToolLoop).mockImplementationOnce(
@@ -64,7 +64,6 @@ async function runTrajectory(
 
   return runAgentChat("user-1", {
     message: userMessage,
-    pendingConfirmation: opts?.pendingConfirmation ?? null,
   });
 }
 
@@ -80,7 +79,8 @@ describe("runAgentChat golden trajectories", () => {
     expect(result.reply).not.toContain("confirmationRequired");
   });
 
-  it("trajectory: blocks PRD generation without explicit intent", async () => {
+  it("trajectory: blocks PRD generation without explicit intent when auto-approve is off", async () => {
+    registerDefaults({ autoApproveAgentEmail: false });
     const result = await runTrajectory("what needs attention in the pipeline?", [
       { name: "generate_feature_prd", args: { id: "feat-1" } },
     ]);
@@ -88,6 +88,7 @@ describe("runAgentChat golden trajectories", () => {
   });
 
   it("trajectory: allows PRD when user explicitly requests it", async () => {
+    registerDefaults({ autoApproveAgentEmail: false });
     const result = await runTrajectory("generate a PRD for this feature", [
       { name: "generate_feature_prd", args: { id: "feat-1" } },
     ]);
@@ -95,27 +96,13 @@ describe("runAgentChat golden trajectories", () => {
     expect(result.reply).not.toContain("confirmationRequired");
   });
 
-  it("trajectory: allows AI review after affirmative follow-up with pending action", async () => {
-    const pending = {
-      id: "pending-1",
-      tool: "run_ai_review",
-      args: { id: "feat-1" },
-      label: "Run AI review (feat-1)",
-      proposedAt: new Date().toISOString(),
-    };
-
-    const result = await runTrajectory("yes go ahead", [{ name: "run_ai_review", args: { id: "feat-1" } }], {
-      pendingConfirmation: pending,
-    });
-    expect(result.reply).toContain('"tool":"run_ai_review"');
+  it("trajectory: runs delivery tools immediately with default auto-approve", async () => {
+    const result = await runTrajectory("hello", [{ name: "generate_feature_tasks", args: { id: "feat-1" } }]);
+    expect(result.reply).toContain('"tool":"generate_feature_tasks"');
   });
 
-  it("trajectory: blocks affirmative without pending action", async () => {
-    const result = await runTrajectory("yes go ahead", [{ name: "run_ai_review", args: { id: "feat-1" } }]);
-    expect(result.reply).toContain("confirmationRequired");
-  });
-
-  it("trajectory: blocks ship without explicit ship intent", async () => {
+  it("trajectory: blocks ship without explicit ship intent when auto-approve is off", async () => {
+    registerDefaults({ autoApproveAgentEmail: false });
     const result = await runTrajectory("what is the delivery status?", [
       { name: "ship_feature", args: { id: "feat-1" } },
     ]);
@@ -123,13 +110,14 @@ describe("runAgentChat golden trajectories", () => {
   });
 
   it("trajectory: allows ship when user explicitly asks", async () => {
+    registerDefaults({ autoApproveAgentEmail: false });
     const result = await runTrajectory("ship this feature to production", [
       { name: "ship_feature", args: { id: "feat-1" } },
     ]);
     expect(result.reply).toContain('"tool":"ship_feature"');
   });
 
-  it("trajectory: auto-approve setting bypasses confirmation gate", async () => {
+  it("trajectory: auto-approve setting bypasses intent gate", async () => {
     registerDefaults({ autoApproveAgentEmail: true });
     const result = await runTrajectory("hello", [{ name: "generate_feature_tasks", args: { id: "feat-1" } }]);
     expect(result.reply).toContain('"tool":"generate_feature_tasks"');

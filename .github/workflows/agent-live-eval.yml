@@ -1,0 +1,47 @@
+name: Agent live eval
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  live-eval:
+    name: Live LLM golden turns
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # secrets context is not allowed in job-level `if` — check in a step instead.
+      - name: Check OpenAI API key
+        id: openai
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::OPENAI_API_KEY secret not set — skipping live LLM eval."
+          fi
+
+      - name: Run live agent eval (10 golden turns)
+        if: steps.openai.outputs.configured == 'true'
+        run: pnpm --filter @repo/services exec vitest run ai/agent-live-eval.test.ts
+        env:
+          AGENT_LIVE_EVAL: "1"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4o-mini
