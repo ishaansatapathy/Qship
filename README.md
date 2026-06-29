@@ -229,7 +229,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 │ tasks, reviews,      │      ├────────────────────────────────────┤
 │ approvals, GitHub,   │      │  GitHub App (Octokit)              │
 │ agent sessions       │      │  Install, repo sync, PR webhooks,  │
-│ 43 migrations        │      │  AI review comments, token cache   │
+│ 50 migrations        │      │  AI review comments, token cache   │
 │ 14 performance idx   │      │                                    │
 └───────────────────────┘      └────────────────────────────────────┘
 ```
@@ -255,7 +255,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 | **Frontend** | Next.js 16, React 19, custom Qship design system |
 | **API** | Express, tRPC v11, trpc-to-openapi, Scalar |
 | **Auth** | BetterAuth — Google OAuth, email/password, demo login |
-| **Database** | PostgreSQL 16 + Drizzle ORM — 43 migrations, 14 perf indexes |
+| **Database** | PostgreSQL 16 + Drizzle ORM — 50 migrations, 14 perf indexes |
 | **AI** | OpenAI `gpt-4o-mini` — triage, PRD, tasks, 9-dim PR review, delta re-review |
 | **MCP** | MCP 2024-11-05 — 37 tools, JSON-RPC 2.0, CI parity test |
 | **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |

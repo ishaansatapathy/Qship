@@ -4,7 +4,11 @@ import type { Request, Response } from "express";
 import { logger } from "@repo/logger";
 import { ServiceError } from "@repo/services/errors";
 import { isProductionEnv } from "@repo/services/runtime-env";
-import { isGithubWebhookConfigured, verifyGithubWebhookSignature } from "@repo/services/github";
+import {
+  isGithubWebhookConfigured,
+  verifyGithubWebhookSignature,
+  enqueueGithubWebhookRetry,
+} from "@repo/services/github";
 import {
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
@@ -95,11 +99,27 @@ export async function handleGithubWebhook(req: Request, res: Response) {
 
     return res.status(200).json(result);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     logger.error("webhook.github.handler_error", {
       event,
       deliveryId,
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
     });
+
+    if (event === "pull_request" || event === "installation" || event === "installation_repositories") {
+      await enqueueGithubWebhookRetry({
+        deliveryId,
+        eventType: event,
+        payload: body,
+        error: message,
+      }).catch((enqueueError) => {
+        logger.error("webhook.outbox.enqueue_failed", {
+          deliveryId,
+          error: enqueueError instanceof Error ? enqueueError.message : String(enqueueError),
+        });
+      });
+    }
+
     return res.status(500).json({ error: "Internal webhook processing error" });
   }
 }

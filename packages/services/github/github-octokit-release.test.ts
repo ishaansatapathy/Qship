@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockPullsGet = vi.fn();
-const mockPullsMerge = vi.fn();
-const mockUpdate = vi.fn(() => ({
-  set: vi.fn(() => ({ where: vi.fn(async () => ({})) })),
+const octokitMocks = vi.hoisted(() => ({
+  mockPullsGet: vi.fn(),
+  mockPullsMerge: vi.fn(),
+  mockUpdate: vi.fn(() => ({
+    set: vi.fn(() => ({ where: vi.fn(async () => ({})) })),
+  })),
 }));
 
 vi.mock("./client", () => ({
   getInstallationOctokit: vi.fn(() => ({
     rest: {
       pulls: {
-        get: (...args: unknown[]) => mockPullsGet(...args),
-        merge: (...args: unknown[]) => mockPullsMerge(...args),
+        get: (...args: unknown[]) => octokitMocks.mockPullsGet(...args),
+        merge: (...args: unknown[]) => octokitMocks.mockPullsMerge(...args),
       },
     },
   })),
@@ -38,7 +40,7 @@ vi.mock("@repo/database", async (importOriginal) => {
   return {
     ...actual,
     default: {
-      update: (...args: unknown[]) => mockUpdate(...args),
+      update: octokitMocks.mockUpdate,
     },
   };
 });
@@ -48,10 +50,10 @@ import { executeFeatureRelease } from "./release-ship";
 describe("executeFeatureRelease Octokit contract", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPullsGet.mockResolvedValue({
+    octokitMocks.mockPullsGet.mockResolvedValue({
       data: { merged: false, state: "open", html_url: "https://github.com/acme/core/pull/7" },
     });
-    mockPullsMerge.mockResolvedValue({ data: { merged: true, message: "Pull Request successfully merged" } });
+    octokitMocks.mockPullsMerge.mockResolvedValue({ data: { merged: true, message: "Pull Request successfully merged" } });
     delete process.env.SHIP_DEPLOY_WEBHOOK_URL;
   });
 
@@ -62,12 +64,12 @@ describe("executeFeatureRelease Octokit contract", () => {
       installationId: "inst-99",
     });
 
-    expect(mockPullsGet).toHaveBeenCalledWith({
+    expect(octokitMocks.mockPullsGet).toHaveBeenCalledWith({
       owner: "acme",
       repo: "core",
       pull_number: 7,
     });
-    expect(mockPullsMerge).toHaveBeenCalledWith(
+    expect(octokitMocks.mockPullsMerge).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: "acme",
         repo: "core",
@@ -77,11 +79,11 @@ describe("executeFeatureRelease Octokit contract", () => {
     );
     expect(result.merge.merged).toBe(true);
     expect(result.merge.prNumber).toBe(7);
-    expect(mockUpdate).toHaveBeenCalled();
+    expect(octokitMocks.mockUpdate).toHaveBeenCalled();
   });
 
   it("reports already_merged when GitHub PR is merged", async () => {
-    mockPullsGet.mockResolvedValueOnce({
+    octokitMocks.mockPullsGet.mockResolvedValueOnce({
       data: { merged: true, state: "closed", html_url: "https://github.com/acme/core/pull/7" },
     });
 
@@ -91,7 +93,7 @@ describe("executeFeatureRelease Octokit contract", () => {
       installationId: "inst-99",
     });
 
-    expect(mockPullsMerge).not.toHaveBeenCalled();
+    expect(octokitMocks.mockPullsMerge).not.toHaveBeenCalled();
     expect(result.merge.merged).toBe(true);
     expect(result.merge.reason).toBe("already_merged");
   });

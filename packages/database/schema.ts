@@ -8,6 +8,7 @@ export * from "./models/prd";
 export * from "./models/task";
 export * from "./models/github";
 export * from "./models/github-webhook";
+export * from "./models/github-webhook-outbox";
 export * from "./models/review";
 export * from "./models/workflow";
 export * from "./models/agent-chat-session";

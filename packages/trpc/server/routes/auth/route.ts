@@ -1,8 +1,10 @@
+import { TRPCError } from "@trpc/server";
+
 import { getEnabledAuthProviders } from "@repo/auth";
 import { getSettingsService } from "@repo/services/settings";
 
 import { z, zodUndefinedModel } from "../../schema";
-import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
+import { mapServiceError, protectedProcedure, mutationProcedure, publicProcedure, router } from "../../trpc";
 
 /** ShipFlow session — BetterAuth handles sign-in on the web app. */
 export const authRouter = router({
@@ -42,10 +44,12 @@ export const authRouter = router({
       email: ctx.user.email,
     })),
 
-  toggle2FA: protectedProcedure
+  toggle2FA: mutationProcedure
     .input(z.object({ enabled: z.boolean() }))
-    .mutation(({ input }) => ({
-      enabled: input.enabled,
-      message: input.enabled ? "Two-factor authentication enabled" : "Two-factor authentication disabled",
-    })),
+    .mutation(() => {
+      throw new TRPCError({
+        code: "NOT_IMPLEMENTED",
+        message: "Two-factor authentication is not available yet.",
+      });
+    }),
 });

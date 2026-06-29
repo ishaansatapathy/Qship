@@ -1,7 +1,9 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { ensureShipflowAgentServices } from "@repo/services/ensure-agent-services";
 import { getSettingsService } from "@repo/services/settings";
+import { isLegacyUiStubsEnabled } from "@repo/services/runtime-env";
 
 import { protectedProcedure, router } from "../../trpc";
 import {
@@ -24,13 +26,24 @@ const queueItemReturn = emptyQueueItem();
 
 const noopQueueItem = async () => queueItemReturn;
 
+/** Legacy Gmail/calendar stubs — disabled in production (404). */
+const legacyProcedure = protectedProcedure.use(({ next }) => {
+  if (!isLegacyUiStubsEnabled()) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Legacy endpoint is not available in this environment.",
+    });
+  }
+  return next();
+});
+
 /** Keeps legacy dashboard pages alive without Gmail backend. */
 export const inboxRouter = router({
-  connectionStatus: protectedProcedure.input(connectionInput).output(out).query(() => ({
+  connectionStatus: legacyProcedure.input(connectionInput).output(out).query(() => ({
     gmail: "not_connected" as ConnectionState,
   })),
 
-  listMail: protectedProcedure
+  listMail: legacyProcedure
     .input(
       z
         .object({
@@ -47,57 +60,57 @@ export const inboxRouter = router({
       stale: false,
     })),
 
-  listCachedMail: protectedProcedure
+  listCachedMail: legacyProcedure
     .input(z.object({ limit: z.number().optional(), query: z.string().optional() }).passthrough())
     .output(out).query(() => ({ items: [] as Array<Record<string, unknown>>, stale: false })),
 
-  listDrafts: protectedProcedure
+  listDrafts: legacyProcedure
     .input(z.object({ maxResults: z.number().optional(), pageToken: z.string().optional() }).passthrough())
     .output(out).query(() => ({ drafts: [] as Array<Record<string, unknown>>, nextPageToken: undefined as string | undefined })),
 
-  getMailItem: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).query(() => null),
+  getMailItem: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).query(() => null),
 
-  listLabels: protectedProcedure.input(connectionInput).output(out).query(() => ({ labels: [] as Array<Record<string, unknown>> })),
+  listLabels: legacyProcedure.input(connectionInput).output(out).query(() => ({ labels: [] as Array<Record<string, unknown>> })),
 
-  searchMailDb: protectedProcedure
+  searchMailDb: legacyProcedure
     .input(z.object({ query: z.string().optional(), limit: z.number().optional() }).passthrough())
     .output(out).query(() => ({ items: [] as Array<Record<string, unknown>> })),
 
-  markMailRead: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  starMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  unstarMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  markImportant: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  markNotImportant: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  trashMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  muteMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  unmuteMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  archiveMail: protectedProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  applyLabel: protectedProcedure
+  markMailRead: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  starMail: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  unstarMail: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  markImportant: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  markNotImportant: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  trashMail: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  muteMail: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  unmuteMail: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  archiveMail: legacyProcedure.input(z.object({ contextId: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  applyLabel: legacyProcedure
     .input(z.object({ contextId: z.string(), labelId: z.string() }).passthrough())
     .output(out).mutation(noopQueueItem),
-  removeLabel: protectedProcedure
+  removeLabel: legacyProcedure
     .input(z.object({ contextId: z.string(), labelId: z.string() }).passthrough())
     .output(out).mutation(noopQueueItem),
-  createLabel: protectedProcedure.input(z.object({ name: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  disconnectGmail: protectedProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
+  createLabel: legacyProcedure.input(z.object({ name: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  disconnectGmail: legacyProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
 
-  batchModifyMail: protectedProcedure
+  batchModifyMail: legacyProcedure
     .input(z.object({ contextIds: z.array(z.string()) }).passthrough())
     .output(out)
     .mutation(noopQueueItem),
 
-  getDraft: protectedProcedure
+  getDraft: legacyProcedure
     .input(z.object({ draftId: z.string() }).passthrough())
     .output(out)
     .query(() => null),
 });
 
 export const calendarRouter = router({
-  connectionStatus: protectedProcedure.input(connectionInput).output(out).query(() => ({
+  connectionStatus: legacyProcedure.input(connectionInput).output(out).query(() => ({
     googlecalendar: "not_connected" as ConnectionState,
   })),
 
-  listEvents: protectedProcedure
+  listEvents: legacyProcedure
     .input(
       z
         .object({
@@ -110,50 +123,50 @@ export const calendarRouter = router({
     )
     .output(out).query(() => ({ events: [] as Array<Record<string, unknown>>, nextPageToken: undefined as string | undefined })),
 
-  searchEventsDb: protectedProcedure
+  searchEventsDb: legacyProcedure
     .input(z.object({ query: z.string(), limit: z.number().optional() }).passthrough())
     .output(out).query(() => ({ events: [] as Array<Record<string, unknown>> })),
 
-  checkFreeBusy: protectedProcedure.input(looseInput).output(out).mutation(() => ({
+  checkFreeBusy: legacyProcedure.input(looseInput).output(out).mutation(() => ({
     busy: [] as Array<Record<string, unknown>>,
     conflicts: [] as Array<Record<string, unknown>>,
   })),
 
-  respondToEvent: protectedProcedure.input(looseInput).output(out).mutation(noopQueueItem),
+  respondToEvent: legacyProcedure.input(looseInput).output(out).mutation(noopQueueItem),
 
-  quickAddEvent: protectedProcedure.input(looseInput).output(out).mutation(() => ({ eventId: "demo-event" })),
+  quickAddEvent: legacyProcedure.input(looseInput).output(out).mutation(() => ({ eventId: "demo-event" })),
 
-  disconnectCalendar: protectedProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
+  disconnectCalendar: legacyProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
 });
 
 export const queueRouter = router({
-  list: protectedProcedure
+  list: legacyProcedure
     .input(z.object({ status: z.enum(["pending", "all"]).optional() }).passthrough())
     .output(out).query(() => ({ items: [] as ReturnType<typeof emptyQueueItem>[] })),
 
-  stats: protectedProcedure.input(connectionInput).output(out).query(() => emptyQueueStats),
+  stats: legacyProcedure.input(connectionInput).output(out).query(() => emptyQueueStats),
 
-  pendingCount: protectedProcedure.input(connectionInput).output(out).query(() => ({ count: 0 })),
+  pendingCount: legacyProcedure.input(connectionInput).output(out).query(() => ({ count: 0 })),
 
-  approve: protectedProcedure.input(z.object({ id: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
-  dismiss: protectedProcedure.input(z.object({ id: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  approve: legacyProcedure.input(z.object({ id: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  dismiss: legacyProcedure.input(z.object({ id: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
 
-  enqueueEmail: protectedProcedure.input(looseInput).output(out).mutation(noopQueueItem),
+  enqueueEmail: legacyProcedure.input(looseInput).output(out).mutation(noopQueueItem),
 
-  enqueueDraftSend: protectedProcedure.input(looseInput).output(out).mutation(noopQueueItem),
-  enqueueMeeting: protectedProcedure.input(looseInput).output(out).mutation(noopQueueItem),
-  enqueueCalendar: protectedProcedure.input(looseInput).output(out).mutation(noopQueueItem),
-  enqueueCalendarArchive: protectedProcedure.input(looseInput).output(out).mutation(noopQueueItem),
-  enqueueCalendarDelete: protectedProcedure.input(looseInput).output(out).mutation(noopQueueItem),
+  enqueueDraftSend: legacyProcedure.input(looseInput).output(out).mutation(noopQueueItem),
+  enqueueMeeting: legacyProcedure.input(looseInput).output(out).mutation(noopQueueItem),
+  enqueueCalendar: legacyProcedure.input(looseInput).output(out).mutation(noopQueueItem),
+  enqueueCalendarArchive: legacyProcedure.input(looseInput).output(out).mutation(noopQueueItem),
+  enqueueCalendarDelete: legacyProcedure.input(looseInput).output(out).mutation(noopQueueItem),
 });
 
 export const settingsRouter = router({
-  getApprovalDefaults: protectedProcedure.input(connectionInput).output(out).query(async ({ ctx }) => {
+  getApprovalDefaults: legacyProcedure.input(connectionInput).output(out).query(async ({ ctx }) => {
     ensureShipflowAgentServices();
     return getSettingsService().getApprovalDefaults(ctx.user.id);
   }),
 
-  updateApprovalDefaults: protectedProcedure
+  updateApprovalDefaults: legacyProcedure
     .input(
       z
         .object({
@@ -176,61 +189,61 @@ export const settingsRouter = router({
 });
 
 export const aiRouter = router({
-  status: protectedProcedure.input(connectionInput).output(out).query(() => ({
+  status: legacyProcedure.input(connectionInput).output(out).query(() => ({
     configured: Boolean(process.env.OPENAI_API_KEY?.trim()),
     model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
     ready: Boolean(process.env.OPENAI_API_KEY?.trim()),
   })),
 
-  mailContext: protectedProcedure
+  mailContext: legacyProcedure
     .input(z.object({ contextId: z.string().optional() }).passthrough())
     .output(out).query(() => emptyMailContext),
 
-  contactIntel: protectedProcedure
+  contactIntel: legacyProcedure
     .input(z.object({ email: z.string().optional(), name: z.string().optional() }).passthrough())
     .output(out).query(() => null),
 
-  meetingPrep: protectedProcedure
+  meetingPrep: legacyProcedure
     .input(z.object({ eventId: z.string().optional(), timeZone: z.string().optional() }).passthrough())
     .output(out).query(() => emptyMeetingPrep),
 
-  rankInboxMail: protectedProcedure
+  rankInboxMail: legacyProcedure
     .input(z.object({ contextIds: z.array(z.string()).optional() }).passthrough())
     .output(out).mutation(() => emptyRankResult),
 
-  smartReplies: protectedProcedure
+  smartReplies: legacyProcedure
     .input(z.object({ contextId: z.string() }).passthrough())
     .output(out).query(() => ({ replies: [] as string[] })),
 
-  summarizeMail: protectedProcedure
+  summarizeMail: legacyProcedure
     .input(z.object({ contextId: z.string() }).passthrough())
     .output(out).query(() => ({ summary: "" })),
 
-  dailyBrief: protectedProcedure
+  dailyBrief: legacyProcedure
     .input(z.object({ date: z.string().optional(), timeZone: z.string().optional() }).passthrough())
     .output(out).query(() => emptyDailyBrief),
 
-  missedFollowUps: protectedProcedure
+  missedFollowUps: legacyProcedure
     .input(z.object({ timeZone: z.string().optional() }).passthrough())
     .output(out).query(() => [] as Array<Record<string, unknown>>),
 
-  getBriefDismissals: protectedProcedure
+  getBriefDismissals: legacyProcedure
     .input(connectionInput)
     .output(out).query(() => ({ dismissedFocusIds: [] as string[] })),
 
-  dismissBriefFocus: protectedProcedure
+  dismissBriefFocus: legacyProcedure
     .input(z.object({ contextId: z.string() }).passthrough())
     .output(out).mutation(noopQueueItem),
 });
 
 export const agentRouter = router({
-  status: protectedProcedure.input(connectionInput).output(out).query(() => ({
+  status: legacyProcedure.input(connectionInput).output(out).query(() => ({
     configured: Boolean(process.env.OPENAI_API_KEY?.trim()),
     model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
     ready: Boolean(process.env.OPENAI_API_KEY?.trim()),
   })),
 
-  chat: protectedProcedure
+  chat: legacyProcedure
     .input(z.object({ message: z.string(), sessionId: z.string().optional() }).passthrough())
     .output(out).mutation(() => ({
       reply: "",
@@ -243,7 +256,7 @@ export const agentRouter = router({
       }>,
     })),
 
-  listSessions: protectedProcedure
+  listSessions: legacyProcedure
     .input(z.object({ limit: z.number().optional() }).passthrough())
     .output(out).query(() => [] as Array<{
       id: string;
@@ -253,11 +266,11 @@ export const agentRouter = router({
       updatedAt: string;
     }>),
 
-  getSession: protectedProcedure
+  getSession: legacyProcedure
     .input(z.object({ id: z.string() }).passthrough())
     .output(out).query(() => emptyAgentSession),
 
-  createSession: protectedProcedure
+  createSession: legacyProcedure
     .input(
       z
         .object({
@@ -279,7 +292,7 @@ export const agentRouter = router({
       focus: input.focus ?? {},
     })),
 
-  updateSession: protectedProcedure
+  updateSession: legacyProcedure
     .input(
       z
         .object({
@@ -299,14 +312,14 @@ export const agentRouter = router({
     )
     .output(out).mutation(() => emptyAgentSession),
 
-  deleteSession: protectedProcedure.input(z.object({ id: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
+  deleteSession: legacyProcedure.input(z.object({ id: z.string() }).passthrough()).output(out).mutation(noopQueueItem),
 });
 
 export const contactsRouter = router({
-  syncFromInbox: protectedProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
-  syncInboxBatch: protectedProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
+  syncFromInbox: legacyProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
+  syncInboxBatch: legacyProcedure.input(connectionInput).output(out).mutation(noopQueueItem),
 
-  search: protectedProcedure
+  search: legacyProcedure
     .input(z.object({ query: z.string(), limit: z.number().optional() }).passthrough())
     .output(out).query(() => ({ contacts: [] as Array<Record<string, unknown>> })),
 });

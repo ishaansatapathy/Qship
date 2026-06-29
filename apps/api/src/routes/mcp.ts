@@ -85,17 +85,21 @@ mcpRouter.post("/", async (req: Request, res: Response) => {
 
   const id = body.id ?? null;
   const method = body.method;
-  const publicMethods = new Set([
-    "initialize",
-    "tools/list",
-    "resources/list",
-    "prompts/list",
-    "notifications/initialized",
-  ]);
+  const publicMethods = new Set(["initialize", "notifications/initialized"]);
 
   if (publicMethods.has(method)) {
     const ipLimitOk = await applyMcpIpRateLimit(req, res);
     if (!ipLimitOk) return;
+  }
+
+  const sensitiveListMethods = new Set(["tools/list", "resources/list", "prompts/list"]);
+  if (sensitiveListMethods.has(method)) {
+    const userId = await resolveMcpUserId(req);
+    if (!userId) {
+      return res.status(401).json(rpcError(id, -32001, "Authentication required"));
+    }
+    const userLimitOk = await applyMcpUserRateLimit(req, res, userId);
+    if (!userLimitOk) return;
   }
 
   try {

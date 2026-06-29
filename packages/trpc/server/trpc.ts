@@ -32,7 +32,7 @@ const observabilityMiddleware = tRPCContext.middleware(async ({ path, type, ctx,
   const started = Date.now();
   try {
     const result = await next();
-    logger.debug("tRPC procedure completed", {
+    logger.info("tRPC procedure completed", {
       path,
       type,
       requestId: ctx.requestId,
@@ -76,6 +76,9 @@ export const verifiedProcedure = protectedProcedure.use(({ ctx, next }) => {
   }
   return next({ ctx });
 });
+
+/** Verified email required — use for all state-changing procedures. */
+export const mutationProcedure = verifiedProcedure;
 
 const serviceErrorCodeMap = {
   BAD_REQUEST: "BAD_REQUEST",

@@ -8,7 +8,7 @@ import {
   type PlanTier,
 } from "@repo/services/billing";
 import { billingStatusOutput, openApiResponse } from "../../openapi-outputs";
-import { mapServiceError, protectedProcedure, router } from "../../trpc";
+import { mapServiceError, protectedProcedure, mutationProcedure, router } from "../../trpc";
 
 export const billingRouter = router({
   status: protectedProcedure
@@ -46,7 +46,7 @@ export const billingRouter = router({
       }
     }),
 
-  createCheckout: protectedProcedure
+  createCheckout: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -65,7 +65,7 @@ export const billingRouter = router({
       }
     }),
 
-  confirmPayment: protectedProcedure
+  confirmPayment: mutationProcedure
     .input(
       z.object({
         planTier: z.enum(["pro", "enterprise"]),

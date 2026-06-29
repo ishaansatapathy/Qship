@@ -18,25 +18,37 @@ import {
   briefRouter,
 } from "./routes/stubs/ui-compat";
 
-export const serverRouter = router({
+const coreRouter = {
   health: healthRouter,
   auth: authRouter,
   feature: featureRouter,
   workspace: workspaceRouter,
   github: githubRouter,
+  agent: agentRouter,
+  observability: observabilityRouter,
+  billing: billingRouter,
+};
+
+const legacyStubRouter = {
   inbox: inboxRouter,
   calendar: calendarRouter,
   queue: queueRouter,
   settings: settingsRouter,
   ai: aiRouter,
-  agent: agentRouter,
   contacts: contactsRouter,
   brief: briefRouter,
-  observability: observabilityRouter,
-  billing: billingRouter,
+};
+
+/** Full tRPC surface (legacy stubs return NOT_FOUND in production — see ui-compat). */
+export const serverRouter = router({
+  ...coreRouter,
+  ...legacyStubRouter,
 });
 
-export const openApiRouter = serverRouter;
+/** OpenAPI surface — production APIs only (no legacy Gmail/calendar stubs). */
+export const openApiRouter = router({
+  ...coreRouter,
+});
 
 export { createContext } from "./context";
 export { resolveSessionUser } from "./session";

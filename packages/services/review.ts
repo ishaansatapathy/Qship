@@ -1,19 +1,21 @@
-import { desc, eq } from "@repo/database";
+import { desc, eq, and, sql } from "@repo/database";
 import db from "@repo/database";
 import {
   aiReviewIssues,
   aiReviews,
+  featureRequests,
   humanApprovals,
   organizations,
 } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
+import { withTransaction } from "./db/transaction";
 import { ServiceError } from "./errors";
 import {
   appendFeatureActivity,
   getFeatureRequest,
   guardedUpdateFeatureStatus,
-  transitionFeatureStatus,
+  guardedUpdateFeatureStatusInTx,
 } from "./feature-request";
 import type { FeatureStatus } from "./workflow";
 import { executeFeatureRelease } from "./github/release-ship";
@@ -41,21 +43,26 @@ async function getAiReviewCredits(organizationId: string): Promise<number> {
 }
 
 export async function consumeAiReviewCredit(organizationId: string): Promise<number> {
-  const credits = await getAiReviewCredits(organizationId);
-  if (credits <= 0) {
-    throw new ServiceError(
-      "PRECONDITION_FAILED",
-      "No AI review credits remaining. Upgrade your plan in Billing.",
-    );
-  }
-  const remaining = credits - 1;
-  await db
-    .update(organizations)
-    .set({ aiReviewCredits: remaining, updatedAt: new Date() })
-    .where(eq(organizations.id, organizationId));
+  return withTransaction(async (tx) => {
+    const [row] = await tx
+      .update(organizations)
+      .set({
+        aiReviewCredits: sql`${organizations.aiReviewCredits} - 1`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(organizations.id, organizationId), sql`${organizations.aiReviewCredits} > 0`))
+      .returning({ aiReviewCredits: organizations.aiReviewCredits });
 
-  logger.info("review.credit_consumed", { organizationId, remaining });
-  return remaining;
+    if (!row) {
+      throw new ServiceError(
+        "PRECONDITION_FAILED",
+        "No AI review credits remaining. Upgrade your plan in Billing.",
+      );
+    }
+
+    logger.info("review.credit_consumed", { organizationId, remaining: row.aiReviewCredits });
+    return row.aiReviewCredits;
+  });
 }
 
 // ── AI review persistence ─────────────────────────────────────────────────────
@@ -77,37 +84,48 @@ export async function persistAiReview(input: {
   });
   const iteration = (prior[0]?.iteration ?? 0) + 1;
   const reviewId = crypto.randomUUID();
-
-  await db.insert(aiReviews).values({
-    id: reviewId,
-    featureRequestId: input.featureRequestId,
-    pullRequestId: input.pullRequestId ?? null,
-    iteration,
-    summary: input.review.summary,
-    readyForHuman: input.review.pass,
-    rawAnalysis: input.review as unknown as Record<string, unknown>,
-  });
-
-  if (input.review.issues.length > 0) {
-    await db.insert(aiReviewIssues).values(
-      input.review.issues.map((issue) => ({
-        id: crypto.randomUUID(),
-        aiReviewId: reviewId,
-        severity: issue.severity,
-        category: issue.category,
-        title: issue.title,
-        description: issue.description,
-        filePath: issue.filePath ?? null,
-        lineNumber: issue.lineNumber ?? null,
-        requirementRef: issue.requirementRef ?? null,
-        resolved: false,
-      })),
-    );
-  }
-
   const blockingCount = input.review.issues.filter((i) => i.severity === "blocking").length;
   const nextStatus = input.review.pass ? "human_review" : "fix_needed";
-  await transitionFeatureStatus(input.featureRequestId, nextStatus);
+
+  const featureRow = await db.query.featureRequests.findFirst({
+    where: eq(featureRequests.id, input.featureRequestId),
+    columns: { status: true },
+  });
+  if (!featureRow) {
+    throw new ServiceError("NOT_FOUND", "Feature request not found");
+  }
+  const fromStatus = featureRow.status as FeatureStatus;
+
+  await withTransaction(async (tx) => {
+    await tx.insert(aiReviews).values({
+      id: reviewId,
+      featureRequestId: input.featureRequestId,
+      pullRequestId: input.pullRequestId ?? null,
+      iteration,
+      summary: input.review.summary,
+      readyForHuman: input.review.pass,
+      rawAnalysis: input.review as unknown as Record<string, unknown>,
+    });
+
+    if (input.review.issues.length > 0) {
+      await tx.insert(aiReviewIssues).values(
+        input.review.issues.map((issue) => ({
+          id: crypto.randomUUID(),
+          aiReviewId: reviewId,
+          severity: issue.severity,
+          category: issue.category,
+          title: issue.title,
+          description: issue.description,
+          filePath: issue.filePath ?? null,
+          lineNumber: issue.lineNumber ?? null,
+          requirementRef: issue.requirementRef ?? null,
+          resolved: false,
+        })),
+      );
+    }
+
+    await guardedUpdateFeatureStatusInTx(tx, input.featureRequestId, fromStatus, nextStatus);
+  });
 
   await appendFeatureActivity(input.featureRequestId, {
     kind: "ai_review",
@@ -380,15 +398,18 @@ export async function recordHumanApproval(input: {
   const { nextStatus, title, kind } = activityMap[input.decision];
   const id = crypto.randomUUID();
 
-  await db.insert(humanApprovals).values({
-    id,
-    featureRequestId: input.featureRequestId,
-    reviewerUserId: input.reviewerUserId,
-    decision: input.decision,
-    notes: input.notes ?? null,
+  await withTransaction(async (tx) => {
+    await tx.insert(humanApprovals).values({
+      id,
+      featureRequestId: input.featureRequestId,
+      reviewerUserId: input.reviewerUserId,
+      decision: input.decision,
+      notes: input.notes ?? null,
+    });
+
+    await guardedUpdateFeatureStatusInTx(tx, input.featureRequestId, fromStatus, nextStatus);
   });
 
-  await guardedUpdateFeatureStatus(input.featureRequestId, fromStatus, nextStatus);
   await appendFeatureActivity(input.featureRequestId, {
     kind,
     title,
@@ -462,7 +483,9 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
     hadGithubConnection: Boolean(gh.installationId),
   });
 
-  await guardedUpdateFeatureStatus(featureRequestId, "approved", "shipped");
+  await withTransaction(async (tx) => {
+    await guardedUpdateFeatureStatusInTx(tx, featureRequestId, "approved", "shipped");
+  });
 
   const releaseDetail = release.merge.merged
     ? `PR #${release.merge.prNumber} merged`

@@ -6,6 +6,29 @@ const mockAppend = vi.fn();
 const mockAiReview = vi.fn();
 const mockInvalidate = vi.fn();
 
+const dbMocks = vi.hoisted(() => {
+  const orgFindFirst = vi.fn();
+  const repoFindFirst = vi.fn();
+  const featureFindFirst = vi.fn();
+  const approvalFindFirst = vi.fn();
+  const mockOnConflict = vi.fn(async () => ({}));
+  const mockValues = vi.fn(() => ({ onConflictDoUpdate: mockOnConflict }));
+  const mockInsert = vi.fn(() => ({ values: mockValues }));
+  const mockUpdate = vi.fn(() => ({
+    set: vi.fn(() => ({ where: vi.fn(async () => ({})) })),
+  }));
+  const mockDelete = vi.fn(() => ({ where: vi.fn(async () => ({})) }));
+  return {
+    orgFindFirst,
+    repoFindFirst,
+    featureFindFirst,
+    approvalFindFirst,
+    mockInsert,
+    mockUpdate,
+    mockDelete,
+  };
+});
+
 vi.mock("./webhook-dedup", () => ({
   isGithubDeliveryDuplicate: (...args: unknown[]) => mockIsDuplicate(...args),
 }));
@@ -23,32 +46,20 @@ vi.mock("../feature-request", () => ({
   appendFeatureActivity: (...args: unknown[]) => mockAppend(...args),
 }));
 
-const orgFindFirst = vi.fn();
-const repoFindFirst = vi.fn();
-const featureFindFirst = vi.fn();
-const approvalFindFirst = vi.fn();
-const mockOnConflict = vi.fn(async () => ({}));
-const mockValues = vi.fn(() => ({ onConflictDoUpdate: mockOnConflict }));
-const mockInsert = vi.fn(() => ({ values: mockValues }));
-const mockUpdate = vi.fn(() => ({
-  set: vi.fn(() => ({ where: vi.fn(async () => ({})) })),
-}));
-const mockDelete = vi.fn(() => ({ where: vi.fn(async () => ({})) }));
-
 vi.mock("@repo/database", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@repo/database")>();
   return {
     ...actual,
     default: {
       query: {
-        organizations: { findFirst: (...args: unknown[]) => orgFindFirst(...args) },
-        repositories: { findFirst: (...args: unknown[]) => repoFindFirst(...args) },
-        featureRequests: { findFirst: (...args: unknown[]) => featureFindFirst(...args) },
-        humanApprovals: { findFirst: (...args: unknown[]) => approvalFindFirst(...args) },
+        organizations: { findFirst: (...args: unknown[]) => dbMocks.orgFindFirst(...args) },
+        repositories: { findFirst: (...args: unknown[]) => dbMocks.repoFindFirst(...args) },
+        featureRequests: { findFirst: (...args: unknown[]) => dbMocks.featureFindFirst(...args) },
+        humanApprovals: { findFirst: (...args: unknown[]) => dbMocks.approvalFindFirst(...args) },
       },
-      insert: (...args: unknown[]) => mockInsert(...args),
-      update: (...args: unknown[]) => mockUpdate(...args),
-      delete: (...args: unknown[]) => mockDelete(...args),
+      insert: dbMocks.mockInsert,
+      update: dbMocks.mockUpdate,
+      delete: dbMocks.mockDelete,
     },
   };
 });
@@ -87,14 +98,14 @@ describe("processGithubPullRequestWebhook (production)", () => {
     vi.clearAllMocks();
     mockIsDuplicate.mockResolvedValue(false);
     mockAiReview.mockResolvedValue(undefined);
-    orgFindFirst.mockResolvedValue({ id: ORG_ID });
-    repoFindFirst.mockResolvedValue({ id: REPO_ROW_ID });
-    featureFindFirst.mockResolvedValue({
+    dbMocks.orgFindFirst.mockResolvedValue({ id: ORG_ID });
+    dbMocks.repoFindFirst.mockResolvedValue({ id: REPO_ROW_ID });
+    dbMocks.featureFindFirst.mockResolvedValue({
       id: FEATURE_ID,
       organizationId: ORG_ID,
       status: "in_development",
     });
-    approvalFindFirst.mockResolvedValue(null);
+    dbMocks.approvalFindFirst.mockResolvedValue(null);
   });
 
   it("returns duplicate_delivery when Postgres dedup hits", async () => {
@@ -109,7 +120,7 @@ describe("processGithubPullRequestWebhook (production)", () => {
   });
 
   it("returns unknown_installation when org is not linked", async () => {
-    orgFindFirst.mockResolvedValueOnce(null);
+    dbMocks.orgFindFirst.mockResolvedValueOnce(null);
     const result = await processGithubPullRequestWebhook(basePullRequestPayload(), "del-3");
     expect(result).toMatchObject({ handled: false, reason: "unknown_installation" });
   });
@@ -123,7 +134,7 @@ describe("processGithubPullRequestWebhook (production)", () => {
       state: "open",
     });
     expect(mockTransition).toHaveBeenCalledWith(FEATURE_ID, "pr_open");
-    expect(mockInsert).toHaveBeenCalled();
+    expect(dbMocks.mockInsert).toHaveBeenCalled();
   });
 
   it("merged PR without prior approval gates at human_review", async () => {
@@ -141,7 +152,7 @@ describe("processGithubPullRequestWebhook (production)", () => {
   });
 
   it("merged PR with prior human approval transitions to approved", async () => {
-    approvalFindFirst.mockResolvedValueOnce({ decision: "approved" });
+    dbMocks.approvalFindFirst.mockResolvedValueOnce({ decision: "approved" });
     const payload = basePullRequestPayload({
       action: "closed",
       pull_request: {
@@ -176,18 +187,18 @@ describe("processGithubInstallationWebhook (production)", () => {
   });
 
   it("clears org link and cache on installation deleted", async () => {
-    orgFindFirst.mockResolvedValueOnce({ id: ORG_ID });
+    dbMocks.orgFindFirst.mockResolvedValueOnce({ id: ORG_ID });
     const result = await processGithubInstallationWebhook(
       { action: "deleted", installation: { id: 999 } },
       "del-i1",
     );
     expect(result).toMatchObject({ handled: true, action: "deleted", installationId: "999" });
     expect(mockInvalidate).toHaveBeenCalledWith("999");
-    expect(mockUpdate).toHaveBeenCalled();
+    expect(dbMocks.mockUpdate).toHaveBeenCalled();
   });
 
   it("removes repos on installation_repositories removed", async () => {
-    orgFindFirst.mockResolvedValueOnce({ id: ORG_ID });
+    dbMocks.orgFindFirst.mockResolvedValueOnce({ id: ORG_ID });
     const result = await processGithubInstallationWebhook(
       {
         action: "removed",
@@ -197,6 +208,6 @@ describe("processGithubInstallationWebhook (production)", () => {
       "del-i2",
     );
     expect(result).toMatchObject({ handled: true, action: "removed" });
-    expect(mockDelete).toHaveBeenCalled();
+    expect(dbMocks.mockDelete).toHaveBeenCalled();
   });
 });

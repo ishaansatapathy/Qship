@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { isDemoModeEnabled } from "@repo/services/runtime-env";
+
 function demoErrorRedirect(request: NextRequest, message: string) {
   const signInUrl = new URL("/sign-in", request.url);
   signInUrl.searchParams.set("error", message);
@@ -7,7 +9,7 @@ function demoErrorRedirect(request: NextRequest, message: string) {
 }
 
 export async function GET(request: NextRequest) {
-  if (process.env.DEMO_LOGIN_ENABLED !== "true") {
+  if (!isDemoModeEnabled()) {
     return demoErrorRedirect(request, "Demo login is not enabled.");
   }
 
