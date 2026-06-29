@@ -8,7 +8,8 @@
     "build": "tsup && node scripts/vercel-postbuild.mjs",
     "lint": "eslint src --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:rate-limit": "vitest run src/middleware/rate-limiters.test.ts"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
