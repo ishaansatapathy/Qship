@@ -8,6 +8,7 @@ import { ServiceError } from "../errors";
 import { ensurePersonalWorkspace, getMembershipForUser } from "../organization";
 import { getAppOctokit, getInstallationOctokit } from "./client";
 import { getGithubAppConfig, isGithubAppConfigured, isGithubWebhookConfigured } from "./config";
+import { rethrowGithubSyncError } from "./sync-errors";
 import { isProductionEnv } from "../runtime-env";
 
 const INSTALL_STATE_TTL_MS = 15 * 60 * 1000;
@@ -127,70 +128,115 @@ async function syncInstallationRepositories(
   organizationId: string,
   installationId: string,
 ): Promise<void> {
-  const octokit = getInstallationOctokit(installationId);
+  try {
+    const octokit = getInstallationOctokit(installationId);
 
-  // Paginate to handle organisations with more than 100 repositories.
-  const ghRepos = await octokit.paginate(
-    octokit.rest.apps.listReposAccessibleToInstallation,
-    { per_page: 100 },
-    (response) => response.data,
-  );
+    // Paginate to handle organisations with more than 100 repositories.
+    const ghRepos = await octokit.paginate(
+      octokit.rest.apps.listReposAccessibleToInstallation,
+      { per_page: 100 },
+      (response) => response.data,
+    );
 
-  const ghRepoIds = new Set(ghRepos.map((r) => String(r.id)));
+    const ghRepoIds = new Set(ghRepos.map((r) => String(r.id)));
 
-  // Fetch existing records for this org in one query.
-  const existing = await db.query.repositories.findMany({
-    where: eq(repositories.organizationId, organizationId),
-    columns: { id: true, githubRepoId: true },
-  });
+    // Fetch existing records for this org in one query.
+    const existing = await db.query.repositories.findMany({
+      where: eq(repositories.organizationId, organizationId),
+      columns: { id: true, githubRepoId: true },
+    });
 
-  const existingByGhId = new Map(existing.map((r) => [r.githubRepoId, r.id]));
+    const existingByGhId = new Map(existing.map((r) => [r.githubRepoId, r.id]));
 
-  for (const repo of ghRepos) {
-    const repoId = String(repo.id);
-    const rowId = existingByGhId.get(repoId) ?? `${organizationId}-repo-${repoId}`;
+    for (const repo of ghRepos) {
+      const fullName = repo.full_name?.trim();
+      const ownerLogin = repo.owner?.login?.trim();
+      if (!fullName || !ownerLogin || !repo.name) {
+        logger.warn("github.installation.repo_skipped", {
+          organizationId,
+          githubRepoId: repo.id,
+          reason: "missing_metadata",
+        });
+        continue;
+      }
 
-    await db
-      .insert(repositories)
-      .values({
-        id: rowId,
-        organizationId,
-        githubInstallationId: installationId,
-        githubRepoId: repoId,
-        owner: repo.owner.login,
-        name: repo.name,
-        fullName: repo.full_name,
-        defaultBranch: repo.default_branch ?? "main",
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: repositories.id,
-        set: {
+      await clearStaleRepositoryClaim(organizationId, fullName);
+
+      const repoId = String(repo.id);
+      const rowId = existingByGhId.get(repoId) ?? `${organizationId}-repo-${repoId}`;
+
+      await db
+        .insert(repositories)
+        .values({
+          id: rowId,
+          organizationId,
           githubInstallationId: installationId,
-          owner: repo.owner.login,
+          githubRepoId: repoId,
+          owner: ownerLogin,
           name: repo.name,
-          fullName: repo.full_name,
+          fullName,
           defaultBranch: repo.default_branch ?? "main",
           updatedAt: new Date(),
-        },
-      });
-  }
-
-  // Remove repositories that are no longer accessible to the installation.
-  for (const row of existing) {
-    if (!ghRepoIds.has(row.githubRepoId)) {
-      await db.delete(repositories).where(eq(repositories.id, row.id));
-      logger.info("github.installation.repo_removed", {
-        organizationId,
-        githubRepoId: row.githubRepoId,
-      });
+        })
+        .onConflictDoUpdate({
+          target: repositories.id,
+          set: {
+            githubInstallationId: installationId,
+            owner: ownerLogin,
+            name: repo.name,
+            fullName,
+            defaultBranch: repo.default_branch ?? "main",
+            updatedAt: new Date(),
+          },
+        });
     }
+
+    // Remove repositories that are no longer accessible to the installation.
+    for (const row of existing) {
+      if (!ghRepoIds.has(row.githubRepoId)) {
+        await db.delete(repositories).where(eq(repositories.id, row.id));
+        logger.info("github.installation.repo_removed", {
+          organizationId,
+          githubRepoId: row.githubRepoId,
+        });
+      }
+    }
+
+    logger.info("github.installation.repos_synced", {
+      organizationId,
+      installationId,
+      count: ghRepos.length,
+    });
+  } catch (error) {
+    rethrowGithubSyncError(error);
+  }
+}
+
+/** Drops orphaned repo rows that block sync because full_name is globally unique. */
+async function clearStaleRepositoryClaim(organizationId: string, fullName: string) {
+  const existing = await db.query.repositories.findFirst({
+    where: eq(repositories.fullName, fullName),
+    columns: { id: true, organizationId: true },
+  });
+  if (!existing || existing.organizationId === organizationId) return;
+
+  const otherOrg = await db.query.organizations.findFirst({
+    where: eq(organizations.id, existing.organizationId),
+    columns: { githubInstallationId: true },
+  });
+
+  if (otherOrg?.githubInstallationId) {
+    throw new ServiceError(
+      "CONFLICT",
+      `Repository ${fullName} is already linked to another workspace. Disconnect GitHub there first, then sync again.`,
+    );
   }
 
-  logger.info("github.installation.repos_synced", {
-    organizationId,
-    installationId,
-    count: ghRepos.length,
+  await db.delete(repositories).where(eq(repositories.id, existing.id));
+  logger.warn("github.installation.repo_claim_cleared", {
+    fullName,
+    fromOrganizationId: existing.organizationId,
+    toOrganizationId: organizationId,
   });
 }
 
