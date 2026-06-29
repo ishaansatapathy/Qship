@@ -50,12 +50,29 @@ export async function ensurePersonalWorkspace(userId: string, displayName?: stri
 }
 
 export async function getMembershipForUser(userId: string) {
-  return db.query.organizationMembers.findFirst({
+  const memberships = await db.query.organizationMembers.findMany({
     where: eq(organizationMembers.userId, userId),
     with: {
       organization: true,
     },
   });
+
+  if (memberships.length === 0) return undefined;
+  if (memberships.length === 1) return memberships[0];
+
+  const roleRank: Record<string, number> = { owner: 0, admin: 1, member: 2, viewer: 3 };
+
+  return [...memberships].sort((a, b) => {
+    const aConnected = Boolean(a.organization.githubInstallationId);
+    const bConnected = Boolean(b.organization.githubInstallationId);
+    if (aConnected !== bConnected) return aConnected ? -1 : 1;
+
+    const aRole = roleRank[a.role] ?? 9;
+    const bRole = roleRank[b.role] ?? 9;
+    if (aRole !== bRole) return aRole - bRole;
+
+    return b.organization.updatedAt.getTime() - a.organization.updatedAt.getTime();
+  })[0];
 }
 
 export async function getWorkspaceForUser(userId: string) {

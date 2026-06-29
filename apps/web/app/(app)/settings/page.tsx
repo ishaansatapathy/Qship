@@ -26,6 +26,7 @@ function ConnectionRow({
   connectLabel = "Connect",
   onSync,
   syncing,
+  statusLoading,
 }: {
   connected: boolean;
   connectHref: string;
@@ -39,7 +40,16 @@ function ConnectionRow({
   connectLabel?: string;
   onSync?: () => void;
   syncing?: boolean;
+  statusLoading?: boolean;
 }) {
+  if (statusLoading) {
+    return (
+      <button type="button" className="qship-btn-ghost" disabled>
+        Checking…
+      </button>
+    );
+  }
+
   if (connected) {
     return (
       <div className="qship-set-row-actions">
@@ -315,6 +325,7 @@ export default function SettingsPage() {
           </div>
           <ConnectionRow
             connected={githubStatus.data?.connected === true}
+            statusLoading={githubStatus.isLoading || githubStatus.isFetching}
             connectHref={githubInstallUrl.data?.url ?? "#"}
             connectDisabled={githubInstallUrl.isLoading}
             connectLabel={githubInstallUrl.isLoading ? "Loading…" : "Connect"}
