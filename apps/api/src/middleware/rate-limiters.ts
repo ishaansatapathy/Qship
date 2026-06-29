@@ -63,7 +63,14 @@ export const globalRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   skip: (req) => {
     const path = req.path;
-    return path === "/health" || path === "/ready" || path === "/";
+    return (
+      path === "/health" ||
+      path === "/ready" ||
+      path === "/" ||
+      path === "/openapi.json" ||
+      path === "/docs" ||
+      path.startsWith("/docs/")
+    );
   },
 });
 
