@@ -18,9 +18,6 @@ const MEMORY_TOOLS = new Set([
   "generate_feature_tasks",
   "run_ai_review",
   "list_github_repositories",
-  "list_calendar_events",
-  "get_calendar_event",
-  "list_queue",
 ]);
 
 export function shouldRememberTool(toolName: string): boolean {
@@ -135,45 +132,6 @@ export function summarizeToolResult(
     case "list_github_repositories": {
       const count = typeof data?.count === "number" ? data.count : 0;
       return { at, tool: toolName, summary: clip(`Found ${count} linked GitHub repo(s)`) };
-    }
-
-    case "list_calendar_events": {
-      const events = Array.isArray(data?.events) ? data.events : [];
-      const top = events
-        .slice(0, 3)
-        .map((e) => {
-          if (!e || typeof e !== "object") return "";
-          const row = e as Record<string, unknown>;
-          return typeof row.summary === "string" ? row.summary.trim() : "";
-        })
-        .filter(Boolean);
-      return {
-        at,
-        tool: toolName,
-        summary: clip(`Listed ${events.length} calendar event(s)${top.length ? `: ${top.join("; ")}` : ""}`),
-      };
-    }
-
-    case "get_calendar_event": {
-      const event =
-        data?.event && typeof data.event === "object" ? (data.event as Record<string, unknown>) : null;
-      const title = typeof event?.summary === "string" ? event.summary.trim() : "Event";
-      const start = typeof event?.start === "string" ? event.start : "";
-      return {
-        at,
-        tool: toolName,
-        summary: clip(`Read calendar event "${title}"${start ? ` at ${start}` : ""}`),
-        eventId,
-      };
-    }
-
-    case "list_queue": {
-      const items = Array.isArray(data?.items) ? data.items : [];
-      return {
-        at,
-        tool: toolName,
-        summary: clip(`Queue has ${items.length} pending item(s)`),
-      };
     }
 
     default:

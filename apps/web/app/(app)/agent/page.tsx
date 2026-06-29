@@ -921,6 +921,7 @@ function AgentPageContent() {
                   key={`${msg.role}-${i}`}
                   className="qship-rotator-bubble qship-agent-msg"
                   data-user={msg.role === "user" ? "true" : undefined}
+                  data-testid={msg.role === "assistant" ? "agent-assistant-message" : undefined}
                   style={{
                     alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
                     maxWidth: "88%",

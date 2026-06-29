@@ -10,7 +10,7 @@ import {
 } from "./agent-guard";
 import { AGENT_TOOLS } from "./agent-internals";
 import { buildToolExecutor } from "./agent-executor";
-import { createToolMemoryTracker, prepareAgentRun } from "./agent-run";
+import { createToolMemoryTracker, loadAgentApprovalDefaults, prepareAgentRun, trimAgentHistory } from "./agent-run";
 import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
 
@@ -90,11 +90,7 @@ export async function runAgentChat(
     };
   }
 
-  const history =
-    input.focus?.contextId || input.focus?.eventId
-      ? (input.history ?? []).slice(-4)
-      : (input.history ?? []);
-
+  const history = trimAgentHistory(input.history, input.focus);
   const previewMessages: OpenAiConversationMessage[] = [
     ...history.map((m) => ({ role: m.role, content: m.content })),
     { role: "user" as const, content: input.message.trim() },
@@ -109,17 +105,17 @@ export async function runAgentChat(
   }
 
   const actions: AgentActionCard[] = [];
+  const approvalDefaults = await loadAgentApprovalDefaults(tenantId);
+  const runId = crypto.randomUUID();
 
-  const prepared = await prepareAgentRun(tenantId, input, {
-    autoApproveEmail: false,
-    autoApproveAgentEmail: false,
-    autoApproveCalendar: false,
-  });
+  const prepared = await prepareAgentRun(tenantId, input, approvalDefaults);
   const memoryTracker = createToolMemoryTracker(prepared, input.toolMemory ?? []);
 
   const baseExecutor = buildToolExecutor({
     tenantId,
     actions,
+    userMessage: input.message.trim(),
+    approvalDefaults,
   });
 
   const executeTool = async (name: string, args: Record<string, unknown>): Promise<string> => {
@@ -137,6 +133,13 @@ export async function runAgentChat(
   const { content } = await runOpenAiToolLoop(messages, AGENT_TOOLS, executeTool, {
     maxRounds: 6,
     timeoutMs: 120_000,
+  });
+
+  logger.info("agent.run.completed", {
+    runId,
+    tenantId,
+    toolCalls: memoryTracker.getNewEntries().length,
+    focusCleared: prepared.focusCleared,
   });
 
   return {

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq } from "@repo/database";
+import { eq, sql } from "@repo/database";
 import db from "@repo/database";
 import {
   aiReviews,
@@ -10,7 +10,6 @@ import {
   projects,
   pullRequests,
   repositories,
-  users,
 } from "@repo/database/schema";
 
 import type * as FeatureRequestModule from "./feature-request";
@@ -202,25 +201,18 @@ describe("core workflow db e2e", () => {
     await db.delete(projects).where(eq(projects.id, projectId));
     await db.delete(organizationMembers).where(eq(organizationMembers.organizationId, orgId));
     await db.delete(organizations).where(eq(organizations.id, orgId));
-    await db.delete(users).where(eq(users.id, submitterId));
-    await db.delete(users).where(eq(users.id, reviewerId));
+    await db.execute(sql`DELETE FROM shipflow_users WHERE id IN (${submitterId}, ${reviewerId})`);
   });
 
   it("persists AI review → human approval → shipped in Postgres", async (ctx) => {
     if (!dbReady) ctx.skip();
 
-    await db.insert(users).values([
-      {
-        id: submitterId,
-        name: "E2E Submitter",
-        email: `e2e-submitter-${runId}@qship.test`,
-      },
-      {
-        id: reviewerId,
-        name: "E2E Reviewer",
-        email: `e2e-reviewer-${runId}@qship.test`,
-      },
-    ]);
+    await db.execute(sql`
+      INSERT INTO shipflow_users (id, name, email, email_verified)
+      VALUES
+        (${submitterId}, 'E2E Submitter', ${`e2e-submitter-${runId}@qship.test`}, false),
+        (${reviewerId}, 'E2E Reviewer', ${`e2e-reviewer-${runId}@qship.test`}, false)
+    `);
 
     await db.insert(organizations).values({
       id: orgId,

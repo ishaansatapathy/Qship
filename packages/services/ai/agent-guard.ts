@@ -7,14 +7,10 @@
  * Layers implemented:
  *  1. Prompt-injection detection  — catches known attack patterns in the
  *     user's own message before the OpenAI call is even made.
- *  2. Email arg validation        — validates to/subject/body with the same
- *     Zod schemas used by the email-send flow so the agent can't be tricked
- *     into producing syntactically invalid or header-injected addresses.
- *  3. Per-session send cap        — limits how many "send" emails one
- *     runAgentChat call can queue, preventing "email everyone in my inbox".
- *  4. Email-content data fence    — wraps raw email body snippets in
- *     [EMAIL_DATA_START/END] so the LLM can distinguish untrusted user data
- *     from trusted instructions.
+ *  2. Email arg validation        — legacy Gmail path (exported + tested; inactive while
+ *     ShipFlow agent has no inbox send tools).
+ *  3. Per-session send cap        — legacy Gmail path (same as above).
+ *  4. Email-content data fence    — legacy Gmail path (same as above).
  *  5. Token-count estimation      — rough approximation to catch
  *     history-stuffing attacks before they hit the API.
  */
@@ -80,6 +76,22 @@ const INJECTION_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     pattern: /\bexfiltrate\b/i,
     reason: "Exfiltration keyword detected",
   },
+  {
+    pattern: /<\|im_start\|>|<\|im_end\|>|\[INST\]|\[\/INST\]/i,
+    reason: "Chat-template injection marker detected",
+  },
+  {
+    pattern: /\bsystem\s*:\s*(ignore|override|forget)/i,
+    reason: "System-role injection attempt detected",
+  },
+  {
+    pattern: /\b(bypass|disable|turn off)\s+(security|guardrails|safeguards|policy)\b/i,
+    reason: "Security-bypass attempt detected",
+  },
+  {
+    pattern: /\breveal\b.*\b(api key|secret|token|password)\b/i,
+    reason: "Secret-exfiltration attempt detected",
+  },
 ];
 
 export type InjectionCheckResult =
@@ -98,6 +110,40 @@ export function detectInjectionAttempt(message: string): InjectionCheckResult {
   for (const { pattern, reason } of INJECTION_PATTERNS) {
     if (pattern.test(message)) {
       return { flagged: true, reason };
+    }
+  }
+  return { flagged: false };
+}
+
+const TOOL_ARG_INJECTION_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
+  {
+    pattern: /ignore\s+(all\s+)?(the\s+)?(previous|prior|above)\s+instructions/i,
+    reason: "Tool argument contains instruction override",
+  },
+  {
+    pattern: /<\|im_start\|>|<\|im_end\|>|\[INST\]/i,
+    reason: "Tool argument contains template injection marker",
+  },
+  {
+    pattern: /\bsystem\s*:\s*/i,
+    reason: "Tool argument contains system-role prefix",
+  },
+  {
+    pattern: /\b(bypass|disable)\s+(security|guardrails|policy)\b/i,
+    reason: "Tool argument attempts security bypass",
+  },
+];
+
+/**
+ * Secondary defence: scan string tool arguments before execution.
+ */
+export function detectToolArgInjection(args: Record<string, unknown>): InjectionCheckResult {
+  for (const value of Object.values(args)) {
+    if (typeof value !== "string") continue;
+    for (const { pattern, reason } of TOOL_ARG_INJECTION_PATTERNS) {
+      if (pattern.test(value)) {
+        return { flagged: true, reason };
+      }
     }
   }
   return { flagged: false };

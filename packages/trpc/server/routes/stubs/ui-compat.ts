@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { ensureShipflowAgentServices } from "@repo/services/ensure-agent-services";
+import { getSettingsService } from "@repo/services/settings";
+
 import { protectedProcedure, router } from "../../trpc";
 import {
   emptyAgentSession,
@@ -145,11 +148,10 @@ export const queueRouter = router({
 });
 
 export const settingsRouter = router({
-  getApprovalDefaults: protectedProcedure.input(connectionInput).output(out).query(() => ({
-    autoApproveEmail: false,
-    autoApproveAgentEmail: false,
-    autoApproveCalendar: false,
-  })),
+  getApprovalDefaults: protectedProcedure.input(connectionInput).output(out).query(async ({ ctx }) => {
+    ensureShipflowAgentServices();
+    return getSettingsService().getApprovalDefaults(ctx.user.id);
+  }),
 
   updateApprovalDefaults: protectedProcedure
     .input(
@@ -161,11 +163,16 @@ export const settingsRouter = router({
         })
         .passthrough(),
     )
-    .output(out).mutation(({ input }) => ({
-      autoApproveEmail: input.autoApproveEmail ?? false,
-      autoApproveAgentEmail: input.autoApproveAgentEmail ?? false,
-      autoApproveCalendar: input.autoApproveCalendar ?? false,
-    })),
+    .output(out)
+    .mutation(async ({ ctx, input }) => {
+      ensureShipflowAgentServices();
+      const current = await getSettingsService().getApprovalDefaults(ctx.user.id);
+      return getSettingsService().updateApprovalDefaults(ctx.user.id, {
+        autoApproveEmail: input.autoApproveEmail ?? current.autoApproveEmail,
+        autoApproveAgentEmail: input.autoApproveAgentEmail ?? current.autoApproveAgentEmail,
+        autoApproveCalendar: input.autoApproveCalendar ?? current.autoApproveCalendar,
+      });
+    }),
 });
 
 export const aiRouter = router({

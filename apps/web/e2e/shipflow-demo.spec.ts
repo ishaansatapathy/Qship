@@ -22,6 +22,18 @@ test.describe("ShipFlow demo journey", () => {
     await expect(page.getByText(/ShipFlow Agent/i)).toBeVisible();
   });
 
+  test("agent chat returns an assistant reply", async ({ page }) => {
+    test.setTimeout(120_000);
+    await demoLogin(page, "/agent");
+    await expect(page.getByLabel("Agent message")).toBeEnabled({ timeout: 30_000 });
+    await page.getByLabel("Agent message").fill("Show my pipeline summary");
+    await page.getByLabel("Send").click();
+    const assistant = page.getByTestId("agent-assistant-message").first();
+    await expect(assistant).toBeVisible({ timeout: 90_000 });
+    await expect(assistant).not.toHaveText(/OpenAI is not configured/i);
+    await expect(assistant).not.toHaveText(/security/i);
+  });
+
   test("intake hub simulates email channel intake", async ({ page }) => {
     await demoLogin(page, "/inbox");
     await expect(page.getByRole("heading", { name: /intake hub/i })).toBeVisible();
