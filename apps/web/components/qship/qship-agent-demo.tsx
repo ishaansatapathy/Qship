@@ -27,7 +27,7 @@ const SCENARIOS: Scenario[] = [
     effectTitle: "Planning · PRD v1",
     effect: (
       <div className="qship-rotator-stack">
-        <div className="qship-rotator-row" style={{ borderColor: "rgba(227, 30, 36,0.35)" }}>
+        <div className="qship-rotator-row" style={{ borderColor: "rgba(0, 102, 255, 0.35)" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
             <SkelBar w="64%" strong />
             <SkelBar w="40%" />

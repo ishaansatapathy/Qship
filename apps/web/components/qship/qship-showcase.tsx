@@ -48,7 +48,7 @@ const SLIDES: Slide[] = [
     front: (
       <Window title="shipflow · requests" accent>
         <div className="qship-rotator-stack">
-          <div className="qship-rotator-row" style={{ borderColor: "rgba(227, 30, 36,0.35)" }}>
+          <div className="qship-rotator-row" style={{ borderColor: "rgba(0, 102, 255, 0.35)" }}>
             <Zap size={13} color="var(--qship-accent-bright)" style={{ flexShrink: 0 }} />
             <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
               <SkelBar w="62%" strong />

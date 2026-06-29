@@ -1,19 +1,20 @@
 .qship-page {
   --qship-bg: #000000;
-  --qship-surface: #050505;
-  --qship-surface-2: rgba(255, 255, 255, 0.06);
-  --qship-surface-raised: #0f0f10;
-  --qship-line: rgba(168, 174, 186, 0.32);
-  --qship-border: rgba(168, 174, 186, 0.32);
-  --qship-line-strong: rgba(192, 198, 210, 0.45);
-  --qship-line-soft: rgba(148, 156, 170, 0.16);
-  --qship-text: #f5f5f7;
-  --qship-muted: #9ca3af;
-  --qship-dim: #6b7280;
-  --qship-accent: #e31e24;
-  --qship-accent-bright: #ff6b6f;
-  --qship-accent-soft: rgba(227, 30, 36, 0.12);
-  --qship-accent-glow: rgba(227, 30, 36, 0.35);
+  --qship-surface: #050508;
+  --qship-surface-2: rgba(255, 255, 255, 0.05);
+  --qship-surface-raised: #0a0a10;
+  --qship-line: rgba(100, 140, 200, 0.22);
+  --qship-border: rgba(100, 140, 200, 0.22);
+  --qship-line-strong: rgba(120, 160, 220, 0.32);
+  --qship-line-soft: rgba(80, 120, 180, 0.12);
+  --qship-text: #f5f7ff;
+  --qship-muted: #94a3b8;
+  --qship-dim: #64748b;
+  --qship-accent: #0066ff;
+  --qship-accent-bright: #4d94ff;
+  --qship-accent-soft: rgba(0, 102, 255, 0.12);
+  --qship-accent-glow: rgba(0, 102, 255, 0.35);
+  --qship-accent-rgb: 0 102 255;
   --qship-frame: min(1160px, calc(100% - 48px));
   --qship-font:
     var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -113,8 +114,8 @@
 
 .qship-grid-bg {
   background-image:
-    linear-gradient(var(--qship-line-soft) 1px, transparent 1px),
-    linear-gradient(90deg, var(--qship-line-soft) 1px, transparent 1px);
+    linear-gradient(rgba(0, 102, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 102, 255, 0.04) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 88%);
 }
@@ -179,7 +180,7 @@
 }
 
 .qship-btn-accent:hover {
-  background: #ff3b42;
+  background: #3385ff;
   transform: translateY(-1px);
 }
 
@@ -209,9 +210,10 @@
   inset: 0 0 auto;
   z-index: 50;
   height: 56px;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--qship-line-strong);
+  border-bottom: 1px solid rgba(0, 102, 255, 0.16);
+  box-shadow: 0 1px 0 rgba(0, 102, 255, 0.06);
 }
 
 .qship-nav-inner {
@@ -409,7 +411,7 @@
 }
 
 .qship-privacy-body a {
-  color: #ff6b6f;
+  color: var(--qship-accent-bright);
 }
 
 @media (max-width: 640px) {
@@ -425,10 +427,22 @@
   overflow: hidden;
 }
 
+.qship-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -15%, rgba(0, 102, 255, 0.2), transparent 62%),
+    radial-gradient(ellipse 45% 35% at 85% 15%, rgba(0, 102, 255, 0.08), transparent 55%),
+    radial-gradient(ellipse 40% 30% at 10% 25%, rgba(0, 102, 255, 0.06), transparent 50%);
+}
+
 .qship-hero-body {
   padding: 88px 32px 72px;
   text-align: center;
   position: relative;
+  z-index: 1;
 }
 
 .qship-headline {
@@ -456,18 +470,6 @@
 .qship-cta-wrap {
   position: relative;
   display: inline-block;
-}
-
-.qship-mascot {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 4px);
-  transform: translateX(-50%);
-  width: 96px;
-  height: auto;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 8px 24px rgba(227, 30, 36, 0.2));
 }
 
 .qship-marquee {
@@ -981,7 +983,7 @@
 
 .qship-rotator-phrase[data-active="true"] {
   color: var(--qship-text);
-  text-shadow: 0 0 24px rgba(227, 30, 36, 0.35);
+  text-shadow: 0 0 24px rgba(0, 102, 255, 0.35);
 }
 
 .qship-rotator-phrase--static {
@@ -1032,7 +1034,7 @@
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008));
   overflow: hidden;
-  box-shadow: 0 30px 80px -40px rgba(227, 30, 36, 0.25);
+  box-shadow: 0 30px 80px -40px rgba(0, 102, 255, 0.25);
 }
 
 .qship-rotator-window-chrome {
@@ -1117,7 +1119,7 @@
 }
 
 .qship-rotator-chip--hot {
-  border-color: rgba(227, 30, 36, 0.5);
+  border-color: rgba(0, 102, 255, 0.5);
   color: var(--qship-accent-bright);
   background: var(--qship-accent-soft);
 }
@@ -1143,7 +1145,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border: 1px solid rgba(227, 30, 36, 0.25);
+  border: 1px solid rgba(0, 102, 255, 0.25);
   border-radius: 10px;
   background: var(--qship-accent-soft);
 }
@@ -1174,7 +1176,7 @@
 
 .qship-rotator-bubble--user {
   margin-left: auto;
-  border-color: rgba(227, 30, 36, 0.3);
+  border-color: rgba(0, 102, 255, 0.3);
   background: var(--qship-accent-soft);
   color: var(--qship-text);
   font-style: italic;
@@ -1240,7 +1242,7 @@
 
 .qship-hero-dock-btn[data-active="true"] {
   color: var(--qship-accent-bright);
-  border-color: rgba(227, 30, 36, 0.5);
+  border-color: rgba(0, 102, 255, 0.5);
   background: var(--qship-accent-soft);
   box-shadow: 0 0 24px -6px var(--qship-accent-glow);
   transform: translateY(-3px);
@@ -1343,7 +1345,7 @@
 }
 
 .qship-hero-day[data-active="true"] {
-  border-color: rgba(227, 30, 36, 0.4);
+  border-color: rgba(0, 102, 255, 0.4);
   color: var(--qship-accent-bright);
   background: var(--qship-accent-soft);
 }
@@ -1357,8 +1359,8 @@
 
 .qship-hero-day-slot[data-active="true"] {
   border-style: solid;
-  border-color: rgba(227, 30, 36, 0.5);
-  background: rgba(227, 30, 36, 0.18);
+  border-color: rgba(0, 102, 255, 0.5);
+  background: rgba(0, 102, 255, 0.18);
 }
 
 @media (max-width: 760px) {
@@ -1403,7 +1405,7 @@
 
 .qship-agent-chip[data-active="true"] {
   color: var(--qship-accent-bright);
-  border-color: rgba(227, 30, 36, 0.5);
+  border-color: rgba(0, 102, 255, 0.5);
   background: var(--qship-accent-soft);
 }
 
@@ -1503,7 +1505,7 @@
 }
 
 .qship-agent-effect[data-live="true"] {
-  border-color: rgba(227, 30, 36, 0.35);
+  border-color: rgba(0, 102, 255, 0.35);
   box-shadow: 0 24px 60px -38px var(--qship-accent-glow);
 }
 
@@ -1630,7 +1632,7 @@
 }
 
 .qship-show-window[data-accent="true"] {
-  border-color: rgba(227, 30, 36, 0.35);
+  border-color: rgba(0, 102, 255, 0.35);
   box-shadow:
     0 24px 64px -28px rgba(0, 0, 0, 0.9),
     0 0 50px -18px var(--qship-accent-glow);
@@ -1653,7 +1655,7 @@
   align-items: center;
   gap: 10px;
   padding: 11px 14px;
-  border: 1px solid rgba(227, 30, 36, 0.25);
+  border: 1px solid rgba(0, 102, 255, 0.25);
   border-radius: 10px;
   background: var(--qship-accent-soft);
   font-size: 13px;
@@ -1766,7 +1768,7 @@
 
 .qship-process-pill[data-active="true"] {
   color: var(--qship-text);
-  border-color: rgba(227, 30, 36, 0.45);
+  border-color: rgba(0, 102, 255, 0.45);
   background: var(--qship-accent-soft);
 }
 
@@ -1976,10 +1978,10 @@
   margin: 0 0 16px;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(248, 113, 113, 0.25);
-  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(0, 102, 255, 0.35);
+  background: rgba(0, 102, 255, 0.08);
   font-size: 13px;
-  color: #fca5a5;
+  color: #93c5fd;
   text-align: left;
 }
 

@@ -61,7 +61,7 @@ export function Reveal({
 export function InViewAnnotation({
   children,
   type = "underline",
-  color = "#e31e24",
+  color = "#0066ff",
   strokeWidth = 2,
   delay = 200,
   multiline = false,

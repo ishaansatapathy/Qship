@@ -28,7 +28,7 @@ const TESTIMONIALS = [
     name: "Tyler Kron",
     title: "VP Engineering @ CloudAxis",
     avatar: "TK",
-    color: "#e31e24",
+    color: "#0066ff",
     highlight: true,
   },
   {

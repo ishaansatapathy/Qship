@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { QshipLogoMark } from "./qship-logo";
 import { Reveal } from "./qship-reveal";
 
 const STEPS = [
@@ -86,8 +86,8 @@ export function QshipDeliveryLoop() {
               marginTop: 32,
               padding: 20,
               borderRadius: 12,
-              border: "1px solid rgba(227,30,36,0.3)",
-              background: "rgba(227,30,36,0.05)",
+              border: "1px solid rgba(0,102,255,0.3)",
+              background: "rgba(0,102,255,0.05)",
               textAlign: "center",
             }}
           >
@@ -98,7 +98,21 @@ export function QshipDeliveryLoop() {
         </Reveal>
 
         <Reveal delay={160} style={{ textAlign: "center", marginTop: 48 }}>
-          <Image src="/mascot-hero.png" alt="" width={100} height={100} className="mx-auto object-contain" />
+          <div
+            style={{
+              width: 88,
+              height: 88,
+              marginInline: "auto",
+              borderRadius: 22,
+              border: "1px solid rgba(0, 102, 255, 0.35)",
+              background: "rgba(0, 102, 255, 0.08)",
+              display: "grid",
+              placeItems: "center",
+              boxShadow: "0 12px 40px rgba(0, 102, 255, 0.18)",
+            }}
+          >
+            <QshipLogoMark size={52} />
+          </div>
           <h3 className="qship-h2" style={{ marginTop: 20, fontSize: "clamp(1.4rem, 3vw, 2rem)" }}>
             Ready to ship with structure?
           </h3>
