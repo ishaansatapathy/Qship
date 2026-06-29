@@ -31,7 +31,12 @@ pass &&= await check("API /health", `${API}/health`, (r, b) => r.ok && b.healthy
 pass &&= await check("API /ready", `${API}/ready`, (r, b) => r.ok && b.ready === true);
 pass &&= await check("OpenAPI JSON", `${API}/openapi.json`, (r, b) => r.ok && b.openapi?.startsWith("3."));
 pass &&= await check("Scalar /docs", `${API}/docs`, (r) => r.ok);
-pass &&= await check("MCP 35 tools", `${API}/mcp/`, (r, b) => r.ok && Array.isArray(b.tools) && b.tools.length === 35);
+pass &&= await check("MCP 37 tools", `${API}/mcp/`, (r, b) => r.ok && Array.isArray(b.tools) && b.tools.length === 37);
+pass &&= await check(
+  "Ship deploy integration",
+  `${API}/integrations/ship`,
+  (r, b) => r.ok && b.configured === true && b.mode === "live",
+);
 pass &&= await check(
   "Slack integration status",
   `${API}/integrations/slack`,

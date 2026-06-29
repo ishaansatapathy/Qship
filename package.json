@@ -13,7 +13,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "verify:prod": "node scripts/verify-production.mjs"
+    "verify:prod": "node scripts/verify-production.mjs",
+    "test:ship-webhook": "node scripts/test-ship-deploy-webhook.mjs"
   },
   "devDependencies": {
     "prettier": "^3.7.4",

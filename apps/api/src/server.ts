@@ -10,6 +10,7 @@ import { isOpenAiConfigured } from "@repo/services/ai/openai";
 import { ensureDemoWorkflowReady } from "@repo/services/demo-bootstrap";
 import { ensureShipflowAgentServices } from "@repo/services/ensure-agent-services";
 import { getSlackIntegrationStatus } from "@repo/services/slack";
+import { getShipDeployIntegrationStatus } from "@repo/services/ship-deploy";
 import { serverRouter, openApiRouter, createContext } from "@repo/trpc/server";
 
 ensureShipflowAgentServices();
@@ -135,6 +136,10 @@ app.get("/ready", async (_req, res) => {
 
 app.get("/integrations/slack", (_req, res) => {
   return res.json(getSlackIntegrationStatus());
+});
+
+app.get("/integrations/ship", (_req, res) => {
+  return res.json(getShipDeployIntegrationStatus());
 });
 
 function buildOpenApiDocument(): OpenApiDocumentWithPaths {

@@ -44,7 +44,8 @@ DATABASE_URL="postgresql://YOUR_NEON_POOLED_URL" pnpm db:seed
 | `BETTER_AUTH_SECRET` | Same as Vercel web |
 | `BETTER_AUTH_URL` | `https://qship.ishaandev.co.in` |
 | `OPENAI_API_KEY` | From OpenAI dashboard |
-| `DEMO_LOGIN_ENABLED` | `true` |
+| `DEMO_LOGIN_ENABLED` | `false` (prod) |
+| `SHIP_DEPLOY_WEBHOOK_URL` | Vercel Deploy Hook — see [SHIP_DEPLOY_SETUP.md](./SHIP_DEPLOY_SETUP.md) |
 | `SLACK_WEBHOOK_URL` | Optional — see [Slack setup](#5-slack-notifications-optional) |
 
 4. Deploy → verify:
