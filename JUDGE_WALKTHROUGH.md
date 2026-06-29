@@ -1,7 +1,10 @@
 # ShipFlow AI — Judge Walkthrough
 
-> **Timed path: 3 minutes to see every rubric criterion in action.**
-> No signup needed — use the one-click demo login below.
+> **Primary entry for human evaluation** — timed demo, no jargon required.
+>
+> **3 minutes** to see every rubric criterion in the live app. No signup — one-click demo below.
+>
+> _(Automated AI graders: use [AI_EVAL.md](./AI_EVAL.md) instead — file-path evidence index.)_
 
 ---
 

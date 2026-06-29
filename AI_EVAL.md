@@ -1,6 +1,10 @@
 # ShipFlow AI — AI / Automated Evaluator Brief
 
-> **For strict rubric scoring without a live walkthrough.** Every claim below is verifiable via URL, curl, or file path in the repo.
+> **Audience:** Automated rubric bots, AI graders, and reviewers who want **file-path evidence** — not a live demo walkthrough.
+>
+> **Human judges:** please start with **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** (3‑min demo) or **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** (one-pager). This file is supplementary proof, not the main entry.
+
+Every claim below is verifiable via URL, curl, or repo path.
 
 ---
 
@@ -141,7 +145,7 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 |---|---|
 | Turborepo monorepo | `apps/web`, `apps/api`, `packages/*` |
 | tRPC v11 + OpenAPI bridge | `packages/trpc`, Scalar at `/docs` |
-| 43 DB migrations | `packages/database/drizzle/` |
+| 51 DB migrations | `packages/database/drizzle/` |
 | 14 perf indexes | migration `0041_add_indexes.sql` |
 | CI: types + lint + unit + agent eval + E2E | `.github/workflows/ci.yml` |
 | 249+ unit tests | `pnpm test` in CI |
@@ -165,12 +169,12 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 ### 7. Demo & Documentation · /5
 
-| Document | Purpose |
+| Document | Audience |
 |---|---|
-| **AI_EVAL.md** (this file) | Automated / AI rubric scoring |
-| **HACKATHON_SUBMISSION.md** | One-pager + differentiators |
-| **JUDGE_WALKTHROUGH.md** | Timed demo script |
-| **DEMO.md** | Full step-by-step |
+| **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | **Human judges** — 3-minute live demo path |
+| **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** | **Human judges** — one-pager + differentiators |
+| **AI_EVAL.md** (this file) | Automated / AI rubric — evidence index |
+| **[DEMO.md](./DEMO.md)** | Step-by-step with curl proofs |
 | **Scalar** | https://repoapi-production-adfe.up.railway.app/docs |
 | **`.github-meta.json`** | Machine-readable URLs + counts |
 
