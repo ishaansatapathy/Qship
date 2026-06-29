@@ -56,7 +56,7 @@ export const billingRouter = router({
         summary: "Start Razorpay checkout or demo-upgrade a plan",
       },
     })
-    .input(z.object({ planTier: z.enum(["free", "pro", "enterprise"]) }))
+    .input(z.object({ planTier: z.enum(["free", "test", "pro", "enterprise"]) }))
     .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         return await upgradeOrganizationPlan(ctx.user.id, input.planTier as PlanTier, ctx.user.displayName);
@@ -68,7 +68,7 @@ export const billingRouter = router({
   confirmPayment: mutationProcedure
     .input(
       z.object({
-        planTier: z.enum(["pro", "enterprise"]),
+        planTier: z.enum(["test", "pro", "enterprise"]),
         orderId: z.string().min(1),
         paymentId: z.string().min(1),
         signature: z.string().min(1),

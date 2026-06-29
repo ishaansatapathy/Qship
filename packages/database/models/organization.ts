@@ -2,7 +2,7 @@ import { index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex } from "d
 
 import { users } from "./auth";
 
-export const planTierEnum = pgEnum("plan_tier", ["free", "pro", "enterprise"]);
+export const planTierEnum = pgEnum("plan_tier", ["free", "test", "pro", "enterprise"]);
 export const memberRoleEnum = pgEnum("member_role", ["owner", "admin", "member", "viewer"]);
 
 /**
