@@ -1,7 +1,7 @@
 {
   "$schema": "https://modelcontextprotocol.io/schemas/mcp-server.json",
   "name": "shipflow-mcp",
-  "description": "ShipFlow MCP — 33 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration + analytics.",
+  "description": "ShipFlow MCP — 35 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration + analytics.",
   "version": "1.0.0",
   "transport": {
     "type": "http",

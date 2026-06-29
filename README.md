@@ -16,16 +16,21 @@
 | **API readiness** | https://repoapi-production-adfe.up.railway.app/ready |
 | **MCP tools list** | `POST https://repoapi-production-adfe.up.railway.app/mcp` |
 | **OpenAPI JSON** | https://repoapi-production-adfe.up.railway.app/openapi.json |
+| **Slack integration status** | https://repoapi-production-adfe.up.railway.app/integrations/slack |
 
 ```bash
 # Quick smoke check before a demo
 curl -fsS https://qship.ishaandev.co.in
 curl -fsS https://repoapi-production-adfe.up.railway.app/health
 curl -fsS https://repoapi-production-adfe.up.railway.app/ready
+curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 curl -s -X POST https://repoapi-production-adfe.up.railway.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
   | python3 -c "import json,sys; print(len(json.load(sys.stdin)['result']['tools']), 'tools')"
+
+# Full automated check (exit 0 = production ready)
+node scripts/verify-production.mjs
 ```
 
 | Demo credential | Value |
@@ -35,21 +40,20 @@ curl -s -X POST https://repoapi-production-adfe.up.railway.app/mcp \
 
 ---
 
-## 🎬 Demo video
-
-> **[▶ Watch 5-min walkthrough](https://youtu.be/ShipFlowAI-demo)** _(link in submission email)_
-
----
-
-## 📋 Judge / evaluator? Start here
+## 📋 AI / strict evaluator? Start here
 
 | Document | Purpose |
 |---|---|
-| **[DEMO.md](./DEMO.md)** | Step-by-step judge guide with curl proofs and agent prompts |
-| **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | 3-minute timed scoring path per rubric criterion |
-| **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** | One-pager: rubric map + differentiators |
+| **[AI_EVAL.md](./AI_EVAL.md)** | **Primary** — rubric map, live URLs, file evidence (for AI/automated scoring) |
+| **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** | One-pager + differentiators |
+| **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | 3-minute timed scoring path |
+| **[DEMO.md](./DEMO.md)** | Step-by-step guide with curl proofs |
+| **[ENGINEERING.md](./ENGINEERING.md)** | Monorepo structure, CI gates |
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Full technical deep-dive |
-| **[ENGINEERING.md](./ENGINEERING.md)** | Monorepo structure, security middleware, CI gates (rubric map) |
+
+```bash
+node scripts/verify-production.mjs   # all live URLs must pass
+```
 
 ---
 
@@ -61,6 +65,49 @@ Feature Request → Triage → Clarifying Questions → PRD → Engineering Task
 ```
 
 Every stage is tracked in real time, queryable via tRPC, accessible via 35 MCP tools, and navigable through the ShipFlow Agent chat.
+
+### Slack notifications (Core Workflow closure)
+
+When a feature passes **human approval** or is marked **shipped**, ShipFlow posts a Slack message via an incoming webhook (or records an auditable simulated delivery when no webhook is configured).
+
+| Event | Trigger | Evidence |
+|---|---|---|
+| Feature approved | `recordHumanApproval` → `notifySlackFeatureApproved` | Delivery timeline: **Slack notification sent ✓** |
+| Feature shipped | `markFeatureShipped` → `notifySlackFeatureShipped` | Timeline: **Slack shipped alert sent 🚀** |
+| Integration status | `GET /integrations/slack` | `{ mode: "live" \| "simulated", channelHint: "#product-shipping" }` |
+
+**Code:** `packages/services/slack/notify.ts` · **Wiring:** `packages/services/review.ts`
+
+#### 30-second judge demo (no AI credits required)
+
+1. Open [demo login → `/requests`](https://qship.ishaandev.co.in/api-auth/demo?next=/requests)
+2. Select **Bulk export for compliance reports** (`human_review`)
+3. Click **Approve for ship** → confirm
+4. Scroll the **Delivery timeline** → **Slack notification sent ✓**
+5. Click **Mark shipped** → second Slack event on timeline
+
+#### Configure live Slack delivery (optional, ~5 minutes)
+
+1. Create a free [Slack workspace](https://slack.com/get-started) if you do not have one
+2. Open **[Slack API → Your Apps](https://api.slack.com/apps)** → **Create New App** → **From scratch**
+3. Name the app (e.g. `ShipFlow`) and select your workspace
+4. Go to **Incoming Webhooks** → toggle **On** → **Add New Webhook to Workspace**
+5. Choose a channel (recommended: `#product-shipping`) → **Allow**
+6. Copy the webhook URL (format: `https://hooks.slack.com/services/T…/B…/…`)
+7. Add to **Railway API** environment variables:
+
+```env
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/ACTUAL/WEBHOOK
+```
+
+8. Redeploy the API, then verify:
+
+```bash
+curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
+# Expect: "mode": "live"
+```
+
+> **Note:** Do not commit the webhook URL to git. Store it only in Railway (or local `.env`). Without `SLACK_WEBHOOK_URL`, the workflow still completes and records delivery on the feature timeline in **simulated** mode — sufficient for rubric scoring.
 
 ---
 
@@ -80,6 +127,7 @@ Every stage is tracked in real time, queryable via tRPC, accessible via 35 MCP t
 | **AI pre-ship review** | "Run AI Review" button | `run_ai_review` |
 | **Delta re-review** | Automatic on iteration ≥ 2 | `get_review_delta`, `get_review_stats` |
 | **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
+| **Slack approve/ship alerts** | Timeline after Approve or Ship | `notifySlackFeatureApproved`, `GET /integrations/slack` |
 | **Approval audit trail** | Timeline events per decision | `get_approval_history` |
 | **ShipFlow Agent** | `/agent` — 35-tool streaming copilot | `POST /agent/stream` |
 | **MCP server** | Cursor / Claude integration | `POST /mcp` — 35 tools |
@@ -138,11 +186,15 @@ BETTER_AUTH_URL=https://qship.ishaandev.co.in
 CLIENT_URL=https://qship.ishaandev.co.in
 ```
 
-**Railway (API) env vars** — same secrets as local `.env` (OpenAI, BetterAuth, Neon, GitHub App, demo login). Set `BASE_URL` to the Railway URL above. Migrations apply automatically on deploy (`pnpm db:migrate` via startup).
+**Railway (API) env vars** — same secrets as local `.env` (OpenAI, BetterAuth, Neon, GitHub App, demo login). Set `BASE_URL` to the Railway URL above. Migrations apply automatically on deploy. On boot with `DEMO_LOGIN_ENABLED=true`, the API backfills passing AI reviews for demo features.
+
+```env
+SLACK_WEBHOOK_URL=<optional — Slack Incoming Webhook for live approve/ship notifications>
+```
 
 **GitHub App webhook URL:** `https://repoapi-production-adfe.up.railway.app/webhooks/github`
 
----
+See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy checklist and **[DEPLOY.md](./DEPLOY.md)** for the full production guide.
 
 ## Architecture
 
@@ -165,7 +217,8 @@ CLIENT_URL=https://qship.ishaandev.co.in
 │  /mcp               MCP 2024-11-05 JSON-RPC — 35 ShipFlow tools    │
 │  /agent/stream      SSE streaming agent (rate-limited, guardrailed) │
 │  /webhooks/github   GitHub App events (HMAC-SHA256 verified)       │
-│  /health  /ready    Liveness + readiness probes                    │
+│  /health  /ready    Liveness + readiness probes (+ Slack status)   │
+│  /integrations/slack Slack webhook status (live vs simulated)      │
 │  /docs              Scalar OpenAPI reference (judge UI)            │
 └──────────┬──────────────────────────────┬──────────────────────────┘
            │                              │
@@ -242,6 +295,9 @@ CLIENT_URL=http://localhost:3000
 BASE_URL=http://localhost:8000
 OPENAI_API_KEY=sk-...
 
+# Slack (optional — live channel notifications on approve/ship)
+SLACK_WEBHOOK_URL=
+
 # One-click demo login
 DEMO_LOGIN_ENABLED=true
 DEMO_USER_EMAIL=demo@qship.dev
@@ -255,7 +311,7 @@ See [`.env.example`](./.env.example) for all optional variables (GitHub App, Raz
 
 ```bash
 pnpm db:up        # Start Postgres via Docker Compose
-pnpm db:migrate   # Run 42 Drizzle migrations
+pnpm db:migrate   # Run 43 Drizzle migrations
 pnpm db:seed      # Create demo user + 3 sample feature requests
 ```
 
@@ -296,6 +352,7 @@ pnpm test             # Vitest unit tests
 pnpm format           # Prettier
 pnpm db:migrate       # Run Drizzle migrations
 pnpm db:seed          # Demo user + sample features
+pnpm verify:prod      # Smoke-test all production URLs
 pnpm db:studio        # Drizzle Studio (visual DB editor)
 pnpm db:generate      # Regenerate Drizzle client after schema changes
 ```
@@ -386,6 +443,9 @@ GitHub Actions (`.github/workflows/ci.yml`):
 
 | File | Purpose |
 |---|---|
+| [AI_EVAL.md](./AI_EVAL.md) | **Primary for automated judges** — rubric map, live URLs, file evidence |
+| [deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md) | Concise deploy checklist (Railway + Vercel + Slack) |
+| [DEPLOY.md](./DEPLOY.md) | Full production deployment guide |
 | [DEMO.md](./DEMO.md) | Judge demo guide — step-by-step with curl proofs and agent prompts |
 | [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | 3-minute timed scoring path per rubric criterion |
 | [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | One-pager — rubric map + differentiators |

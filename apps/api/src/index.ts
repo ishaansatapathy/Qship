@@ -66,6 +66,20 @@ async function bootstrap() {
     if (!isOpenAiConfigured()) {
       logger.warn("OPENAI_API_KEY is not set — ShipFlow Agent will be disabled until you add it to .env and restart");
     }
+
+    if (process.env.DEMO_LOGIN_ENABLED === "true") {
+      try {
+        const { ensureDemoWorkflowReady } = await import("@repo/services/demo-bootstrap");
+        const { backfilled } = await ensureDemoWorkflowReady();
+        if (backfilled > 0) {
+          logger.info("Demo workflow bootstrap applied", { backfilled });
+        }
+      } catch (err) {
+        logger.warn("Demo workflow bootstrap skipped", {
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   } catch (err) {
     logger.error("Failed to load Express application", {
       err,

@@ -915,7 +915,13 @@ export async function executeShipflowTool(
         detail: "approved",
         href: `/requests?id=${id}`,
       });
-      return JSON.stringify({ featureId: id, decision: result.decision, nextStatus: result.nextStatus, approvalId: result.id });
+      return JSON.stringify({
+        featureId: id,
+        decision: result.decision,
+        nextStatus: result.nextStatus,
+        approvalId: result.id,
+        slack: result.slack ?? null,
+      });
     }
 
     case "reject_feature": {

@@ -13,7 +13,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "deploy:prep": "node scripts/prepare-deploy.mjs"
+    "verify:prod": "node scripts/verify-production.mjs"
   },
   "devDependencies": {
     "prettier": "^3.7.4",

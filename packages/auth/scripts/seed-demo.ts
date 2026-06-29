@@ -15,6 +15,7 @@ import {
   seedDemoPrd,
   seedDemoTasks,
 } from "@repo/services/feature-request";
+import { ensurePassingAiReview } from "@repo/services/demo-bootstrap";
 
 const DEMO_EMAIL = process.env.SEED_USER_EMAIL ?? "demo@qship.dev";
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "DemoPass123!";
@@ -30,7 +31,7 @@ const DEMO_FEATURES = [
   {
     title: "Bulk export for compliance reports",
     rawRequest:
-      "Compliance team wants CSV export of all shipped features with PR links, approver names, and AI review scores for quarterly audits.",
+      "Compliance team wants CSV export of all shipped features with PR links, approver names, and AI review scores for quarterly audits. Notify #product-shipping in Slack when approved for release.",
     status: "human_review" as const,
   },
   {
@@ -110,12 +111,21 @@ async function ensureWorkspace(userId: string) {
   return { orgId, projectId };
 }
 
+async function ensurePassingAiReviewForDemo(featureRequestId: string) {
+  await ensurePassingAiReview(featureRequestId);
+}
+
 async function seedFeatures(orgId: string, projectId: string, userId: string) {
   for (const feature of DEMO_FEATURES) {
     const existing = await db.query.featureRequests.findFirst({
       where: eq(featureRequests.title, feature.title),
     });
-    if (existing) continue;
+    if (existing) {
+      if (feature.status === "human_review") {
+        await ensurePassingAiReview(existing.id);
+      }
+      continue;
+    }
 
     const id = crypto.randomUUID();
     await db.insert(featureRequests).values({
@@ -152,6 +162,10 @@ async function seedFeatures(orgId: string, projectId: string, userId: string) {
           status: "in_progress",
         },
       ]);
+
+      if (feature.status === "human_review") {
+        await ensurePassingAiReviewForDemo(id);
+      }
     }
   }
 
