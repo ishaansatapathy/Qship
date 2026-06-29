@@ -148,6 +148,11 @@ async function syncInstallationRepositories(
 
     const existingByGhId = new Map(existing.map((r) => [r.githubRepoId, r.id]));
 
+    const currentOrg = await db.query.organizations.findFirst({
+      where: eq(organizations.id, organizationId),
+      columns: { githubAccountLogin: true },
+    });
+
     for (const repo of ghRepos) {
       const fullName = repo.full_name?.trim();
       const ownerLogin = repo.owner?.login?.trim();
@@ -160,7 +165,12 @@ async function syncInstallationRepositories(
         continue;
       }
 
-      await clearStaleRepositoryClaim(organizationId, fullName);
+      await clearStaleRepositoryClaim({
+        organizationId,
+        fullName,
+        installationId,
+        currentAccountLogin: currentOrg?.githubAccountLogin ?? null,
+      });
 
       const repoId = String(repo.id);
       const rowId = existingByGhId.get(repoId) ?? `${organizationId}-repo-${repoId}`;
@@ -212,20 +222,35 @@ async function syncInstallationRepositories(
   }
 }
 
-/** Drops orphaned repo rows that block sync because full_name is globally unique. */
-async function clearStaleRepositoryClaim(organizationId: string, fullName: string) {
+/** Drops or reclaims repo rows that block sync because full_name is globally unique. */
+async function clearStaleRepositoryClaim(params: {
+  organizationId: string;
+  fullName: string;
+  installationId: string;
+  currentAccountLogin: string | null;
+}) {
+  const { organizationId, fullName, installationId, currentAccountLogin } = params;
   const existing = await db.query.repositories.findFirst({
     where: eq(repositories.fullName, fullName),
-    columns: { id: true, organizationId: true },
+    columns: { id: true, organizationId: true, githubInstallationId: true },
   });
   if (!existing || existing.organizationId === organizationId) return;
 
   const otherOrg = await db.query.organizations.findFirst({
     where: eq(organizations.id, existing.organizationId),
-    columns: { githubInstallationId: true },
+    columns: { githubInstallationId: true, githubAccountLogin: true },
   });
 
-  if (otherOrg?.githubInstallationId) {
+  const sameInstallation =
+    existing.githubInstallationId === installationId ||
+    otherOrg?.githubInstallationId === installationId;
+  const sameGithubAccount =
+    Boolean(currentAccountLogin) &&
+    Boolean(otherOrg?.githubAccountLogin) &&
+    otherOrg.githubAccountLogin === currentAccountLogin;
+  const otherOrgDisconnected = !otherOrg?.githubInstallationId;
+
+  if (!sameInstallation && !sameGithubAccount && !otherOrgDisconnected) {
     throw new ServiceError(
       "CONFLICT",
       `Repository ${fullName} is already linked to another workspace. Disconnect GitHub there first, then sync again.`,
@@ -237,6 +262,11 @@ async function clearStaleRepositoryClaim(organizationId: string, fullName: strin
     fullName,
     fromOrganizationId: existing.organizationId,
     toOrganizationId: organizationId,
+    reason: sameInstallation
+      ? "same_installation"
+      : sameGithubAccount
+        ? "same_github_account"
+        : "other_org_disconnected",
   });
 }
 
