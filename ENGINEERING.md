@@ -1,6 +1,6 @@
 # ShipFlow Engineering Guide
 
-> **Rubric:** tRPC Monorepo & Engineering Quality · 15 pts  
+> **Rubric:** tRPC Monorepo & Engineering Quality · 
 > This document maps the codebase structure, security middleware, test strategy, and deployment gates for judges and reviewers.
 
 ---
@@ -161,9 +161,9 @@ See `.env.example` for the full list. Never commit `.env` (gitignored).
 ## Quick verification (judges)
 
 ```bash
-curl -fsS https://api.qship.ishaandev.co.in/health
-curl -fsS https://api.qship.ishaandev.co.in/ready
-curl -fsS https://api.qship.ishaandev.co.in/openapi.json | head -c 200
+curl -fsS https://repoapi-production-adfe.up.railway.app/health
+curl -fsS https://repoapi-production-adfe.up.railway.app/ready
+curl -fsS https://repoapi-production-adfe.up.railway.app/openapi.json | head -c 200
 ```
 
 Demo login: https://qship.ishaandev.co.in/api-auth/demo?next=/brief

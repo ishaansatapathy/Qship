@@ -11,19 +11,19 @@
 ```bash
 # All three must return 200
 curl -fsS https://qship.ishaandev.co.in              # Web app
-curl -fsS https://api.qship.ishaandev.co.in/health  # API liveness
-curl -fsS https://api.qship.ishaandev.co.in/ready   # API + DB readiness
+curl -fsS https://repoapi-production-adfe.up.railway.app/health  # API liveness
+curl -fsS https://repoapi-production-adfe.up.railway.app/ready   # API + DB readiness
 ```
 
 | Service | URL | Auth |
 |---|---|---|
 | Web app | https://qship.ishaandev.co.in | — |
 | **One-click demo login** | https://qship.ishaandev.co.in/api-auth/demo?next=/brief | none |
-| Scalar API docs | https://api.qship.ishaandev.co.in/docs | none |
-| API health | https://api.qship.ishaandev.co.in/health | none |
-| API readiness | https://api.qship.ishaandev.co.in/ready | none |
-| OpenAPI JSON | https://api.qship.ishaandev.co.in/openapi.json | none |
-| MCP server | `POST https://api.qship.ishaandev.co.in/mcp` | none for `tools/list` |
+| Scalar API docs | https://repoapi-production-adfe.up.railway.app/docs | none |
+| API health | https://repoapi-production-adfe.up.railway.app/health | none |
+| API readiness | https://repoapi-production-adfe.up.railway.app/ready | none |
+| OpenAPI JSON | https://repoapi-production-adfe.up.railway.app/openapi.json | none |
+| MCP server | `POST https://repoapi-production-adfe.up.railway.app/mcp` | none for `tools/list` |
 
 ---
 
@@ -66,7 +66,7 @@ After demo login you'll see **3 pre-seeded features** already in the pipeline:
 | Feature | Status | What it shows |
 |---|---|---|
 | **OAuth login for enterprise customers** | `prd_ready` | Full PRD + tasks generated — click to inspect |
-| **Bulk export for compliance reports** | `human_review` | AI review passed — approve/reject gate is live |
+| **Bulk export for compliance reports** | `human_review` | Approve → **Slack notification sent ✓** on timeline (`#product-shipping`) |
 | **Slack notification when PR is approved** | `submitted` | Raw request — run triage from here |
 
 To demo the full flow end-to-end, click **"+ New request"** and submit:
@@ -183,6 +183,9 @@ When AI review passes (`readyForHuman: true`), the **"Approve" / "Reject" / "Req
 - Activity timeline shows the decision
 - `changes_requested` → sends back to `fix_needed`
 - `approved` → moves to `approved` status, enables ship
+- **Slack closure:** timeline shows **Slack notification sent ✓** (live if `SLACK_WEBHOOK_URL` set, otherwise auditable simulated delivery to `#product-shipping`)
+
+**Instant demo:** open **Bulk export for compliance** (`human_review`) → **Approve** → scroll delivery timeline.
 
 **Via agent:**
 ```
@@ -241,7 +244,7 @@ Try these exact prompts:
 
 ### Step 12 · Scalar API docs
 
-> **URL:** https://api.qship.ishaandev.co.in/docs
+> **URL:** https://repoapi-production-adfe.up.railway.app/docs
 
 **What to observe:**
 - Judge quick-start table at the top of the info panel
@@ -257,17 +260,17 @@ Try these exact prompts:
 ### Health checks
 
 ```bash
-curl -fsS https://api.qship.ishaandev.co.in/health
+curl -fsS https://repoapi-production-adfe.up.railway.app/health
 # → {"status":"ok","timestamp":"..."}
 
-curl -fsS https://api.qship.ishaandev.co.in/ready
+curl -fsS https://repoapi-production-adfe.up.railway.app/ready
 # → {"ready":true,"db":"connected","timestamp":"..."}
 ```
 
 ### MCP tools list (no auth required)
 
 ```bash
-curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
+curl -s -X POST https://repoapi-production-adfe.up.railway.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
   | python3 -c "
@@ -285,7 +288,7 @@ Expected: **35 tools** listed.
 ### OpenAPI schema
 
 ```bash
-curl -s https://api.qship.ishaandev.co.in/openapi.json \
+curl -s https://repoapi-production-adfe.up.railway.app/openapi.json \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print('Paths:', len(d.get('paths',{})))"
 ```
 
@@ -293,7 +296,7 @@ curl -s https://api.qship.ishaandev.co.in/openapi.json \
 
 ```bash
 # This should return 401 (signature missing) — confirming HMAC guard is live:
-curl -s -X POST https://api.qship.ishaandev.co.in/webhooks/github \
+curl -s -X POST https://repoapi-production-adfe.up.railway.app/webhooks/github \
   -H "Content-Type: application/json" \
   -H "X-GitHub-Event: ping" \
   -d '{"zen":"test"}'
@@ -364,7 +367,7 @@ curl -s -X POST http://localhost:8000/mcp \
 | Criterion | Evidence | Location |
 |---|---|---|
 | Working demo | One-click login, all pages load | https://qship.ishaandev.co.in |
-| API live | `/health`, `/ready`, `/docs` all 200 | https://api.qship.ishaandev.co.in |
+| API live | `/health`, `/ready`, `/docs` all 200 | https://repoapi-production-adfe.up.railway.app |
 | AI agent quality | 9-dim review, delta re-review, 35 tools | `/agent`, `feature-ai.ts` |
 | Review loop | Iteration tracking, delta, approval gate | `review.ts`, `/requests` |
 | Human approval | Validate → approve/reject/changes | UI + agent tools |

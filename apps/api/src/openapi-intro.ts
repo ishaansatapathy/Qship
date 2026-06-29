@@ -50,7 +50,7 @@ export function buildShipflowApiDescription(clientUrl: string, baseUrl: string):
     "┌─────────────┐     tRPC/REST      ┌──────────────┐     GitHub App      ┌─────────────┐",
     "│  Next.js    │ ─────────────────► │  ShipFlow    │ ──────────────────► │ Repos + PRs │",
     "│  /requests  │   /api/* + cookies │  Express API │   webhooks (HMAC)   │             │",
-    "│  /agent     │ ◄── SSE stream ─── │  + MCP (19)  │                     └─────────────┘",
+    "│  /agent     │ ◄── SSE stream ─── │  + MCP (35)  │                     └─────────────┘",
     "│  /brief     │                    │  + Agent     │",
     "└─────────────┘                    └──────────────┘",
     "                                           │",

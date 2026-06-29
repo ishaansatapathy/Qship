@@ -2,7 +2,7 @@
 
 Deploy **`apps/api`** as a separate Vercel project.
 
-**Production domain:** `https://api.qship.ishaandev.co.in`
+**Production domain:** `https://repoapi-production-adfe.up.railway.app`
 
 Full guide (DNS + web project): **`../../DEPLOY.md`**
 
@@ -13,7 +13,7 @@ Full guide (DNS + web project): **`../../DEPLOY.md`**
 | Variable | Example |
 |----------|---------|
 | `DATABASE_URL` | `postgresql://...@...neon.tech/neondb?sslmode=require` |
-| `BASE_URL` | `https://api.qship.ishaandev.co.in` |
+| `BASE_URL` | `https://repoapi-production-adfe.up.railway.app` |
 | `CLIENT_URL` | `https://qship.ishaandev.co.in` |
 | `BETTER_AUTH_SECRET` | **Same as web** — API tRPC loads `@repo/auth` at boot |
 | `BETTER_AUTH_URL` | `https://qship.ishaandev.co.in` |
@@ -54,10 +54,10 @@ Build copies `dist/` → `api/dist/` via `scripts/vercel-postbuild.mjs`.
 ## Verify after deploy
 
 ```bash
-curl https://api.qship.ishaandev.co.in/health
-curl https://api.qship.ishaandev.co.in/ready
-curl https://api.qship.ishaandev.co.in/docs
-curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
+curl https://repoapi-production-adfe.up.railway.app/health
+curl https://repoapi-production-adfe.up.railway.app/ready
+curl https://repoapi-production-adfe.up.railway.app/docs
+curl -s -X POST https://repoapi-production-adfe.up.railway.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | head -c 400
 ```
@@ -71,10 +71,10 @@ curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
 On the **web** Vercel project (`apps/web`):
 
 ```env
-API_INTERNAL_URL=https://api.qship.ishaandev.co.in
+API_INTERNAL_URL=https://repoapi-production-adfe.up.railway.app
 BETTER_AUTH_URL=https://qship.ishaandev.co.in
 CLIENT_URL=https://qship.ishaandev.co.in
-BASE_URL=https://api.qship.ishaandev.co.in
+BASE_URL=https://repoapi-production-adfe.up.railway.app
 DATABASE_URL=<same Neon URL>
 BETTER_AUTH_SECRET=<same secret as local>
 DEMO_LOGIN_ENABLED=true

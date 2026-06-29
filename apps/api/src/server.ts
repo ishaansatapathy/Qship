@@ -7,7 +7,9 @@ import { generateOpenApiDocument, createOpenApiExpressMiddleware } from "trpc-to
 
 import { logger } from "@repo/logger";
 import { isOpenAiConfigured } from "@repo/services/ai/openai";
+import { ensureDemoWorkflowReady } from "@repo/services/demo-bootstrap";
 import { ensureShipflowAgentServices } from "@repo/services/ensure-agent-services";
+import { getSlackIntegrationStatus } from "@repo/services/slack";
 import { serverRouter, openApiRouter, createContext } from "@repo/trpc/server";
 
 ensureShipflowAgentServices();
@@ -20,6 +22,7 @@ import { mcpRouter } from "./routes/mcp";
 import { agentStreamRouter } from "./routes/agent-stream";
 import { inngestServe } from "./routes/inngest";
 import { enrichShipflowOpenApi, type OpenApiDocumentWithPaths } from "./openapi-enrichment";
+import { apiReference } from "@scalar/express-api-reference";
 import {
   agentRateLimiter,
   authRateLimiter,
@@ -95,6 +98,7 @@ app.get("/health", async (_req, res) => {
       message: "API is healthy",
       healthy: true,
       openaiConfigured: isOpenAiConfigured(),
+      slack: getSlackIntegrationStatus(),
       ...(checkDatabase && process.env.DATABASE_URL ? { database: "ok" as const } : {}),
     });
   } catch (error) {
@@ -116,13 +120,21 @@ app.get("/ready", async (_req, res) => {
     }
     const { pingDatabase } = await import("@repo/database/health");
     await pingDatabase();
-    return res.json({ ready: true, database: "ok" });
+    return res.json({
+      ready: true,
+      database: "ok",
+      slack: getSlackIntegrationStatus(),
+    });
   } catch (error) {
     logger.error("Readiness check failed", {
       message: error instanceof Error ? error.message : String(error),
     });
     return res.status(503).json({ ready: false, database: "error" });
   }
+});
+
+app.get("/integrations/slack", (_req, res) => {
+  return res.json(getSlackIntegrationStatus());
 });
 
 function buildOpenApiDocument(): OpenApiDocumentWithPaths {
@@ -151,22 +163,16 @@ app.get("/openapi.json", (_req, res) => {
   return res.json(getOpenApiDocument());
 });
 
-import("@scalar/express-api-reference")
-  .then(({ apiReference }) => {
-    app.use(
-      "/docs",
-      apiReference({
-        url: "/openapi.json",
-        theme: "purple",
-        metaData: { title: "ShipFlow API — Scalar Docs" },
-      }),
-    );
-  })
-  .catch((error) => {
-    logger.warn("API docs disabled", {
-      message: error instanceof Error ? error.message : error,
-    });
-  });
+if (env.PUBLIC_OPENAPI_DOCS === "true") {
+  app.use(
+    "/docs",
+    apiReference({
+      url: "/openapi.json",
+      theme: "purple",
+      metaData: { title: "ShipFlow API — Scalar Docs" },
+    }),
+  );
+}
 
 try {
   app.use(

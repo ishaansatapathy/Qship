@@ -9,11 +9,12 @@
 
 ```bash
 # 1. Verify API is live
-curl -fsS https://api.qship.ishaandev.co.in/health
-curl -fsS https://api.qship.ishaandev.co.in/ready
+curl -fsS https://repoapi-production-adfe.up.railway.app/health
+curl -fsS https://repoapi-production-adfe.up.railway.app/ready
+curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 
-# 2. Count MCP tools (should print 25)
-curl -s -X POST https://api.qship.ishaandev.co.in/mcp \
+# 2. Count MCP tools (should print 35)
+curl -s -X POST https://repoapi-production-adfe.up.railway.app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
   | python3 -c "import json,sys; print(len(json.load(sys.stdin)['result']['tools']), 'tools')"
@@ -54,7 +55,10 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | 1:30 | Click "Run AI Review" again → delta re-review | Review loop — iteration tracking |
 | 1:40 | See RESOLVED / UNRESOLVED per prior issue | Review loop — differentiator |
 | 1:50 | With AI passing → see **Approve / Reject / Request Changes** buttons | Human approval gate |
-| 1:55 | Click **"Approve"** → status → `approved` | Human approval |
+| 1:55 | Click **Bulk export** → **Approve** → timeline shows **Slack notification sent ✓** | Core workflow — Slack closure |
+| 1:58 | Click **Mark shipped** → second Slack alert on timeline | Ship + notify loop |
+
+**Instant Slack path (skip AI steps):** `/requests` → **Bulk export for compliance** → **Approve** → delivery timeline → **Slack notification sent ✓**
 
 ---
 
@@ -66,9 +70,9 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | 2:05 | Type: `"Summarise the pipeline and triage any submitted features"` | Agent tool use |
 | 2:20 | Watch streamed response + action cards rendered | Agent streaming |
 | 2:30 | Type: `"Show review delta for the last feature we reviewed"` | Review loop |
-| 2:40 | Open new tab: https://api.qship.ishaandev.co.in/docs | Documentation |
+| 2:40 | Open new tab: https://repoapi-production-adfe.up.railway.app/docs | Documentation |
 | 2:45 | Observe Scalar UI — tag groups, code samples, MCP manifest | Docs quality |
-| 2:55 | Open https://api.qship.ishaandev.co.in/openapi.json | API completeness |
+| 2:55 | Open https://repoapi-production-adfe.up.railway.app/openapi.json | API completeness |
 
 ---
 
@@ -134,8 +138,8 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | JUDGE_WALKTHROUGH | https://github.com/ishaansatapathy/Qship/blob/main/JUDGE_WALKTHROUGH.md |
 | HACKATHON_SUBMISSION | https://github.com/ishaansatapathy/Qship/blob/main/HACKATHON_SUBMISSION.md |
 | ARCHITECTURE | https://github.com/ishaansatapathy/Qship/blob/main/ARCHITECTURE.md |
-| Scalar API docs | https://api.qship.ishaandev.co.in/docs |
-| OpenAPI JSON | https://api.qship.ishaandev.co.in/openapi.json |
+| Scalar API docs | https://repoapi-production-adfe.up.railway.app/docs |
+| OpenAPI JSON | https://repoapi-production-adfe.up.railway.app/openapi.json |
 
 ---
 

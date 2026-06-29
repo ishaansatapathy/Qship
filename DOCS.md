@@ -2,14 +2,14 @@
 
 > **AI-assisted product delivery platform** for the ChaiCode hackathon — tRPC monorepo SaaS.
 
-| Resource | URL |
-|----------|-----|
-| Web app (local) | http://localhost:3000 |
-| **Scalar API docs** | http://localhost:8000/docs |
-| OpenAPI JSON | http://localhost:8000/openapi.json |
-| ShipFlow MCP | `POST http://localhost:8000/mcp` |
-| Agent SSE | `POST http://localhost:8000/agent/stream` |
-| GitHub webhook | `POST http://localhost:8000/webhooks/github` |
+| Resource | Local | Production |
+|----------|-------|------------|
+| Web app | http://localhost:3000 | https://qship.ishaandev.co.in |
+| **Scalar API docs** | http://localhost:8000/docs | https://repoapi-production-adfe.up.railway.app/docs |
+| OpenAPI JSON | http://localhost:8000/openapi.json | https://repoapi-production-adfe.up.railway.app/openapi.json |
+| ShipFlow MCP | `POST http://localhost:8000/mcp` | `POST https://repoapi-production-adfe.up.railway.app/mcp` |
+| Agent SSE | `POST http://localhost:8000/agent/stream` | via web proxy `/agent/stream` |
+| GitHub webhook | `POST http://localhost:8000/webhooks/github` | `POST https://repoapi-production-adfe.up.railway.app/webhooks/github` |
 
 Related: [`README.md`](README.md) · [`DEMO.md`](DEMO.md) · [`JUDGE_WALKTHROUGH.md`](JUDGE_WALKTHROUGH.md) · [`mcp-server.json`](mcp-server.json)
 
@@ -21,7 +21,7 @@ Related: [`README.md`](README.md) · [`DEMO.md`](DEMO.md) · [`JUDGE_WALKTHROUGH
 Next.js (web)  ──tRPC/REST──►  Express API  ──Octokit──►  GitHub App
      │                              │
      │                              ├── Postgres (features, PRDs, sessions)
-     │                              ├── MCP (19 tools)
+     │                              ├── MCP (35 tools)
      │                              └── OpenAI (triage, PRD, review)
      └── SSE /agent/stream ◄────────┘
 ```
@@ -33,7 +33,7 @@ Next.js (web)  ──tRPC/REST──►  Express API  ──Octokit──►  Gi
 | Auth | BetterAuth — email/password + Google OAuth |
 | Database | PostgreSQL + Drizzle ORM |
 | AI | OpenAI gpt-4o-mini (configurable via `OPENAI_MODEL`) |
-| MCP | MCP 2024-11-05 — 19 ShipFlow tools |
+| MCP | MCP 2024-11-05 — **35** ShipFlow tools |
 
 ### Monorepo layout
 
@@ -161,7 +161,7 @@ submitted → clarifying → prd_generating → prd_ready → planning → plan_
 
 ---
 
-## 5. MCP (19 tools)
+## 5. MCP (35 tools)
 
 **Endpoint:** `POST /mcp` (JSON-RPC 2.0)
 
@@ -199,8 +199,21 @@ submitted → clarifying → prd_generating → prd_ready → planning → plan_
 | `list_ai_reviews` | AI review iterations + issues |
 | `get_feature_delivery` | Timeline + summary + next step |
 | `update_engineering_task_status` | Kanban column move |
+| `get_review_delta` | Compare last two AI review iterations |
+| `get_review_stats` | Pass rate, iteration count |
+| `get_review_loop_health` | Review loop health score 0–100 |
+| `resolve_review_issue` | Mark individual issue resolved |
+| `approve_feature` / `reject_feature` / `request_changes` | Human approval gate |
+| `get_approval_history` / `get_approval_briefing` | Audit trail + AI briefing |
+| `analyze_change_request` | PM notes → developer action items |
+| `predict_delivery_timeline` | ETA from velocity history |
+| `check_pipeline_duplicates` | Semantic duplicate detection |
+| `get_pipeline_health` | Bottleneck + velocity summary |
+| `get_developer_onboarding_guide` | First-30-min task guide |
+| `explain_engineering_task` | Task walkthrough pseudo-code |
+| `advance_task_walkthrough` | Mark task done + explain next |
 
-**CI parity:** `packages/services/ai/tool-parity.test.ts`
+**Full manifest (35 tools):** `mcp-server.json` · CI parity: `packages/services/ai/tool-parity.test.ts`
 
 ### Example curl
 
@@ -216,7 +229,7 @@ curl -s -X POST http://localhost:8000/mcp \
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /agent/stream` | SSE streaming chat with 19 ShipFlow tools |
+| `POST /agent/stream` | SSE streaming chat with **35** ShipFlow tools |
 
 Rate limit: **20 requests/min/user**.
 

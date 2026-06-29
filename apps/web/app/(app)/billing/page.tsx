@@ -212,7 +212,7 @@ export default function BillingPage() {
           <CreditCard size={14} style={{ verticalAlign: -2 }} /> Razorpay checkout is live. Test card:{" "}
           <code>4111 1111 1111 1111</code> · OTP <code>123456</code>. Webhook URL (API):{" "}
           <code>
-            {process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.qship.ishaandev.co.in"}
+            {process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://repoapi-production-adfe.up.railway.app"}
             /webhooks/razorpay
           </code>
           .
