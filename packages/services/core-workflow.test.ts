@@ -4,7 +4,7 @@ import { ServiceError } from "./errors";
 import { guardedUpdateFeatureStatus } from "./feature-request";
 import { FEATURE_STATUSES } from "./workflow";
 import { RELEASE_REVIEWER_ROLES } from "./workflow-guards";
-import { validateGeneratedCodeSyntax } from "./feature-codegen";
+import { validateGeneratedCodeGate } from "./feature-codegen";
 
 describe("core workflow FSM", () => {
   it("includes the full delivery lifecycle", () => {
@@ -40,10 +40,10 @@ describe("workflow guard rules", () => {
   });
 });
 
-describe("codegen syntax gate", () => {
+describe("codegen gate", () => {
   it("accepts valid TypeScript", () => {
     expect(() =>
-      validateGeneratedCodeSyntax([
+      validateGeneratedCodeGate([
         {
           path: "src/feature.ts",
           content: "export const ok = true;\n",
@@ -56,7 +56,7 @@ describe("codegen syntax gate", () => {
 
   it("rejects invalid TypeScript before commit", () => {
     expect(() =>
-      validateGeneratedCodeSyntax([
+      validateGeneratedCodeGate([
         {
           path: "src/broken.ts",
           content: "export const x = \n",

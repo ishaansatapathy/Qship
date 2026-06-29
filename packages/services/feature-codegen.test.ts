@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ServiceError } from "./errors";
-import { sanitizeGeneratedContent, validateCodegenPath } from "./feature-codegen";
+import { sanitizeGeneratedContent, validateCodegenPath, validateGeneratedCodeGate } from "./feature-codegen";
 
 describe("feature-codegen validation", () => {
   it("accepts safe repo-relative paths", () => {
@@ -24,5 +24,18 @@ describe("feature-codegen validation", () => {
   it("rejects oversized generated files", () => {
     const huge = Array.from({ length: 500 }, (_, i) => `line ${i}`).join("\n");
     expect(() => sanitizeGeneratedContent(huge)).toThrow(ServiceError);
+  });
+
+  it("rejects strict type errors via tsc gate", () => {
+    expect(() =>
+      validateGeneratedCodeGate([
+        {
+          path: "src/types.ts",
+          content: "export const count: number = true;\n",
+          action: "create",
+          summary: "bad types",
+        },
+      ]),
+    ).toThrow(ServiceError);
   });
 });

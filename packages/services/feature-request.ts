@@ -38,6 +38,12 @@ const ALLOWED_TRANSITIONS: Partial<Record<FeatureStatus, FeatureStatus[]>> = {
   rejected:            ["submitted"],
 };
 
+/** Returns whether a feature status transition is allowed by the FSM. */
+export function isFeatureTransitionAllowed(from: FeatureStatus, to: FeatureStatus): boolean {
+  if (from === to) return true;
+  return (ALLOWED_TRANSITIONS[from] ?? []).includes(to);
+}
+
 /**
  * Validated status transition for tRPC/UI surfaces.
  * Throws PRECONDITION_FAILED on illegal jumps.
