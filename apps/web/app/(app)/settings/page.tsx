@@ -8,7 +8,7 @@ import { trpc } from "~/trpc/client";
 import { useQshipUser, initials } from "~/components/app/use-qship-user";
 import { useDemoMode } from "~/hooks/use-demo-mode";
 import { signOutShipflow } from "~/lib/sign-out";
-import { getApiUnreachableMessage } from "~/lib/api-unreachable-message";
+import { getApiUnreachableMessage, formatTrpcQueryError } from "~/lib/api-unreachable-message";
 
 const GITHUB_SETUP_HINT =
   "Set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, and GITHUB_WEBHOOK_SECRET on Railway (webhook secret must match your GitHub App).";
@@ -140,8 +140,11 @@ export default function SettingsPage() {
   const { user } = useQshipUser();
   const { isDemo: isDemoUser } = useDemoMode(user?.email);
   const utils = trpc.useUtils();
-  const githubStatus = trpc.github.connectionStatus.useQuery({});
-  const githubInstallUrl = trpc.github.getInstallUrl.useQuery({ returnTo: "/settings" });
+  const githubStatus = trpc.github.connectionStatus.useQuery({}, { retry: 2, retryDelay: 1500 });
+  const githubInstallUrl = trpc.github.getInstallUrl.useQuery(
+    { returnTo: "/settings" },
+    { retry: 2, retryDelay: 1500 },
+  );
   const approvalDefaults = trpc.settings.getApprovalDefaults.useQuery({});
   const [name, setName] = useState("");
 
@@ -282,7 +285,7 @@ export default function SettingsPage() {
 
         {githubStatus.isError || githubInstallUrl.isError ? (
           <div className="qship-req-rec" style={{ marginBottom: 14 }}>
-            {getApiUnreachableMessage()}{" "}
+            {formatTrpcQueryError([githubInstallUrl.error, githubStatus.error])}{" "}
             <button
               type="button"
               className="qship-btn-ghost"
@@ -330,7 +333,7 @@ export default function SettingsPage() {
                 return;
               }
               if (refreshed.isError || githubStatus.isError) {
-                toast.error(getApiUnreachableMessage());
+                toast.error(formatTrpcQueryError([refreshed.error, githubInstallUrl.error, githubStatus.error]));
                 return;
               }
               toast.error("Could not load GitHub install link. Refresh and try again.");
