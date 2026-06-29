@@ -8,6 +8,7 @@ import { ServiceError } from "./errors";
 import { registerInboxService, tryGetInboxService, type InboxService } from "./inbox";
 import { registerQueueService, getQueueService, type QueueService } from "./queue";
 import { registerSettingsService, getSettingsService, type SettingsService } from "./settings";
+import { createDbSettingsService } from "./settings/approval-defaults";
 
 const GMAIL_MSG = "Gmail is not connected in ShipFlow. Use feature or GitHub tools instead.";
 const CALENDAR_MSG = "Google Calendar is not connected in ShipFlow.";
@@ -77,15 +78,7 @@ function disconnectedCalendar(): CalendarService {
 }
 
 function defaultSettings(): SettingsService {
-  const defaults = {
-    autoApproveEmail: false,
-    autoApproveAgentEmail: false,
-    autoApproveCalendar: false,
-  };
-  return {
-    getApprovalDefaults: async () => defaults,
-    updateApprovalDefaults: async (_userId, input) => input,
-  };
+  return createDbSettingsService();
 }
 
 let ensured = false;

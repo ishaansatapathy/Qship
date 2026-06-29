@@ -21,7 +21,7 @@ import type { AgentActionCard, AgentChatResult, AgentHistoryMessage } from "./ag
 import { buildToolExecutor } from "./agent-executor";
 
 import { AGENT_TOOLS } from "./agent-internals";
-import { createToolMemoryTracker, prepareAgentRun } from "./agent-run";
+import { createToolMemoryTracker, loadAgentApprovalDefaults, prepareAgentRun, trimAgentHistory } from "./agent-run";
 import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
@@ -54,10 +54,7 @@ export async function runAgentChatStream(
     };
   }
 
-  const history =
-    input.focus?.contextId || input.focus?.eventId || input.focus?.walkthroughTaskId
-      ? (input.history ?? []).slice(-4)
-      : (input.history ?? []);
+  const history = trimAgentHistory(input.history, input.focus);
   const previewMessages: OpenAiConversationMessage[] = [
     ...history.map((m) => ({ role: m.role, content: m.content })),
     { role: "user" as const, content: input.message.trim() },
@@ -70,17 +67,17 @@ export async function runAgentChatStream(
   }
 
   const actions: AgentActionCard[] = [];
+  const approvalDefaults = await loadAgentApprovalDefaults(tenantId);
+  const runId = crypto.randomUUID();
 
-  const prepared = await prepareAgentRun(tenantId, input, {
-    autoApproveEmail: false,
-    autoApproveAgentEmail: false,
-    autoApproveCalendar: false,
-  });
+  const prepared = await prepareAgentRun(tenantId, input, approvalDefaults);
   const memoryTracker = createToolMemoryTracker(prepared, input.toolMemory ?? []);
 
   const baseExecutor = buildToolExecutor({
     tenantId,
     actions,
+    userMessage: input.message.trim(),
+    approvalDefaults,
   });
 
   let walkthroughTaskIdUpdate: string | null | undefined;
@@ -115,6 +112,13 @@ export async function runAgentChatStream(
     timeoutMs: 120_000,
     onToken: onTokenDelta,
     signal: opts?.signal,
+  });
+
+  logger.info("agent.stream.completed", {
+    runId,
+    tenantId,
+    toolCalls: memoryTracker.getNewEntries().length,
+    focusCleared: prepared.focusCleared,
   });
 
   return {

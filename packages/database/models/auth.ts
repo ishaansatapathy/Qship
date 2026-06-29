@@ -7,6 +7,9 @@ export const users = pgTable("shipflow_users", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  autoApproveEmail: boolean("auto_approve_email").notNull().default(false),
+  autoApproveAgentEmail: boolean("auto_approve_agent_email").notNull().default(false),
+  autoApproveCalendar: boolean("auto_approve_calendar").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
