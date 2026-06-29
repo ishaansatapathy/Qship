@@ -534,7 +534,7 @@ export async function resolveReviewIssue(
     .where(eq(aiReviewIssues.id, issueId));
 
   const featureRequestId = issue.aiReview?.featureRequestId;
-  let resolutionSummary = null;
+  let resolutionSummary: Awaited<ReturnType<typeof getIssueResolutionSummary>> | null = null;
 
   if (featureRequestId) {
     await appendFeatureActivity(featureRequestId, {

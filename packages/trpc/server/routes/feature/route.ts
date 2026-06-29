@@ -907,7 +907,7 @@ export const featureRouter = router({
         notes: z.string().optional(),
       }),
     )
-    .output(openApiResponse).mutation(async ({ ctx: _ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         return resolveReviewIssue(input.issueId, input.resolved, input.notes, ctx.user.id);
       } catch (error) {

@@ -1,7 +1,7 @@
 /** Shared runtime environment helpers for production gates. */
 
 export function isProductionEnv(): boolean {
-  const nodeEnv = process.env.NODE_ENV;
+  const nodeEnv = String(process.env.NODE_ENV ?? "");
   return nodeEnv === "production" || nodeEnv === "prod";
 }
 

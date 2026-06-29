@@ -5,7 +5,7 @@ import { logger } from "@repo/logger";
 
 import type { PrReviewIssue as PrAiReviewIssue } from "../feature-ai";
 import { runDeltaAiReview, runFeatureAiReview, runPrAiReview } from "../feature-ai";
-import { getFeatureRequest, transitionFeatureStatus } from "../feature-request";
+import { getFeatureRequest, transitionFeatureStatus, updateFeatureMetadata } from "../feature-request";
 import { consumeAiReviewCredit, getPreviousBlockingIssues, persistAiReview } from "../review";
 import { getInstallationOctokit } from "./client";
 import { fetchPullRequestDiff } from "./diff";

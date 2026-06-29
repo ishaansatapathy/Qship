@@ -66,16 +66,21 @@ export function validateGeneratedCodeSyntax(files: GeneratedCodeFile[]): void {
     const kind = scriptKindForPath(file.path);
     if (!kind) continue;
 
-    const sourceFile = ts.createSourceFile(
-      file.path,
-      content,
-      ts.ScriptTarget.Latest,
-      true,
-      kind,
-    );
+    const result = ts.transpileModule(content, {
+      reportDiagnostics: true,
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.ESNext,
+        ...(kind === ts.ScriptKind.TSX || kind === ts.ScriptKind.JSX
+          ? { jsx: ts.JsxEmit.ReactJSX }
+          : {}),
+      },
+      fileName: file.path,
+    });
 
-    if (sourceFile.parseDiagnostics.length > 0) {
-      const diagnostic = sourceFile.parseDiagnostics[0]!;
+    const diagnostics = result.diagnostics ?? [];
+    if (diagnostics.length > 0) {
+      const diagnostic = diagnostics[0]!;
       const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
       throw new ServiceError(
         "PRECONDITION_FAILED",
