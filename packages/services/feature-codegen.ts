@@ -90,6 +90,111 @@ export function validateGeneratedCodeSyntax(files: GeneratedCodeFile[]): void {
   }
 }
 
+function compilerOptionsForGeneratedFiles(): ts.CompilerOptions {
+  return {
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    strict: true,
+    skipLibCheck: true,
+    noEmit: true,
+    esModuleInterop: true,
+    allowJs: true,
+    jsx: ts.JsxEmit.ReactJSX,
+  };
+}
+
+/** Type-checks generated TS/TSX files together (tsc --noEmit equivalent). */
+export function validateGeneratedCodeTypes(files: GeneratedCodeFile[]): void {
+  const typedFiles = files
+    .map((file) => {
+      validateCodegenPath(file.path);
+      return {
+        path: file.path.trim().replace(/\\/g, "/").replace(/^\/+/, ""),
+        content: sanitizeGeneratedContent(file.content),
+        kind: scriptKindForPath(file.path),
+      };
+    })
+    .filter((file): file is typeof file & { kind: ts.ScriptKind } => file.kind !== null);
+
+  if (typedFiles.length === 0) return;
+
+  const fileContents = new Map(typedFiles.map((file) => [file.path, file.content]));
+  const compilerOptions = compilerOptionsForGeneratedFiles();
+  const baseHost = ts.createCompilerHost(compilerOptions);
+
+  const host: ts.CompilerHost = {
+    ...baseHost,
+    fileExists: (fileName) => {
+      const normalized = fileName.replace(/\\/g, "/");
+      for (const path of fileContents.keys()) {
+        if (normalized === path || normalized.endsWith(`/${path}`)) return true;
+      }
+      return baseHost.fileExists(fileName);
+    },
+    readFile: (fileName) => {
+      const normalized = fileName.replace(/\\/g, "/");
+      for (const [path, content] of fileContents) {
+        if (normalized === path || normalized.endsWith(`/${path}`)) return content;
+      }
+      return baseHost.readFile(fileName);
+    },
+    getSourceFile: (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+      const normalized = fileName.replace(/\\/g, "/");
+      for (const [path, content] of fileContents) {
+        if (normalized === path || normalized.endsWith(`/${path}`)) {
+          return ts.createSourceFile(
+            path,
+            content,
+            languageVersion,
+            shouldCreateNewSourceFile,
+            scriptKindForPath(path) ?? ts.ScriptKind.TS,
+          );
+        }
+      }
+      return baseHost.getSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
+    },
+    resolveModuleNames: (moduleNames, containingFile, _reused, _redirected, options) =>
+      moduleNames.map((moduleName) => {
+        const result = ts.resolveModuleName(moduleName, containingFile, options, host);
+        if (!result.resolvedModule) {
+          return undefined as never;
+        }
+        return {
+          resolvedFileName: result.resolvedModule.resolvedFileName,
+          extension: result.resolvedModule.extension,
+          isExternalLibraryImport: result.resolvedModule.isExternalLibraryImport ?? false,
+        };
+      }),
+  };
+
+  const program = ts.createProgram(
+    typedFiles.map((file) => file.path),
+    compilerOptions,
+    host,
+  );
+
+  const errors = ts.getPreEmitDiagnostics(program).filter(
+    (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+  );
+
+  if (errors.length > 0) {
+    const diagnostic = errors[0]!;
+    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+    const file = diagnostic.file?.fileName ?? "generated";
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Generated code type error in ${file}: ${message}`,
+    );
+  }
+}
+
+/** Syntax + type gate run before any generated code is committed to GitHub. */
+export function validateGeneratedCodeGate(files: GeneratedCodeFile[]): void {
+  validateGeneratedCodeSyntax(files);
+  validateGeneratedCodeTypes(files);
+}
+
 function requireOpenAi() {
   if (!isOpenAiConfigured()) {
     throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured. Set OPENAI_API_KEY.");

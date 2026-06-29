@@ -3,7 +3,7 @@ import db from "@repo/database";
 import { engineeringTasks, repositories } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
-import { generateFeatureImplementation, validateGeneratedCodeSyntax } from "../feature-codegen";
+import { generateFeatureImplementation, validateGeneratedCodeGate } from "../feature-codegen";
 import { ServiceError } from "../errors";
 import {
   appendFeatureActivity,
@@ -102,7 +102,7 @@ export async function runCodeImplementationWorkflow(input: {
       repoSnippets,
     });
 
-    validateGeneratedCodeSyntax(codegen.files);
+    validateGeneratedCodeGate(codegen.files);
 
     await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
