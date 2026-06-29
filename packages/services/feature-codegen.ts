@@ -1,4 +1,5 @@
 import type { PrdContent } from "@repo/database/schema";
+import path from "node:path";
 import ts from "typescript";
 
 import { ServiceError } from "./errors";
@@ -90,11 +91,15 @@ export function validateGeneratedCodeSyntax(files: GeneratedCodeFile[]): void {
   }
 }
 
+const CODEGEN_VIRTUAL_ROOT = "/shipflow-codegen";
+
 function compilerOptionsForGeneratedFiles(): ts.CompilerOptions {
   return {
     target: ts.ScriptTarget.ES2020,
     module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    moduleResolution: ts.ModuleResolutionKind.Node10,
+    rootDir: CODEGEN_VIRTUAL_ROOT,
+    baseUrl: CODEGEN_VIRTUAL_ROOT,
     strict: true,
     skipLibCheck: true,
     noEmit: true,
@@ -102,6 +107,55 @@ function compilerOptionsForGeneratedFiles(): ts.CompilerOptions {
     allowJs: true,
     jsx: ts.JsxEmit.ReactJSX,
   };
+}
+
+function toVirtualRepoPath(repoRelative: string): string {
+  return path.posix.join(CODEGEN_VIRTUAL_ROOT, repoRelative);
+}
+
+function matchGeneratedFile(
+  fileName: string,
+  fileContents: Map<string, string>,
+): { virtual: string; repo: string; content: string } | null {
+  const normalized = fileName.replace(/\\/g, "/");
+  for (const [repo, content] of fileContents) {
+    const virtual = toVirtualRepoPath(repo);
+    if (
+      normalized === virtual ||
+      normalized === repo ||
+      normalized.endsWith(`/${repo}`) ||
+      normalized.endsWith(`/${virtual}`)
+    ) {
+      return { virtual, repo, content };
+    }
+  }
+  return null;
+}
+
+function resolveRelativeGeneratedModule(
+  moduleName: string,
+  containingFile: string,
+  fileContents: Map<string, string>,
+): string | null {
+  if (!moduleName.startsWith(".")) return null;
+
+  const containingDir = path.posix.dirname(containingFile.replace(/\\/g, "/"));
+  const joined = path.posix.normalize(path.posix.join(containingDir, moduleName));
+  const candidates = [
+    joined,
+    `${joined}.ts`,
+    `${joined}.tsx`,
+    `${joined}.js`,
+    path.posix.join(joined, "index.ts"),
+  ];
+
+  for (const candidate of candidates) {
+    if (matchGeneratedFile(candidate, fileContents)) {
+      return matchGeneratedFile(candidate, fileContents)!.virtual;
+    }
+  }
+
+  return null;
 }
 
 /** Type-checks generated TS/TSX files together (tsc --noEmit equivalent). */
@@ -122,57 +176,52 @@ export function validateGeneratedCodeTypes(files: GeneratedCodeFile[]): void {
   const fileContents = new Map(typedFiles.map((file) => [file.path, file.content]));
   const compilerOptions = compilerOptionsForGeneratedFiles();
   const baseHost = ts.createCompilerHost(compilerOptions);
+  const rootNames = typedFiles.map((file) => toVirtualRepoPath(file.path));
 
   const host: ts.CompilerHost = {
-    ...baseHost,
-    fileExists: (fileName) => {
-      const normalized = fileName.replace(/\\/g, "/");
-      for (const path of fileContents.keys()) {
-        if (normalized === path || normalized.endsWith(`/${path}`)) return true;
-      }
-      return baseHost.fileExists(fileName);
-    },
-    readFile: (fileName) => {
-      const normalized = fileName.replace(/\\/g, "/");
-      for (const [path, content] of fileContents) {
-        if (normalized === path || normalized.endsWith(`/${path}`)) return content;
-      }
-      return baseHost.readFile(fileName);
-    },
+    getCurrentDirectory: () => CODEGEN_VIRTUAL_ROOT,
+    getCanonicalFileName: (fileName) => fileName,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => "\n",
+    getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
+    writeFile: () => undefined,
+    fileExists: (fileName) =>
+      matchGeneratedFile(fileName, fileContents) !== null || baseHost.fileExists(fileName),
+    readFile: (fileName) =>
+      matchGeneratedFile(fileName, fileContents)?.content ?? baseHost.readFile(fileName),
     getSourceFile: (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
-      const normalized = fileName.replace(/\\/g, "/");
-      for (const [path, content] of fileContents) {
-        if (normalized === path || normalized.endsWith(`/${path}`)) {
-          return ts.createSourceFile(
-            path,
-            content,
-            languageVersion,
-            shouldCreateNewSourceFile,
-            scriptKindForPath(path) ?? ts.ScriptKind.TS,
-          );
-        }
+      const match = matchGeneratedFile(fileName, fileContents);
+      if (match) {
+        return ts.createSourceFile(
+          match.virtual,
+          match.content,
+          languageVersion,
+          shouldCreateNewSourceFile,
+          scriptKindForPath(match.repo) ?? ts.ScriptKind.TS,
+        );
       }
       return baseHost.getSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
     },
-    resolveModuleNames: (moduleNames, containingFile, _reused, _redirected, options) =>
-      moduleNames.map((moduleName) => {
-        const result = ts.resolveModuleName(moduleName, containingFile, options, host);
-        if (!result.resolvedModule) {
-          return undefined as never;
-        }
+    resolveModuleNameLiterals: (moduleLiterals, containingFile) =>
+      moduleLiterals.map((literal) => {
+        const resolvedVirtual = resolveRelativeGeneratedModule(
+          literal.text,
+          containingFile,
+          fileContents,
+        );
         return {
-          resolvedFileName: result.resolvedModule.resolvedFileName,
-          extension: result.resolvedModule.extension,
-          isExternalLibraryImport: result.resolvedModule.isExternalLibraryImport ?? false,
+          resolvedModule: resolvedVirtual
+            ? {
+                resolvedFileName: resolvedVirtual,
+                extension: ts.Extension.Ts,
+                isExternalLibraryImport: false,
+              }
+            : undefined,
         };
       }),
   };
 
-  const program = ts.createProgram(
-    typedFiles.map((file) => file.path),
-    compilerOptions,
-    host,
-  );
+  const program = ts.createProgram(rootNames, compilerOptions, host);
 
   const errors = ts.getPreEmitDiagnostics(program).filter(
     (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,

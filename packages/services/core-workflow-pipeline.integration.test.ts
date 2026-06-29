@@ -90,6 +90,25 @@ describe("core delivery pipeline (integration)", () => {
   });
 
   describe("codegen gate before GitHub commit", () => {
+    it("accepts valid multi-file TypeScript with cross-file imports", () => {
+      expect(() =>
+        validateGeneratedCodeGate([
+          {
+            path: "src/feature/util.ts",
+            content: "export function add(a: number, b: number): number { return a + b; }\n",
+            action: "create",
+            summary: "util",
+          },
+          {
+            path: "src/feature/index.ts",
+            content: 'import { add } from "./util";\nexport const total: number = add(1, 2);\n',
+            action: "create",
+            summary: "entry",
+          },
+        ]),
+      ).not.toThrow();
+    });
+
     it("accepts valid multi-file TypeScript in one program", () => {
       expect(() =>
         validateGeneratedCodeGate([

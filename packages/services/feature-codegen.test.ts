@@ -26,6 +26,25 @@ describe("feature-codegen validation", () => {
     expect(() => sanitizeGeneratedContent(huge)).toThrow(ServiceError);
   });
 
+  it("resolves cross-file relative imports between generated files", () => {
+    expect(() =>
+      validateGeneratedCodeGate([
+        {
+          path: "src/feature/util.ts",
+          content: "export function add(a: number, b: number): number { return a + b; }\n",
+          action: "create",
+          summary: "util",
+        },
+        {
+          path: "src/feature/index.ts",
+          content: 'import { add } from "./util";\nexport const total: number = add(1, 2);\n',
+          action: "create",
+          summary: "entry",
+        },
+      ]),
+    ).not.toThrow();
+  });
+
   it("rejects strict type errors via tsc gate", () => {
     expect(() =>
       validateGeneratedCodeGate([
