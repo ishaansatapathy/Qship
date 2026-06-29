@@ -4,7 +4,7 @@ import { runFeatureAiReviewWithOptionalPr } from "../github/pr-review";
 import { getMembershipForUser } from "../organization";
 import { getReviewDelta, getReviewStats } from "../review";
 import { ServiceError } from "../errors";
-import { updateWorkflowRun } from "../workflow-runs";
+import { updateWorkflowRun, assertWorkflowRunActive } from "../workflow-runs";
 
 /**
  * Inngest workflow for AI-powered pre-ship review.
@@ -25,6 +25,7 @@ export async function runAiReviewWorkflow(input: {
   const { featureId, userId, workflowRunId } = input;
 
   try {
+    await assertWorkflowRunActive(workflowRunId);
     // ── Stage 1: validate workspace ───────────────────────────────────────────
     await updateWorkflowRun(workflowRunId, {
       status: "running",

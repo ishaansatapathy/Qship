@@ -16,6 +16,7 @@ import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration, recove
 import { cancelActiveWorkflowRuns, listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
+import { assertReleaseReviewer } from "@repo/services/workflow-guards";
 import {
   listAiReviewsForFeature,
   markFeatureShipped,
@@ -537,7 +538,7 @@ export const featureRouter = router({
     .input(z.object({ id: z.string().min(1), notes: z.string().optional() }))
     .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
-        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        await assertReleaseReviewer(ctx.user.id, input.id);
         await validateHumanApprovalEligibility(input.id);
         return recordHumanApproval({
           featureRequestId: input.id,
@@ -570,6 +571,7 @@ export const featureRouter = router({
     .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        await assertReleaseReviewer(ctx.user.id, input.id);
         const result = await recordHumanApproval({
           featureRequestId: input.id,
           reviewerUserId: ctx.user.id,
@@ -604,7 +606,7 @@ export const featureRouter = router({
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
-        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        await assertReleaseReviewer(ctx.user.id, input.id);
         return markFeatureShipped(input.id, ctx.user.id);
       } catch (error) {
         mapServiceError(error);
@@ -876,7 +878,7 @@ export const featureRouter = router({
     )
     .output(openApiResponse).mutation(async ({ ctx: _ctx, input }) => {
       try {
-        return resolveReviewIssue(input.issueId, input.resolved, input.notes);
+        return resolveReviewIssue(input.issueId, input.resolved, input.notes, ctx.user.id);
       } catch (error) {
         mapServiceError(error);
       }

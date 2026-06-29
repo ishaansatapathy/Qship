@@ -23,9 +23,9 @@ export async function ensurePassingAiReview(featureRequestId: string): Promise<b
     id: crypto.randomUUID(),
     featureRequestId,
     iteration,
-    summary: "All acceptance criteria met. No blocking issues.",
+    summary: "[Demo] All acceptance criteria met. No blocking issues.",
     readyForHuman: true,
-    rawAnalysis: { pass: true, seeded: true },
+    rawAnalysis: { pass: true, seeded: true, demoOnly: true },
   });
 
   return true;

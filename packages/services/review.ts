@@ -16,8 +16,11 @@ import {
   updateFeatureStatus,
 } from "./feature-request";
 import type { FeatureStatus } from "./workflow";
+import { executeFeatureRelease } from "./github/release-ship";
+import { getGithubConnectionForUser } from "./github/installation";
 import { notifySlackFeatureApproved, notifySlackFeatureShipped } from "./slack";
 import type { PrAiReviewResult } from "./feature-ai";
+import { assertReleaseReviewer, assertReviewIssueInUserWorkspace } from "./workflow-guards";
 import {
   buildReviewHealthSummary,
   computeReviewHealthScore,
@@ -286,11 +289,14 @@ export async function validateHumanApprovalEligibility(featureRequestId: string)
       "Cannot approve: no AI review has been run on this feature yet.",
     );
   }
-  if (!latestReview.readyForHuman) {
-    const blockingCount = latestReview.issues.filter((i) => i.severity === "blocking").length;
+  const unresolvedBlocking = latestReview.issues.filter(
+    (i) => i.severity === "blocking" && !i.resolved,
+  );
+  if (!latestReview.readyForHuman || unresolvedBlocking.length > 0) {
+    const blockingCount = unresolvedBlocking.length || latestReview.issues.filter((i) => i.severity === "blocking").length;
     throw new ServiceError(
       "PRECONDITION_FAILED",
-      `Cannot approve: AI review has ${blockingCount} unresolved blocking issue(s). Fix them and re-run the AI review first.`,
+      `Cannot approve: AI review has ${blockingCount} unresolved blocking issue(s). Resolve them and re-run the AI review if needed.`,
     );
   }
   return latestReview;
@@ -307,12 +313,21 @@ export async function recordHumanApproval(input: {
   decision: "approved" | "rejected" | "changes_requested";
   notes?: string;
 }) {
+  const feature = await getFeatureRequest(input.featureRequestId);
+  const fromStatus = feature.status as FeatureStatus;
+
+  if (
+    fromStatus === "human_review" &&
+    (input.decision === "approved" ||
+      input.decision === "rejected" ||
+      input.decision === "changes_requested")
+  ) {
+    await assertReleaseReviewer(input.reviewerUserId, input.featureRequestId);
+  }
+
   if (input.decision === "approved") {
     await validateHumanApprovalEligibility(input.featureRequestId);
   }
-
-  const feature = await getFeatureRequest(input.featureRequestId);
-  const fromStatus = feature.status as FeatureStatus;
 
   if (input.decision === "approved" && fromStatus !== "human_review") {
     throw new ServiceError(
@@ -410,9 +425,10 @@ export async function listHumanApprovals(featureRequestId: string) {
   });
 }
 
-/** Marks a feature shipped (`approved` → `shipped`) and sends the Slack shipped alert. */
+/** Marks a feature shipped: merge linked PR, trigger deploy webhook, then notify Slack. */
 export async function markFeatureShipped(featureRequestId: string, userId: string) {
-  const feature = await getFeatureRequest(featureRequestId);
+  const { ws, feature } = await assertReleaseReviewer(userId, featureRequestId);
+
   if (feature.status !== "approved") {
     throw new ServiceError(
       "PRECONDITION_FAILED",
@@ -420,10 +436,34 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
     );
   }
 
+  const gh = await getGithubConnectionForUser(userId);
+  const release = await executeFeatureRelease({
+    featureId: featureRequestId,
+    organizationId: ws.organization.id,
+    installationId: gh.installationId,
+  });
+
   await guardedUpdateFeatureStatus(featureRequestId, "approved", "shipped");
+
+  const releaseDetail = release.merge.merged
+    ? `PR #${release.merge.prNumber} merged`
+    : release.merge.reason === "no_linked_pr"
+      ? "No linked PR — status-only ship"
+      : `Release: ${release.merge.reason ?? "merge skipped"}`;
+
   await appendFeatureActivity(featureRequestId, {
     kind: "status",
     title: "Feature shipped to production 🚀",
+    detail: [
+      releaseDetail,
+      release.deploy.triggered
+        ? "Deploy webhook triggered"
+        : release.deploy.simulated
+          ? "Deploy webhook not configured"
+          : release.deploy.reason,
+    ]
+      .filter(Boolean)
+      .join(" · "),
     actor: "user",
   });
 
@@ -436,11 +476,13 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
   logger.info("review.feature_shipped", {
     featureRequestId,
     userId,
+    prMerged: release.merge.merged,
+    deployTriggered: release.deploy.triggered,
     slackSent: slack.sent,
     slackMode: slack.simulated ? "simulated" : slack.sent ? "live" : "failed",
   });
 
-  return { status: "shipped" as const, slack };
+  return { status: "shipped" as const, slack, release };
 }
 
 // ── Individual issue resolution ────────────────────────────────────────────────
@@ -454,11 +496,15 @@ export async function resolveReviewIssue(
   issueId: string,
   resolved: boolean,
   resolutionNotes?: string,
+  userId?: string,
 ) {
-  const issue = await db.query.aiReviewIssues.findFirst({
-    where: eq(aiReviewIssues.id, issueId),
-    with: { aiReview: { columns: { featureRequestId: true, iteration: true } } },
-  });
+  const issue = userId
+    ? await assertReviewIssueInUserWorkspace(userId, issueId)
+    : await db.query.aiReviewIssues.findFirst({
+        where: eq(aiReviewIssues.id, issueId),
+        with: { aiReview: { columns: { featureRequestId: true, id: true, iteration: true } } },
+      });
+
   if (!issue) {
     throw new ServiceError("NOT_FOUND", "AI review issue not found");
   }
@@ -468,8 +514,11 @@ export async function resolveReviewIssue(
     .set({ resolved })
     .where(eq(aiReviewIssues.id, issueId));
 
-  if (issue.aiReview?.featureRequestId) {
-    await appendFeatureActivity(issue.aiReview.featureRequestId, {
+  const featureRequestId = issue.aiReview?.featureRequestId;
+  let resolutionSummary = null;
+
+  if (featureRequestId) {
+    await appendFeatureActivity(featureRequestId, {
       kind: "ai_review",
       title: resolved
         ? `Issue resolved: ${issue.title}`
@@ -477,15 +526,32 @@ export async function resolveReviewIssue(
       detail: resolutionNotes ?? issue.category,
       actor: "user",
     });
+
+    if (issue.aiReview?.id) {
+      resolutionSummary = await getIssueResolutionSummary(issue.aiReview.id);
+      if (resolved && resolutionSummary.allBlockingResolved) {
+        await appendFeatureActivity(featureRequestId, {
+          kind: "ai_review",
+          title: "All blocking issues resolved — ready for re-review or approval",
+          actor: "system",
+        });
+      }
+    }
   }
 
   logger.info("review.issue_resolved", {
     issueId,
     resolved,
-    featureRequestId: issue.aiReview?.featureRequestId,
+    featureRequestId,
+    allBlockingResolved: resolutionSummary?.allBlockingResolved,
   });
 
-  return { issueId, resolved, title: issue.title };
+  return {
+    issueId,
+    resolved,
+    title: issue.title,
+    resolutionSummary,
+  };
 }
 
 /**
