@@ -203,7 +203,7 @@ app.use(
 );
 
 app.use("/mcp", agentRateLimiter, mcpRouter);
-app.use("/agent/stream", agentRateLimiter, agentStreamRouter);
+app.use("/agent/stream", agentStreamRouter);
 app.use("/api/inngest", inngestServe);
 
 app.use(notFoundMiddleware);

@@ -98,7 +98,7 @@ export const authRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
 });
 
-/** Agent / MCP streaming — 20 requests / 1 min per IP (matches product docs). */
+/** MCP JSON-RPC — 20 requests / 1 min per IP (agent SSE uses per-user limits in-route). */
 export const agentRateLimiter = createRateLimiter({
   keyPrefix: "agent",
   limit: 20,

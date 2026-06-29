@@ -683,7 +683,8 @@ function AgentPageContent() {
       .then(async (res) => {
         if (!res.ok || !res.body) {
           const err = await res.json().catch(() => ({ error: "Agent request failed" }));
-          throw new Error((err as { error?: string }).error ?? "Agent request failed");
+          const payload = err as { error?: string; message?: string };
+          throw new Error(payload.error ?? payload.message ?? "Agent request failed");
         }
 
         const reader = res.body.getReader();
