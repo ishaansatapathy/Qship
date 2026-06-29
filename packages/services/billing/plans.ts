@@ -5,7 +5,7 @@ export const BILLING_PLANS = {
     priceInr: 0,
     aiReviewCredits: 10,
     repositoryLimit: 1,
-    features: ["Pipeline overview", "10 AI reviews / month", "1 linked repo"],
+    features: ["Pipeline overview", "10 AI reviews / month"],
   },
   test: {
     id: "test" as const,
@@ -13,7 +13,7 @@ export const BILLING_PLANS = {
     priceInr: 10,
     aiReviewCredits: 20,
     repositoryLimit: 2,
-    features: ["Live payment test (₹10)", "20 AI reviews", "2 repos"],
+    features: ["Live payment test (₹10)", "20 AI reviews"],
   },
   pro: {
     id: "pro" as const,
@@ -21,7 +21,7 @@ export const BILLING_PLANS = {
     priceInr: 999,
     aiReviewCredits: 100,
     repositoryLimit: 10,
-    features: ["Unlimited feature requests", "100 AI reviews / month", "10 repos", "Priority support"],
+    features: ["Unlimited feature requests", "100 AI reviews / month", "Priority support"],
   },
   enterprise: {
     id: "enterprise" as const,
@@ -29,7 +29,7 @@ export const BILLING_PLANS = {
     priceInr: 4999,
     aiReviewCredits: 9999,
     repositoryLimit: 999,
-    features: ["Unlimited reviews", "Unlimited repos", "SSO", "Dedicated support"],
+    features: ["Unlimited reviews", "SSO", "Dedicated support"],
   },
 } as const;
 
