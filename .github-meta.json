@@ -69,6 +69,7 @@
     "ai_agent": "37 tools, delta re-review, 9-dim PR review — packages/services/feature-ai.ts",
     "github": "HMAC webhooks, paginated diff, GitHub App — packages/services/github/",
     "review_loop": "validateHumanApprovalEligibility + getReviewDelta — packages/services/review-gate.ts",
-    "engineering": "Turborepo, tRPC, 52 migrations, engineering eval gate — packages/trpc/server/engineering-eval.golden.test.ts"
+    "engineering": "Turborepo, tRPC, 52 migrations, engineering eval gate — packages/trpc/server/engineering-eval.golden.test.ts",
+    "saas_experience": "Demo login, 7 app surfaces, Razorpay billing — packages/services/saas-eval.golden.test.ts"
   }
 }

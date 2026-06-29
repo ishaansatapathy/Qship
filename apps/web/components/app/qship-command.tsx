@@ -16,6 +16,7 @@ import {
   Kanban,
   Github,
   Inbox,
+  CreditCard,
 } from "lucide-react";
 
 type CommandAction = {
@@ -53,6 +54,7 @@ export function QshipCommand({
       { id: "inbox", group: "Navigate", label: "Intake hub", icon: Inbox, run: go("/inbox") },
       { id: "agent", group: "Navigate", label: "ShipFlow Agent", icon: Bot, run: go("/agent") },
       { id: "analytics", group: "Navigate", label: "Analytics", icon: BarChart2, run: go("/analytics") },
+      { id: "billing", group: "Navigate", label: "Billing & plans", icon: CreditCard, run: go("/billing") },
       { id: "settings", group: "Navigate", label: "Settings", icon: Settings, run: go("/settings") },
       { id: "compose", group: "Actions", label: "New feature request", icon: PenLine, run: go("/requests") },
       { id: "prd", group: "Actions", label: "Generate PRD with agent", hint: "Agent", icon: Bot, run: go("/agent") },

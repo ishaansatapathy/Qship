@@ -123,6 +123,9 @@ jobs:
       - name: Engineering quality eval gate
         run: pnpm --filter @repo/trpc test:engineering-eval && pnpm --filter @repo/api test:rate-limit
 
+      - name: SaaS product experience eval gate
+        run: pnpm --filter @repo/services test:saas-eval
+
       - name: Build all packages and apps
         run: pnpm build
 
