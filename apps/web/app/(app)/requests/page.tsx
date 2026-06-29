@@ -236,6 +236,15 @@ function FeatureDetailPanel({
     onError: (e) => toast.error(e.message),
   });
 
+  const implementCode = trpc.feature.implementCode.useMutation({
+    onSuccess: async () => {
+      await invalidate();
+      await utils.feature.listWorkflows.invalidate({ featureId });
+      toast.success("AI code implementation started — watch workflow progress");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const runAiReview = trpc.feature.runAiReview.useMutation({
     onSuccess: async () => {
       await invalidate();
@@ -480,7 +489,58 @@ function FeatureDetailPanel({
           </button>
         ) : null}
 
-        {prd && tasks.length > 0 && !linkedPr && firstRepo ? (
+        {prd && tasks.length > 0 && githubConnected && firstRepo && !linkedPr ? (
+          <>
+            <button
+              type="button"
+              className="qship-btn-accent"
+              disabled={implementCode.isPending}
+              onClick={() =>
+                setConfirm({
+                  title: "Implement with AI?",
+                  description:
+                    "ShipFlow will generate implementation code from the PRD and tasks, commit to a GitHub branch, and open a pull request for review.",
+                  confirmLabel: "Implement",
+                  onConfirm: () => {
+                    setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
+                    implementCode.mutate(
+                      { id: feature.id, repositoryId: firstRepo.id },
+                      { onSettled: () => setConfirm(null) },
+                    );
+                  },
+                })
+              }
+            >
+              {implementCode.isPending ? (
+                <>
+                  <Loader2 size={14} className="qship-spin" /> Implementing…
+                </>
+              ) : (
+                <>
+                  <Sparkles size={14} /> Implement with AI
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              className="qship-btn-ghost"
+              disabled={createPr.isPending}
+              onClick={() => createPr.mutate({ id: feature.id, repositoryId: firstRepo.id })}
+            >
+              {createPr.isPending ? (
+                <>
+                  <Loader2 size={14} className="qship-spin" /> Opening PR…
+                </>
+              ) : (
+                <>
+                  <GitBranch size={14} /> Open scaffold PR only
+                </>
+              )}
+            </button>
+          </>
+        ) : null}
+
+        {prd && tasks.length > 0 && !linkedPr && firstRepo && !githubConnected ? (
           <button
             type="button"
             className="qship-btn-ghost"

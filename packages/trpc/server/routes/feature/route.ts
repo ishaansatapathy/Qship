@@ -12,7 +12,7 @@ import {
   appendFeatureActivity,
 } from "@repo/services/feature-request";
 import { ingestFeatureRequest, getIntakeSummary } from "@repo/services/feature-intake";
-import { dispatchAiReview, dispatchPrdGeneration, dispatchTaskGeneration, recoverStaleWorkflowRuns } from "@repo/services/inngest/dispatch";
+import { dispatchAiReview, dispatchCodeImplementation, dispatchPrdGeneration, dispatchTaskGeneration, recoverStaleWorkflowRuns } from "@repo/services/inngest/dispatch";
 import { cancelActiveWorkflowRuns, listWorkflowRunsForFeature } from "@repo/services/workflow-runs";
 import { createFeaturePullRequest } from "@repo/services/github/pr";
 import { getGithubConnectionForUser } from "@repo/services/github/installation";
@@ -430,6 +430,37 @@ export const featureRouter = router({
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return dispatchTaskGeneration(input.id, ctx.user.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  implementCode: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/implement",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Generate implementation code with AI, commit to GitHub branch, and open PR",
+      },
+    })
+    .input(z.object({ id: z.string().min(1), repositoryId: z.string().min(1) }))
+    .output(openApiResponse)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { ws } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        const gh = await getGithubConnectionForUser(ctx.user.id);
+        if (!gh.connected || !gh.installationId) {
+          throw new ServiceError("PRECONDITION_FAILED", "Connect GitHub in Settings first");
+        }
+        return dispatchCodeImplementation({
+          featureId: input.id,
+          userId: ctx.user.id,
+          organizationId: ws.organization.id,
+          installationId: gh.installationId,
+          repositoryId: input.repositoryId,
+        });
       } catch (error) {
         mapServiceError(error);
       }
