@@ -5,7 +5,8 @@
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:db": "dotenv -- vitest run core-workflow-db.integration.test.ts"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.1.0",
