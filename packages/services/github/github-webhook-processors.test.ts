@@ -1,0 +1,202 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockIsDuplicate = vi.fn();
+const mockTransition = vi.fn();
+const mockAppend = vi.fn();
+const mockAiReview = vi.fn();
+const mockInvalidate = vi.fn();
+
+vi.mock("./webhook-dedup", () => ({
+  isGithubDeliveryDuplicate: (...args: unknown[]) => mockIsDuplicate(...args),
+}));
+
+vi.mock("./pr-review", () => ({
+  runPullRequestAiReview: (...args: unknown[]) => mockAiReview(...args),
+}));
+
+vi.mock("./client", () => ({
+  invalidateInstallationCache: (...args: unknown[]) => mockInvalidate(...args),
+}));
+
+vi.mock("../feature-request", () => ({
+  transitionFeatureStatus: (...args: unknown[]) => mockTransition(...args),
+  appendFeatureActivity: (...args: unknown[]) => mockAppend(...args),
+}));
+
+const orgFindFirst = vi.fn();
+const repoFindFirst = vi.fn();
+const featureFindFirst = vi.fn();
+const approvalFindFirst = vi.fn();
+const mockOnConflict = vi.fn(async () => ({}));
+const mockValues = vi.fn(() => ({ onConflictDoUpdate: mockOnConflict }));
+const mockInsert = vi.fn(() => ({ values: mockValues }));
+const mockUpdate = vi.fn(() => ({
+  set: vi.fn(() => ({ where: vi.fn(async () => ({})) })),
+}));
+const mockDelete = vi.fn(() => ({ where: vi.fn(async () => ({})) }));
+
+vi.mock("@repo/database", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@repo/database")>();
+  return {
+    ...actual,
+    default: {
+      query: {
+        organizations: { findFirst: (...args: unknown[]) => orgFindFirst(...args) },
+        repositories: { findFirst: (...args: unknown[]) => repoFindFirst(...args) },
+        featureRequests: { findFirst: (...args: unknown[]) => featureFindFirst(...args) },
+        humanApprovals: { findFirst: (...args: unknown[]) => approvalFindFirst(...args) },
+      },
+      insert: (...args: unknown[]) => mockInsert(...args),
+      update: (...args: unknown[]) => mockUpdate(...args),
+      delete: (...args: unknown[]) => mockDelete(...args),
+    },
+  };
+});
+
+import {
+  processGithubInstallationWebhook,
+  processGithubPullRequestWebhook,
+} from "./webhook";
+
+const FEATURE_ID = "550e8400-e29b-41d4-a716-446655440000";
+const ORG_ID = "org-test";
+const REPO_ROW_ID = "repo-row-1";
+
+function basePullRequestPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    action: "opened",
+    installation: { id: 999 },
+    repository: { id: 12345, full_name: "acme/core" },
+    pull_request: {
+      id: 777,
+      number: 42,
+      title: "feat: test",
+      html_url: "https://github.com/acme/core/pull/42",
+      state: "open",
+      merged: false,
+      head: { sha: "abc", ref: `shipflow/${FEATURE_ID}` },
+      base: { ref: "main" },
+      body: "",
+    },
+    ...overrides,
+  };
+}
+
+describe("processGithubPullRequestWebhook (production)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsDuplicate.mockResolvedValue(false);
+    mockAiReview.mockResolvedValue(undefined);
+    orgFindFirst.mockResolvedValue({ id: ORG_ID });
+    repoFindFirst.mockResolvedValue({ id: REPO_ROW_ID });
+    featureFindFirst.mockResolvedValue({
+      id: FEATURE_ID,
+      organizationId: ORG_ID,
+      status: "in_development",
+    });
+    approvalFindFirst.mockResolvedValue(null);
+  });
+
+  it("returns duplicate_delivery when Postgres dedup hits", async () => {
+    mockIsDuplicate.mockResolvedValueOnce(true);
+    const result = await processGithubPullRequestWebhook(basePullRequestPayload(), "del-1");
+    expect(result).toMatchObject({ handled: false, reason: "duplicate_delivery" });
+  });
+
+  it("returns missing_fields without PR metadata", async () => {
+    const result = await processGithubPullRequestWebhook({ action: "opened" }, "del-2");
+    expect(result).toMatchObject({ handled: false, reason: "missing_fields" });
+  });
+
+  it("returns unknown_installation when org is not linked", async () => {
+    orgFindFirst.mockResolvedValueOnce(null);
+    const result = await processGithubPullRequestWebhook(basePullRequestPayload(), "del-3");
+    expect(result).toMatchObject({ handled: false, reason: "unknown_installation" });
+  });
+
+  it("links opened PR and transitions feature to pr_open", async () => {
+    const result = await processGithubPullRequestWebhook(basePullRequestPayload(), "del-4");
+    expect(result).toMatchObject({
+      handled: true,
+      linked: true,
+      featureId: FEATURE_ID,
+      state: "open",
+    });
+    expect(mockTransition).toHaveBeenCalledWith(FEATURE_ID, "pr_open");
+    expect(mockInsert).toHaveBeenCalled();
+  });
+
+  it("merged PR without prior approval gates at human_review", async () => {
+    const payload = basePullRequestPayload({
+      action: "closed",
+      pull_request: {
+        ...basePullRequestPayload().pull_request,
+        merged: true,
+        state: "closed",
+      },
+    });
+    const result = await processGithubPullRequestWebhook(payload, "del-5");
+    expect(result).toMatchObject({ handled: true, linked: true, state: "merged" });
+    expect(mockTransition).toHaveBeenCalledWith(FEATURE_ID, "human_review");
+  });
+
+  it("merged PR with prior human approval transitions to approved", async () => {
+    approvalFindFirst.mockResolvedValueOnce({ decision: "approved" });
+    const payload = basePullRequestPayload({
+      action: "closed",
+      pull_request: {
+        ...basePullRequestPayload().pull_request,
+        merged: true,
+        state: "closed",
+      },
+    });
+    const result = await processGithubPullRequestWebhook(payload, "del-6");
+    expect(mockTransition).toHaveBeenCalledWith(FEATURE_ID, "approved");
+    expect(result).toMatchObject({ handled: true, linked: true });
+  });
+
+  it("returns hint when branch/tag does not link a feature", async () => {
+    const payload = basePullRequestPayload({
+      pull_request: {
+        ...basePullRequestPayload().pull_request,
+        head: { sha: "abc", ref: "feature/unrelated" },
+        body: "no tag",
+      },
+    });
+    const result = await processGithubPullRequestWebhook(payload, "del-7");
+    expect(result).toMatchObject({ handled: true, linked: false });
+    expect(result).toHaveProperty("hint");
+  });
+});
+
+describe("processGithubInstallationWebhook (production)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsDuplicate.mockResolvedValue(false);
+  });
+
+  it("clears org link and cache on installation deleted", async () => {
+    orgFindFirst.mockResolvedValueOnce({ id: ORG_ID });
+    const result = await processGithubInstallationWebhook(
+      { action: "deleted", installation: { id: 999 } },
+      "del-i1",
+    );
+    expect(result).toMatchObject({ handled: true, action: "deleted", installationId: "999" });
+    expect(mockInvalidate).toHaveBeenCalledWith("999");
+    expect(mockUpdate).toHaveBeenCalled();
+  });
+
+  it("removes repos on installation_repositories removed", async () => {
+    orgFindFirst.mockResolvedValueOnce({ id: ORG_ID });
+    const result = await processGithubInstallationWebhook(
+      {
+        action: "removed",
+        installation: { id: 999 },
+        repositories_removed: [{ id: 555, full_name: "acme/old" }],
+      },
+      "del-i2",
+    );
+    expect(result).toMatchObject({ handled: true, action: "removed" });
+    expect(mockDelete).toHaveBeenCalled();
+  });
+});
