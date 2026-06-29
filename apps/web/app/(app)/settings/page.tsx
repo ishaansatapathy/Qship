@@ -8,6 +8,7 @@ import { trpc } from "~/trpc/client";
 import { useQshipUser, initials } from "~/components/app/use-qship-user";
 import { useDemoMode } from "~/hooks/use-demo-mode";
 import { signOutShipflow } from "~/lib/sign-out";
+import { getApiUnreachableMessage } from "~/lib/api-unreachable-message";
 
 function ConnectionRow({
   connected,
@@ -270,6 +271,23 @@ export default function SettingsPage() {
           </div>
         ) : null}
 
+        {githubStatus.isError || githubInstallUrl.isError ? (
+          <div className="qship-req-rec" style={{ marginBottom: 14 }}>
+            {getApiUnreachableMessage()}{" "}
+            <button
+              type="button"
+              className="qship-btn-ghost"
+              style={{ marginLeft: 8, display: "inline-flex" }}
+              onClick={() => {
+                void githubStatus.refetch();
+                void githubInstallUrl.refetch();
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+
         <div className="qship-set-row">
           <span className="qship-set-row-icon">
             <Github size={17} />
@@ -288,18 +306,22 @@ export default function SettingsPage() {
             connectHref={githubInstallUrl.data?.url ?? "#"}
             connectDisabled={githubInstallUrl.isLoading}
             connectLabel={githubInstallUrl.isLoading ? "Loading…" : "Connect"}
-            onConnectClick={() => {
-              const url = githubInstallUrl.data?.url;
-              if (url) {
-                window.location.href = url;
+            onConnectClick={async () => {
+              if (githubInstallUrl.data?.url) {
+                window.location.href = githubInstallUrl.data.url;
                 return;
               }
-              if (githubInstallUrl.isError || githubStatus.isError) {
-                toast.error("API unavailable — restart the API server on port 8000, then refresh.");
+              const refreshed = await githubInstallUrl.refetch();
+              if (refreshed.data?.url) {
+                window.location.href = refreshed.data.url;
                 return;
               }
-              if (githubInstallUrl.data?.configured === false) {
-                toast.error("Join a workspace first, or check GITHUB_APP_* in .env.");
+              if (refreshed.data?.configured === false || githubInstallUrl.data?.configured === false) {
+                toast.error("GitHub App is not configured on the server (GITHUB_APP_* env vars).");
+                return;
+              }
+              if (refreshed.isError || githubStatus.isError) {
+                toast.error(getApiUnreachableMessage());
                 return;
               }
               toast.error("Could not load GitHub install link. Refresh and try again.");
