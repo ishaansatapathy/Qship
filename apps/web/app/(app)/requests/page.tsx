@@ -300,7 +300,7 @@ function FeatureDetailPanel({
     onError: (e) => toast.error(e.message),
   });
 
-  const reject = trpc.feature.reject.useMutation({
+  const requestChanges = trpc.feature.requestChanges.useMutation({
     onSuccess: async () => {
       await invalidate();
       toast.success("Changes requested — back to fix loop");
@@ -311,7 +311,7 @@ function FeatureDetailPanel({
   const ship = trpc.feature.ship.useMutation({
     onSuccess: async (result) => {
       await invalidate();
-      const slack = result?.slack;
+      const slack = "slack" in result ? result.slack : undefined;
       if (slack?.sent) {
         toast.success(
           slack.simulated
@@ -616,11 +616,17 @@ function FeatureDetailPanel({
             <button
               type="button"
               className="qship-btn-accent"
-              disabled={approve.isPending || approvalEligibility.data?.eligible === false}
-              title={
+              disabled={
+                approve.isPending ||
+                approvalEligibility.isLoading ||
                 approvalEligibility.data?.eligible === false
-                  ? approvalEligibility.data.reason
-                  : undefined
+              }
+              title={
+                approvalEligibility.isLoading
+                  ? "Checking approval eligibility…"
+                  : approvalEligibility.data?.eligible === false
+                    ? approvalEligibility.data.reason
+                    : undefined
               }
               onClick={() => {
                 const briefing = approvalBriefing.data;
@@ -643,7 +649,7 @@ function FeatureDetailPanel({
             <button
               type="button"
               className="qship-btn-ghost"
-              disabled={reject.isPending}
+              disabled={requestChanges.isPending}
               onClick={() => {
                 setConfirm({
                   title: "Request changes?",
@@ -651,7 +657,7 @@ function FeatureDetailPanel({
                   confirmLabel: "Request changes",
                   onConfirm: () => {
                     setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
-                    reject.mutate({ id: feature.id, notes: "Changes requested" }, { onSettled: () => setConfirm(null) });
+                    requestChanges.mutate({ id: feature.id, notes: "Changes requested" }, { onSettled: () => setConfirm(null) });
                   },
                 });
               }}

@@ -123,12 +123,13 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 | Stats: pass rate, avg issues | `review.ts` → `getReviewStats` |
 | Block approve if blocking issues | `review.ts` → `validateHumanApprovalEligibility` / `evaluateHumanApprovalEligibility` |
 | Approval eligibility read API | `feature/route.ts` → `getApprovalEligibility` |
-| Approve / reject / changes | `review.ts` → `recordHumanApproval` (idempotent on race) |
+| Approve / request changes | `review.ts` → `recordHumanApproval`; tRPC `requestChanges` (+ deprecated `reject` alias) |
+| Gate module (single fetch) | `review-gate.ts` → `loadHumanApprovalGateContext` |
 | Optimistic FSM transitions | `feature-request.ts` → `guardedUpdateFeatureStatusInTx` |
 | Audit trail | `review.ts` → `listHumanApprovals` |
 | Agent tools | `approve_feature`, `reject_feature`, `request_changes`, `get_review_delta` |
 
-**UI:** Approve button disabled when `getApprovalEligibility` returns `eligible: false` (same gate as server).
+**UI:** Approve disabled while eligibility loads or when `eligible: false` (same gate as server).
 
 **CI merge gate:** `pnpm test:review-eval` in `ci.yml`
 

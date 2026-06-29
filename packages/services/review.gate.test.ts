@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateHumanApprovalEligibility } from "./review";
+import { evaluateHumanApprovalEligibility } from "./review-gate";
 import type { FeatureStatus } from "./workflow";
 
 const passingReview = {

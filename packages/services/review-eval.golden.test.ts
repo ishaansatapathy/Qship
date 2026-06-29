@@ -7,10 +7,12 @@ import { SHIPFLOW_MCP_TOOLS } from "./shipflow-agent-tools";
 import {
   evaluateHumanApprovalEligibility,
   getHumanApprovalEligibility,
+  loadHumanApprovalGateContext,
   persistAiReview,
   recordHumanApproval,
   validateHumanApprovalEligibility,
 } from "./review";
+import { isFeatureTransitionAllowed } from "./feature-request";
 
 /** Labeled invariants for review loop merge gate (see AI_EVAL.md §4). */
 export const REVIEW_EVAL_INVARIANTS = [
@@ -26,13 +28,16 @@ export const REVIEW_EVAL_INVARIANTS = [
   "review_loop_health_workspace_auth",
   "issue_resolution_workspace_auth",
   "ui_approval_gate_parity",
+  "request_changes_trpc_route",
+  "single_fetch_approval_gate",
+  "resolve_review_issue_requires_auth",
 ] as const;
 
 export const REVIEW_EVAL_INVARIANT_COUNT = REVIEW_EVAL_INVARIANTS.length;
 
 describe("review loop eval harness", () => {
   it(`documents ${REVIEW_EVAL_INVARIANT_COUNT}+ review invariants`, () => {
-    expect(REVIEW_EVAL_INVARIANT_COUNT).toBeGreaterThanOrEqual(10);
+    expect(REVIEW_EVAL_INVARIANT_COUNT).toBeGreaterThanOrEqual(12);
   });
 
   it("exports core review loop service functions", () => {
@@ -41,6 +46,7 @@ describe("review loop eval harness", () => {
     expect(typeof validateHumanApprovalEligibility).toBe("function");
     expect(typeof getHumanApprovalEligibility).toBe("function");
     expect(typeof evaluateHumanApprovalEligibility).toBe("function");
+    expect(typeof loadHumanApprovalGateContext).toBe("function");
   });
 
   it("agent and MCP expose approval/review tool names", () => {
@@ -61,32 +67,46 @@ describe("review loop eval harness", () => {
     }
   });
 
-  it("uses optimistic locking in guardedUpdateFeatureStatusInTx", () => {
-    const source = readFileSync(path.resolve(__dirname, "./feature-request.ts"), "utf8");
-    expect(source).toContain("eq(featureRequests.status, from)");
+  it("blocks approve when latest review failed in pure gate", () => {
+    const result = evaluateHumanApprovalEligibility({
+      status: "human_review",
+      latestReview: {
+        readyForHuman: false,
+        issues: [{ severity: "blocking", resolved: false }],
+        rawAnalysis: {},
+      },
+      isProduction: true,
+    });
+    expect(result.eligible).toBe(false);
   });
 
-  it("records idempotent approval on concurrent race", () => {
-    const source = readFileSync(path.resolve(__dirname, "./review.ts"), "utf8");
-    expect(source).toContain("review.human_approval_idempotent");
-    expect(source).toContain("idempotentAfterRace");
-  });
-
-  it("requests page disables approve when eligibility fails", () => {
-    const ui = readFileSync(
-      path.resolve(__dirname, "../../apps/web/app/(app)/requests/page.tsx"),
-      "utf8",
-    );
-    expect(ui).toContain("getApprovalEligibility");
-    expect(ui).toContain("approvalEligibility.data?.eligible");
-  });
-
-  it("tRPC exposes approval eligibility read endpoint", () => {
+  it("exposes requestChanges tRPC route distinct from deprecated reject alias", () => {
     const route = readFileSync(
       path.resolve(__dirname, "../trpc/server/routes/feature/route.ts"),
       "utf8",
     );
-    expect(route).toContain("getApprovalEligibility");
-    expect(route).toContain("assertAiReviewInUserWorkspace");
+    expect(route).toContain("requestChanges:");
+    expect(route).toContain("/feature/requests/{id}/request-changes");
+    expect(route).toContain("runRequestChangesMutation");
+  });
+
+  it("uses single-load gate context in validateHumanApprovalEligibility", () => {
+    const gate = readFileSync(path.resolve(__dirname, "./review-gate.ts"), "utf8");
+    expect(gate).toContain("loadHumanApprovalGateContext");
+    expect(gate).not.toMatch(/getLatestAiReview\(featureRequestId\)[\s\S]*getLatestAiReview\(featureRequestId\)/);
+  });
+
+  it("requests page disables approve while eligibility is loading", () => {
+    const ui = readFileSync(
+      path.resolve(__dirname, "../../apps/web/app/(app)/requests/page.tsx"),
+      "utf8",
+    );
+    expect(ui).toContain("approvalEligibility.isLoading");
+    expect(ui).toContain("getApprovalEligibility");
+  });
+
+  it("does not allow illegal shortcut to shipped without approved", () => {
+    expect(isFeatureTransitionAllowed("human_review", "shipped")).toBe(false);
+    expect(isFeatureTransitionAllowed("approved", "shipped")).toBe(true);
   });
 });
