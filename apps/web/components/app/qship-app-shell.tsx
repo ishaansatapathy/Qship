@@ -157,9 +157,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
           <header className="qship-app-topbar">
             <span className="qship-app-title">Loading…</span>
           </header>
-          <main className="qship-app-content">
-            <div className="qship-app-loading-bar" aria-hidden />
-          </main>
+          <main className="qship-app-content" />
         </div>
       </div>
     );
