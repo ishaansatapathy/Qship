@@ -245,7 +245,7 @@ async function copyGithubLinkFromSiblingOrgs(userId: string, organizationId: str
     })
     .where(eq(organizations.id, organizationId));
 
-  await syncInstallationRepositories(
+  void syncInstallationRepositories(
     organizationId,
     donor.organization.githubInstallationId,
   ).catch(() => undefined);
@@ -335,8 +335,8 @@ async function linkInstallationToOrg(
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Returns the GitHub connection status for the user's workspace and
- * opportunistically refreshes the repository list in the background.
+ * Returns the GitHub connection status for the user's workspace.
+ * Repo sync runs in the background so Settings loads instantly without UI flicker.
  */
 export async function getGithubConnectionForUser(userId: string) {
   const membership = await getMembershipForUser(userId);
@@ -349,12 +349,15 @@ export async function getGithubConnectionForUser(userId: string) {
     };
   }
 
-  const org = membership.organization;
+  let org = membership.organization;
 
   if (!org.githubInstallationId && isGithubAppConfigured()) {
     const healed = await copyGithubLinkFromSiblingOrgs(userId, org.id);
-    if (!healed) {
-      await syncGithubInstallationForUser(userId).catch((error) => {
+    if (healed) {
+      const refreshed = await getMembershipForUser(userId);
+      if (refreshed) org = refreshed.organization;
+    } else {
+      void syncGithubInstallationForUser(userId).catch((error) => {
         logger.warn("github.connection.heal_failed", {
           userId,
           organizationId: org.id,
@@ -363,22 +366,18 @@ export async function getGithubConnectionForUser(userId: string) {
       });
     }
   } else if (org.githubInstallationId && isGithubAppConfigured()) {
-    // Background refresh — errors are intentionally swallowed so a GitHub API
-    // hiccup never breaks the settings page load.
-    await syncInstallationRepositories(org.id, org.githubInstallationId).catch(() => undefined);
+    void syncInstallationRepositories(org.id, org.githubInstallationId).catch(() => undefined);
   }
 
-  const refreshed = await getMembershipForUser(userId);
-  const updatedOrg = refreshed?.organization ?? org;
   const orgRepos = await db.query.repositories.findMany({
-    where: eq(repositories.organizationId, updatedOrg.id),
+    where: eq(repositories.organizationId, org.id),
   });
 
   return {
-    connected: Boolean(updatedOrg.githubInstallationId),
+    connected: Boolean(org.githubInstallationId),
     configured: isGithubAppConfigured(),
-    accountLogin: updatedOrg.githubAccountLogin ?? null,
-    installationId: updatedOrg.githubInstallationId ?? null,
+    accountLogin: org.githubAccountLogin ?? null,
+    installationId: org.githubInstallationId ?? null,
     repositoryCount: orgRepos.length,
   };
 }

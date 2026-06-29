@@ -13,6 +13,40 @@ import { getApiUnreachableMessage, formatTrpcQueryError } from "~/lib/api-unreac
 const GITHUB_SETUP_HINT =
   "Set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, and GITHUB_WEBHOOK_SECRET on Railway (webhook secret must match your GitHub App).";
 
+type GithubConnectionCache = {
+  connected: boolean;
+  accountLogin: string | null;
+  repositoryCount: number;
+};
+
+const GITHUB_CONNECTION_CACHE_KEY = "qship.settings.githubStatus";
+
+function readGithubConnectionCache(): GithubConnectionCache | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(GITHUB_CONNECTION_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as GithubConnectionCache;
+  } catch {
+    return null;
+  }
+}
+
+function writeGithubConnectionCache(data: GithubConnectionCache) {
+  try {
+    sessionStorage.setItem(GITHUB_CONNECTION_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+const githubStatusQueryOptions = {
+  retry: 1,
+  retryDelay: 1000,
+  staleTime: 60_000,
+  refetchOnWindowFocus: false,
+} as const;
+
 function ConnectionRow({
   connected,
   connectHref,
@@ -147,13 +181,17 @@ function ApprovalToggle({
 }
 
 export default function SettingsPage() {
-  const { user } = useQshipUser();
+  const { user, isLoading: authLoading } = useQshipUser();
   const { isDemo: isDemoUser } = useDemoMode(user?.email);
   const utils = trpc.useUtils();
-  const githubStatus = trpc.github.connectionStatus.useQuery({}, { retry: 2, retryDelay: 1500 });
+  const [githubCache] = useState(readGithubConnectionCache);
+  const githubStatus = trpc.github.connectionStatus.useQuery(
+    {},
+    { ...githubStatusQueryOptions, enabled: Boolean(user) },
+  );
   const githubInstallUrl = trpc.github.getInstallUrl.useQuery(
     { returnTo: "/settings" },
-    { retry: 2, retryDelay: 1500 },
+    { ...githubStatusQueryOptions, enabled: Boolean(user) },
   );
   const approvalDefaults = trpc.settings.getApprovalDefaults.useQuery({});
   const [name, setName] = useState("");
@@ -161,6 +199,15 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user) setName(user.displayName || user.fullName || "");
   }, [user]);
+
+  useEffect(() => {
+    if (!githubStatus.data) return;
+    writeGithubConnectionCache({
+      connected: githubStatus.data.connected,
+      accountLogin: githubStatus.data.accountLogin ?? null,
+      repositoryCount: githubStatus.data.repositoryCount ?? 0,
+    });
+  }, [githubStatus.data]);
 
   const saveProfile = trpc.auth.setupProfile.useMutation({
     onSuccess: async () => {
@@ -196,6 +243,7 @@ export default function SettingsPage() {
 
   const disconnectGithub = trpc.github.disconnect.useMutation({
     onSuccess: async () => {
+      writeGithubConnectionCache({ connected: false, accountLogin: null, repositoryCount: 0 });
       await utils.github.connectionStatus.invalidate();
       await utils.github.listRepositories.invalidate();
       toast.success("GitHub disconnected");
@@ -217,6 +265,15 @@ export default function SettingsPage() {
   });
 
   if (!user) return null;
+
+  const githubSnapshot = githubStatus.data ?? githubCache;
+  const githubConnected = githubSnapshot?.connected === true;
+  const githubAccountLogin = githubSnapshot?.accountLogin ?? null;
+  const githubRepositoryCount = githubSnapshot?.repositoryCount ?? 0;
+  const githubStatusPending =
+    authLoading ||
+    !githubSnapshot &&
+      (githubStatus.isPending || (githubStatus.isFetching && githubStatus.data === undefined));
 
   const nameChanged = name.trim().length > 0 && name.trim() !== (user.displayName || user.fullName || "");
 
@@ -318,17 +375,17 @@ export default function SettingsPage() {
             <h4>GitHub</h4>
             <p>
               Repositories, webhooks, pull requests, and diff analysis via Octokit.
-              {githubStatus.data?.connected && githubStatus.data.accountLogin
-                ? ` Connected as ${githubStatus.data.accountLogin}.`
+              {githubConnected && githubAccountLogin
+                ? ` Connected as ${githubAccountLogin}.`
                 : null}
             </p>
           </div>
           <ConnectionRow
-            connected={githubStatus.data?.connected === true}
-            statusLoading={githubStatus.isLoading || githubStatus.isFetching}
+            connected={githubConnected}
+            statusLoading={githubStatusPending}
             connectHref={githubInstallUrl.data?.url ?? "#"}
-            connectDisabled={githubInstallUrl.isLoading}
-            connectLabel={githubInstallUrl.isLoading ? "Loading…" : "Connect"}
+            connectDisabled={githubInstallUrl.isPending}
+            connectLabel={githubInstallUrl.isPending ? "Loading…" : "Connect"}
             onConnectClick={async () => {
               if (githubInstallUrl.data?.url) {
                 window.location.href = githubInstallUrl.data.url;
@@ -350,15 +407,15 @@ export default function SettingsPage() {
               toast.error("Could not load GitHub install link. Refresh and try again.");
             }}
             connectedLabel={
-              githubStatus.data?.repositoryCount
-                ? `Connected · ${githubStatus.data.repositoryCount} repo${githubStatus.data.repositoryCount === 1 ? "" : "s"}`
+              githubRepositoryCount
+                ? `Connected · ${githubRepositoryCount} repo${githubRepositoryCount === 1 ? "" : "s"}`
                 : "Connected"
             }
             onDisconnect={() => disconnectGithub.mutate({})}
             disconnecting={disconnectGithub.isPending}
             onSync={() => syncGithub.mutate({})}
             syncing={syncGithub.isPending}
-            demoBlocked={isDemoUser && githubStatus.data?.connected !== true}
+            demoBlocked={isDemoUser && !githubConnected}
             demoBlockedHint="Connecting a live GitHub org replaces demo sample data."
           />
         </div>
