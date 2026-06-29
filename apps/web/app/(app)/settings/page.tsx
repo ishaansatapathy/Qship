@@ -10,6 +10,9 @@ import { useDemoMode } from "~/hooks/use-demo-mode";
 import { signOutShipflow } from "~/lib/sign-out";
 import { getApiUnreachableMessage } from "~/lib/api-unreachable-message";
 
+const GITHUB_SETUP_HINT =
+  "Set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, and GITHUB_WEBHOOK_SECRET on Railway (webhook secret must match your GitHub App).";
+
 function ConnectionRow({
   connected,
   connectHref,
@@ -271,6 +274,12 @@ export default function SettingsPage() {
           </div>
         ) : null}
 
+        {githubInstallUrl.isSuccess && githubInstallUrl.data?.configured === false ? (
+          <div className="qship-req-rec" style={{ marginBottom: 14 }}>
+            {GITHUB_SETUP_HINT}
+          </div>
+        ) : null}
+
         {githubStatus.isError || githubInstallUrl.isError ? (
           <div className="qship-req-rec" style={{ marginBottom: 14 }}>
             {getApiUnreachableMessage()}{" "}
@@ -317,7 +326,7 @@ export default function SettingsPage() {
                 return;
               }
               if (refreshed.data?.configured === false || githubInstallUrl.data?.configured === false) {
-                toast.error("GitHub App is not configured on the server (GITHUB_APP_* env vars).");
+                toast.error(GITHUB_SETUP_HINT);
                 return;
               }
               if (refreshed.isError || githubStatus.isError) {
