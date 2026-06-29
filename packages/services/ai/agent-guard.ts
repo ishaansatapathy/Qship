@@ -92,6 +92,38 @@ const INJECTION_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     pattern: /\breveal\b.*\b(api key|secret|token|password)\b/i,
     reason: "Secret-exfiltration attempt detected",
   },
+  {
+    pattern: /\bjailbreak\b/i,
+    reason: "Jailbreak keyword detected",
+  },
+  {
+    pattern: /\boverride\b.*\b(system prompt|instructions)\b/i,
+    reason: "System-prompt override attempt detected",
+  },
+  {
+    pattern: /\b(print|show|reveal|dump)\b.*\bsystem\s+(instructions|prompt)\b/i,
+    reason: "System-prompt exfiltration attempt detected",
+  },
+  {
+    pattern: /\bsudo\s+mode\b|\bapprove\s+all\s+pending\b/i,
+    reason: "Privilege-escalation command detected",
+  },
+  {
+    pattern: /\bbypass\b.*\bintent\s+gate\b/i,
+    reason: "Intent-gate bypass attempt detected",
+  },
+  {
+    pattern: /\brm\s+-rf\b|\bdrop\s+table\b/i,
+    reason: "Destructive command detected",
+  },
+  {
+    pattern: /\b(api keys?|secrets?|credentials?)\b.*\b(external|attacker|evil|url)\b/i,
+    reason: "Credential exfiltration attempt detected",
+  },
+  {
+    pattern: /\bpretend\b.*\b(user|they)\s+said\b/i,
+    reason: "False-confirmation injection detected",
+  },
 ];
 
 export type InjectionCheckResult =

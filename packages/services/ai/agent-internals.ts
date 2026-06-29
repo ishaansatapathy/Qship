@@ -36,7 +36,7 @@ export function buildSystemPromptFor(userEmail?: string, approval?: ApprovalDefa
     "",
     "EDUCATE BEFORE BUILD:",
     "- If check_existing_capability or create_feature_request returns educated=true / duplicate_education status, explain what already exists and link to the matched feature.",
-    "- Do NOT generate PRD or tasks for duplicate_education requests unless the user confirms this is a genuinely new scope.",
+    "- Do NOT generate PRD or tasks for duplicate_education requests. Explain what already exists and ask the user to describe a clearly different scope in a new message if they still want to proceed.",
     "",
     "QA REVIEWER ROLE:",
     "- You are the engineering QA reviewer — run_ai_review checks PRD alignment, blocking vs non-blocking issues, security and acceptance criteria.",

@@ -1,46 +1,13 @@
-import type { OpenAiToolDefinition } from "../../ai/openai-tools";
-import type { AgentActionCard } from "../../ai/agent";
 import { ServiceError } from "../../errors";
+import { addClarificationMessage } from "../../feature-request";
+import { analyzeChangeRequest, generateApprovalBriefing } from "../../feature-ai";
+import { dispatchAiReview } from "../../inngest/dispatch";
 import {
-  addClarificationMessage,
-  appendFeatureActivity,
-  assertFeatureInUserWorkspace,
-  assertTaskInUserWorkspace,
-  getFeatureDeliveryView,
-  getFeatureRequest,
-  getPipelineSummary,
-  getWorkspaceProjectForUser,
-  listFeatureRequests,
-  updateEngineeringTaskStatus,
-  updateFeatureMetadata,
-  updateFeatureStatus,
-  transitionFeatureStatus,
-} from "../../feature-request";
-import {
-  generateApprovalBriefing,
-  analyzeChangeRequest,
-  generateDeveloperOnboardingGuide,
-  triageFeatureRequest,
-} from "../../feature-ai";
-import {
-  predictDeliveryTimeline,
-  checkPipelineDuplicates,
-  getPipelineHealthSummary,
-} from "../../feature-analytics";
-import { checkExistingCapability } from "../../feature-education";
-import { ingestFeatureRequest, type FeatureSource } from "../../feature-intake";
-import {
-  dispatchAiReview,
-  dispatchCodeImplementation,
-  dispatchPrdGeneration,
-  dispatchTaskGeneration,
-} from "../../inngest/dispatch";
-import {
-  listAiReviewsForFeature,
   getLatestAiReview,
   getReviewDelta,
-  getReviewStats,
   getReviewLoopHealth,
+  getReviewStats,
+  listAiReviewsForFeature,
   listHumanApprovals,
   markFeatureShipped,
   recordHumanApproval,
@@ -48,16 +15,9 @@ import {
   validateHumanApprovalEligibility,
 } from "../../review";
 import { assertReleaseReviewer } from "../../workflow-guards";
-import {
-  getGithubConnectionForUser,
-  listGithubRepositoriesForUser,
-  syncGithubInstallationForUser,
-} from "../../github/installation";
-import { explainEngineeringTaskForUser, advanceTaskWalkthroughForUser } from "../../task-walkthrough";
-import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "../../workflow";
 
 import type { ShipflowToolContext } from "../definitions";
-import { featureSummary, loadAuthorizedFeature } from "../helpers";
+import { loadAuthorizedFeature } from "../helpers";
 
 export async function handle_run_ai_review(
   ctx: ShipflowToolContext,
@@ -158,7 +118,7 @@ export async function handle_get_review_delta(
   ctx: ShipflowToolContext,
   args: Record<string, unknown>,
 ): Promise<string> {
-  const { userId, actions } = ctx;
+  const { userId } = ctx;
   const id = String(args.id ?? "").trim();
         await loadAuthorizedFeature(userId, id);
         const delta = await getReviewDelta(id);
@@ -294,7 +254,7 @@ export async function handle_get_approval_history(
   ctx: ShipflowToolContext,
   args: Record<string, unknown>,
 ): Promise<string> {
-  const { userId, actions } = ctx;
+  const { userId } = ctx;
   const id = String(args.id ?? "").trim();
         const { feature } = await loadAuthorizedFeature(userId, id);
         const approvals = await listHumanApprovals(id);
@@ -412,7 +372,6 @@ export async function handle_get_review_loop_health(
   ctx: ShipflowToolContext,
   args: Record<string, unknown>,
 ): Promise<string> {
-  const { userId, actions } = ctx;
   const id = String(args.id ?? "").trim();
         const health = await getReviewLoopHealth(id);
         return JSON.stringify(health);

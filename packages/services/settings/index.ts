@@ -1,3 +1,5 @@
+export { fallbackApprovalDefaults, isShipflowDemoMode } from "./demo-mode";
+
 export type ApprovalDefaults = {
   autoApproveEmail: boolean;
   autoApproveAgentEmail: boolean;

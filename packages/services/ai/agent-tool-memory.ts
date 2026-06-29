@@ -5,6 +5,8 @@ export type AgentToolMemoryEntry = {
   contextId?: string;
   eventId?: string;
   query?: string;
+  /** Local semantic vector for hybrid retrieval (optional, computed lazily). */
+  embedding?: number[];
 };
 
 export const MAX_TOOL_MEMORY_ENTRIES = 12;

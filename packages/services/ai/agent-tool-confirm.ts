@@ -19,23 +19,42 @@ const TOOL_INTENT_PATTERNS: Record<string, RegExp[]> = {
     /\bcreate\b.*\bprd\b/i,
     /\bwrite\b.*\bprd\b/i,
     /\bprd\b.*\b(for|on)\b/i,
+    /\bdraft\b.*\bprd\b/i,
   ],
   generate_feature_tasks: [
     /\bgenerate\b.*\btasks?\b/i,
     /\bcreate\b.*\b(engineering\s+)?tasks?\b/i,
     /\bbreak\b.*\b(into\s+)?tasks?\b/i,
+    /\btaskify\b/i,
   ],
   implement_feature_code: [
     /\bimplement\b.*\b(code|feature)\b/i,
     /\bwrite\b.*\bcode\b/i,
     /\bstart\b.*\b(coding|development)\b/i,
   ],
-  run_ai_review: [/\brun\b.*\bai review\b/i, /\bai review\b.*\b(for|on|this)\b/i, /\breview\b.*\bfeature\b/i],
-  request_human_review: [/\brequest\b.*\bhuman review\b/i, /\bhand off\b.*\breview\b/i],
-  approve_feature: [/\bapprove\b.*\b(feature|request|this)\b/i, /\bapprove\b.*\bfor release\b/i],
+  run_ai_review: [
+    /\brun\b.*\bai review\b/i,
+    /\bai review\b.*\b(for|on|this)\b/i,
+    /\breview\b.*\bfeature\b/i,
+    /\bkick off\b.*\breview\b/i,
+  ],
+  request_human_review: [
+    /\brequest\b.*\bhuman review\b/i,
+    /\bhand off\b.*\breview\b/i,
+    /\bhand off to human review\b/i,
+  ],
+  approve_feature: [
+    /\bapprove\b.*\b(feature|request|this)\b/i,
+    /\bapprove\b.*\bfor release\b/i,
+    /\bI approve\b/i,
+  ],
   reject_feature: [/\breject\b.*\b(feature|request|this)\b/i],
   request_changes: [/\brequest\b.*\bchanges\b/i, /\bchanges requested\b/i],
-  ship_feature: [/\bship\b.*\b(feature|this|it|request)\b/i, /\bdeploy\b.*\b(prod|production)\b/i, /\bmark\b.*\bshipped\b/i],
+  ship_feature: [
+    /\bship\b.*\b(feature|this|it|request)\b/i,
+    /\bdeploy\b.*\b(prod|production)\b/i,
+    /\bmark\b.*\bshipped\b/i,
+  ],
 };
 
 export type AgentToolConfirmationResult =

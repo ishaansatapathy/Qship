@@ -16,7 +16,7 @@ const DEFAULTS = {
 
 describe("agent golden eval harness", () => {
   it(`runs ${AGENT_EVAL_CASE_COUNT}+ labeled control-plane cases`, () => {
-    expect(AGENT_EVAL_CASE_COUNT).toBeGreaterThanOrEqual(45);
+    expect(AGENT_EVAL_CASE_COUNT).toBeGreaterThanOrEqual(50);
   });
 
   it.each(AGENT_INJECTION_EVAL_CASES)("$id injection expectation", ({ message, expectFlagged }) => {

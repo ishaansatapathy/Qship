@@ -26,6 +26,7 @@ import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
 import { AgentTrace } from "./agent-trace";
+import { exportAgentTrace } from "./agent-trace-export";
 
 export async function runAgentChatStream(
   tenantId: string,
@@ -122,6 +123,7 @@ export async function runAgentChatStream(
     toolCalls: memoryTracker.getNewEntries().length,
     focusCleared: prepared.focusCleared,
   });
+  await exportAgentTrace(trace, { tenantId, channel: "stream" });
 
   return {
     reply: content,

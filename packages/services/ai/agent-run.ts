@@ -1,5 +1,5 @@
 import type { ApprovalDefaults } from "../settings";
-import { getSettingsService } from "../settings";
+import { fallbackApprovalDefaults, getSettingsService } from "../settings";
 import { applyHistoryCompaction } from "./agent-compaction";
 import { buildFocusSystemAppendix, type AgentFocus } from "./agent-focus";
 import type { AgentHistoryMessage } from "./agent";
@@ -34,11 +34,7 @@ export async function loadAgentApprovalDefaults(userId: string): Promise<Approva
   try {
     return await getSettingsService().getApprovalDefaults(userId);
   } catch {
-    return {
-      autoApproveEmail: false,
-      autoApproveAgentEmail: false,
-      autoApproveCalendar: false,
-    };
+    return fallbackApprovalDefaults();
   }
 }
 
