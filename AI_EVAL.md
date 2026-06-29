@@ -121,12 +121,16 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 | Persist reviews + iteration counter | `review.ts` → `persistAiReview` |
 | Delta: resolved / persisting / new | `review.ts` → `getReviewDelta` |
 | Stats: pass rate, avg issues | `review.ts` → `getReviewStats` |
-| Block approve if blocking issues | `review.ts` → `validateHumanApprovalEligibility` |
-| Approve / reject / changes | `review.ts` → `recordHumanApproval` |
+| Block approve if blocking issues | `review.ts` → `validateHumanApprovalEligibility` / `evaluateHumanApprovalEligibility` |
+| Approval eligibility read API | `feature/route.ts` → `getApprovalEligibility` |
+| Approve / reject / changes | `review.ts` → `recordHumanApproval` (idempotent on race) |
+| Optimistic FSM transitions | `feature-request.ts` → `guardedUpdateFeatureStatusInTx` |
 | Audit trail | `review.ts` → `listHumanApprovals` |
 | Agent tools | `approve_feature`, `reject_feature`, `request_changes`, `get_review_delta` |
 
-**UI:** Approve button disabled when AI has unresolved blocking issues (same validation as agent tool).
+**UI:** Approve button disabled when `getApprovalEligibility` returns `eligible: false` (same gate as server).
+
+**CI merge gate:** `pnpm test:review-eval` in `ci.yml`
 
 ---
 

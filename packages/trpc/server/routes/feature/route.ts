@@ -23,12 +23,15 @@ import {
   recordHumanApproval,
   validateHumanApprovalEligibility,
   listHumanApprovals,
+  getHumanApprovalEligibility,
+  evaluateHumanApprovalEligibility,
   getReviewDelta,
   getReviewStats,
   getLatestAiReview,
   resolveReviewIssue,
   getIssueResolutionSummary,
   getReviewLoopHealth,
+  assertAiReviewInUserWorkspace,
 } from "@repo/services/review";
 import { guardedUpdateFeatureStatus } from "@repo/services/feature-request";
 import { generateApprovalBriefing, analyzeChangeRequest, generateDeveloperOnboardingGuide } from "@repo/services/feature-ai";
@@ -556,6 +559,27 @@ export const featureRouter = router({
       }
     }),
 
+  getApprovalEligibility: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{id}/approval-eligibility",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Whether a feature can be approved (same gate as approve mutation)",
+      },
+    })
+    .input(z.object({ id: z.string().min(1) }))
+    .output(openApiResponse)
+    .query(async ({ ctx, input }) => {
+      try {
+        await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+        return getHumanApprovalEligibility(input.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
   approve: mutationProcedure
     .meta({
       openapi: {
@@ -589,7 +613,7 @@ export const featureRouter = router({
         path: "/feature/requests/{id}/reject",
         tags: ["Feature Requests"],
         protect: true,
-        summary: "Reject a feature request and request changes",
+        summary: "Request changes on a feature (returns feature to fix loop)",
       },
     })
     .input(
@@ -926,8 +950,9 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ reviewId: z.string().min(1) }))
-    .output(openApiResponse).query(async ({ ctx: _ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
+        await assertAiReviewInUserWorkspace(ctx.user.id, input.reviewId);
         return getIssueResolutionSummary(input.reviewId);
       } catch (error) {
         mapServiceError(error);

@@ -372,7 +372,9 @@ export async function handle_get_review_loop_health(
   ctx: ShipflowToolContext,
   args: Record<string, unknown>,
 ): Promise<string> {
+  const { userId } = ctx;
   const id = String(args.id ?? "").trim();
-        const health = await getReviewLoopHealth(id);
-        return JSON.stringify(health);
+  await loadAuthorizedFeature(userId, id);
+  const health = await getReviewLoopHealth(id);
+  return JSON.stringify(health);
 }

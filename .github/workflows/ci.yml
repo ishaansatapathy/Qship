@@ -116,6 +116,9 @@ jobs:
       - name: GitHub integration eval gate
         run: pnpm --filter @repo/services test:github-eval
 
+      - name: Review loop eval gate
+        run: pnpm --filter @repo/services test:review-eval
+
       - name: Build all packages and apps
         run: pnpm build
 
