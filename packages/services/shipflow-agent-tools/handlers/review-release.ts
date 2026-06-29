@@ -162,6 +162,7 @@ export async function handle_approve_feature(
           reviewerUserId: userId,
           decision: "approved",
           notes: notes || undefined,
+          skipEligibilityCheck: true,
         });
         actions.push({
           kind: "feature_detail",
@@ -189,7 +190,7 @@ export async function handle_ship_feature(
         actions.push({
           kind: "feature_detail",
           title: `Shipped: ${feature.title}`,
-          detail: result.release.merge.merged ? "PR merged" : "Released",
+          detail: result.release?.merge?.merged ? "PR merged" : "Released",
           href: `/requests?id=${id}`,
         });
         return JSON.stringify({

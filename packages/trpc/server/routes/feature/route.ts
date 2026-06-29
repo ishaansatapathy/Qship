@@ -24,7 +24,6 @@ import {
   validateHumanApprovalEligibility,
   listHumanApprovals,
   getHumanApprovalEligibility,
-  evaluateHumanApprovalEligibility,
   getReviewDelta,
   getReviewStats,
   getLatestAiReview,
@@ -51,6 +50,46 @@ import {
   cancelWorkflowOutput,
 } from "../../openapi-outputs";
 import { mapServiceError, protectedProcedure, mutationProcedure, publicProcedure, router } from "../../trpc";
+
+const requestChangesInput = z.object({
+  id: z.string().min(1),
+  notes: z.string().min(1, "Change request must include notes describing required fixes"),
+  analyzeWithAi: z.boolean().default(true),
+});
+
+async function runRequestChangesMutation(
+  ctx: { user: { id: string } },
+  input: z.infer<typeof requestChangesInput>,
+) {
+  const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
+  await assertReleaseReviewer(ctx.user.id, input.id);
+  const result = await recordHumanApproval({
+    featureRequestId: input.id,
+    reviewerUserId: ctx.user.id,
+    decision: "changes_requested",
+    notes: input.notes,
+  });
+  if (input.analyzeWithAi) {
+    const latestReview = await getLatestAiReview(input.id);
+    analyzeChangeRequest({
+      featureTitle: feature.title,
+      changeRequestNotes: input.notes,
+      latestReview: latestReview
+        ? {
+            summary: latestReview.summary,
+            blockingIssues: (
+              latestReview.issues as Array<{ title: string; category: string; severity: string }>
+            )
+              .filter((i) => i.severity === "blocking")
+              .map((i) => ({ title: i.title, category: i.category })),
+          }
+        : null,
+    }).catch(() => {
+      // Non-fatal — change request already recorded
+    });
+  }
+  return result;
+}
 
 export const featureRouter = router({
   listStatuses: publicProcedure
@@ -600,7 +639,28 @@ export const featureRouter = router({
           reviewerUserId: ctx.user.id,
           decision: "approved",
           notes: input.notes,
+          skipEligibilityCheck: true,
         });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  requestChanges: mutationProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/{id}/request-changes",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Request changes on a feature (returns feature to fix loop)",
+      },
+    })
+    .input(requestChangesInput)
+    .output(openApiResponse)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await runRequestChangesMutation(ctx, input);
       } catch (error) {
         mapServiceError(error);
       }
@@ -613,45 +673,14 @@ export const featureRouter = router({
         path: "/feature/requests/{id}/reject",
         tags: ["Feature Requests"],
         protect: true,
-        summary: "Request changes on a feature (returns feature to fix loop)",
+        summary: "Deprecated alias — use requestChanges (returns feature to fix loop)",
       },
     })
-    .input(
-      z.object({
-        id: z.string().min(1),
-        notes: z.string().min(1, "Rejection must include change-request notes"),
-        analyzeWithAi: z.boolean().default(true),
-      }),
-    )
-    .output(openApiResponse).mutation(async ({ ctx, input }) => {
+    .input(requestChangesInput)
+    .output(openApiResponse)
+    .mutation(async ({ ctx, input }) => {
       try {
-        const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
-        await assertReleaseReviewer(ctx.user.id, input.id);
-        const result = await recordHumanApproval({
-          featureRequestId: input.id,
-          reviewerUserId: ctx.user.id,
-          decision: "changes_requested",
-          notes: input.notes,
-        });
-        // Fire-and-forget structured analysis of change request
-        if (input.analyzeWithAi) {
-          const latestReview = await getLatestAiReview(input.id);
-          analyzeChangeRequest({
-            featureTitle: feature.title,
-            changeRequestNotes: input.notes,
-            latestReview: latestReview
-              ? {
-                  summary: latestReview.summary,
-                  blockingIssues: (latestReview.issues as Array<{ title: string; category: string; severity: string }>)
-                    .filter((i) => i.severity === "blocking")
-                    .map((i) => ({ title: i.title, category: i.category })),
-                }
-              : null,
-          }).catch(() => {
-            // Non-fatal — the rejection itself already succeeded
-          });
-        }
-        return result;
+        return await runRequestChangesMutation(ctx, input);
       } catch (error) {
         mapServiceError(error);
       }

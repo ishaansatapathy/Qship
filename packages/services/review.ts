@@ -15,7 +15,6 @@ import {
   appendFeatureActivity,
   assertFeatureInUserWorkspace,
   getFeatureRequest,
-  guardedUpdateFeatureStatus,
   guardedUpdateFeatureStatusInTx,
 } from "./feature-request";
 import type { FeatureStatus } from "./workflow";
@@ -24,7 +23,6 @@ import { getGithubConnectionForUser } from "./github/installation";
 import { notifySlackFeatureApproved, notifySlackFeatureShipped } from "./slack";
 import type { PrAiReviewResult } from "./feature-ai";
 import { assertReleaseReadyForShip } from "./release-validation";
-import { isProductionEnv } from "./runtime-env";
 import { assertReleaseReviewer, assertReviewIssueInUserWorkspace } from "./workflow-guards";
 import {
   buildReviewHealthSummary,
@@ -32,6 +30,19 @@ import {
   computeSlaStatus,
   reviewHealthLabel,
 } from "./review-health";
+import {
+  getLatestAiReview,
+  resolveIdempotentApprovedDecision,
+  validateHumanApprovalEligibility,
+} from "./review-gate";
+
+export type { HumanApprovalEligibility } from "./review-gate";
+export {
+  evaluateHumanApprovalEligibility,
+  getHumanApprovalEligibility,
+  loadHumanApprovalGateContext,
+  validateHumanApprovalEligibility,
+} from "./review-gate";
 
 // ── Credit management ─────────────────────────────────────────────────────────
 
@@ -77,18 +88,20 @@ export async function persistAiReview(input: {
   pullRequestId?: string | null;
   review: PrAiReviewResult;
 }) {
-  const prior = await db.query.aiReviews.findMany({
-    where: eq(aiReviews.featureRequestId, input.featureRequestId),
-    columns: { iteration: true },
-    orderBy: [desc(aiReviews.createdAt)],
-    limit: 1,
-  });
-  const iteration = (prior[0]?.iteration ?? 0) + 1;
   const reviewId = crypto.randomUUID();
   const blockingCount = input.review.issues.filter((i) => i.severity === "blocking").length;
   const nextStatus = input.review.pass ? "human_review" : "fix_needed";
+  let iteration = 0;
 
   await withTransaction(async (tx) => {
+    const prior = await tx.query.aiReviews.findMany({
+      where: eq(aiReviews.featureRequestId, input.featureRequestId),
+      columns: { iteration: true },
+      orderBy: [desc(aiReviews.createdAt)],
+      limit: 1,
+    });
+    iteration = (prior[0]?.iteration ?? 0) + 1;
+
     const featureRow = await tx.query.featureRequests.findFirst({
       where: eq(featureRequests.id, input.featureRequestId),
       columns: { status: true },
@@ -158,13 +171,7 @@ export async function listAiReviewsForFeature(featureRequestId: string) {
   });
 }
 
-export async function getLatestAiReview(featureRequestId: string) {
-  return db.query.aiReviews.findFirst({
-    where: eq(aiReviews.featureRequestId, featureRequestId),
-    orderBy: [desc(aiReviews.createdAt)],
-    with: { issues: true },
-  });
-}
+export { getLatestAiReview };
 
 /**
  * Returns a human-readable delta summary comparing the latest two review
@@ -294,114 +301,6 @@ export async function getPreviousBlockingIssues(featureRequestId: string) {
 
 // ── Human approval ─────────────────────────────────────────────────────────────
 
-export type HumanApprovalEligibility = {
-  eligible: boolean;
-  reason?: string;
-  blockingCount?: number;
-  status: FeatureStatus;
-};
-
-type LatestReviewForGate = {
-  readyForHuman: boolean;
-  issues: Array<{ severity: string; resolved: boolean }>;
-  rawAnalysis: unknown;
-};
-
-/** Pure gate evaluation — used by UI, agents, and unit tests. */
-export function evaluateHumanApprovalEligibility(input: {
-  status: FeatureStatus;
-  latestReview: LatestReviewForGate | null;
-  isProduction: boolean;
-}): HumanApprovalEligibility {
-  if (input.status !== "human_review") {
-    return {
-      eligible: false,
-      status: input.status,
-      reason: `Cannot approve: feature is "${input.status}", expected "human_review".`,
-    };
-  }
-
-  if (!input.latestReview) {
-    return {
-      eligible: false,
-      status: input.status,
-      reason: "Cannot approve: no AI review has been run on this feature yet.",
-    };
-  }
-
-  const unresolvedBlocking = input.latestReview.issues.filter(
-    (i) => i.severity === "blocking" && !i.resolved,
-  );
-  if (!input.latestReview.readyForHuman || unresolvedBlocking.length > 0) {
-    const blockingCount =
-      unresolvedBlocking.length ||
-      input.latestReview.issues.filter((i) => i.severity === "blocking").length;
-    return {
-      eligible: false,
-      status: input.status,
-      blockingCount,
-      reason: `Cannot approve: AI review has ${blockingCount} unresolved blocking issue(s). Resolve them and re-run the AI review if needed.`,
-    };
-  }
-
-  const rawAnalysis = input.latestReview.rawAnalysis as { demoOnly?: boolean } | null;
-  if (input.isProduction && rawAnalysis?.demoOnly) {
-    return {
-      eligible: false,
-      status: input.status,
-      reason:
-        "Cannot approve: AI review was seeded for demo only. Run a real AI review before approval.",
-    };
-  }
-
-  return { eligible: true, status: input.status, blockingCount: 0 };
-}
-
-/** Non-throwing eligibility check for UI and read APIs. */
-export async function getHumanApprovalEligibility(
-  featureRequestId: string,
-): Promise<HumanApprovalEligibility> {
-  const feature = await getFeatureRequest(featureRequestId);
-  const latestReview = await getLatestAiReview(featureRequestId);
-  return evaluateHumanApprovalEligibility({
-    status: feature.status as FeatureStatus,
-    latestReview: latestReview
-      ? {
-          readyForHuman: latestReview.readyForHuman,
-          issues: latestReview.issues,
-          rawAnalysis: latestReview.rawAnalysis,
-        }
-      : null,
-    isProduction: isProductionEnv(),
-  });
-}
-
-/**
- * Validates that a feature is in the correct state to receive a human decision.
- * Throws a ServiceError if the feature cannot be approved/rejected right now.
- */
-export async function validateHumanApprovalEligibility(featureRequestId: string) {
-  const eligibility = await getHumanApprovalEligibility(featureRequestId);
-  if (!eligibility.eligible) {
-    throw new ServiceError("PRECONDITION_FAILED", eligibility.reason ?? "Not eligible for approval");
-  }
-  const latestReview = await getLatestAiReview(featureRequestId);
-  if (!latestReview) {
-    throw new ServiceError("PRECONDITION_FAILED", "Cannot approve: no AI review has been run on this feature yet.");
-  }
-  return latestReview;
-}
-
-async function findLatestApprovedDecision(featureRequestId: string) {
-  return db.query.humanApprovals.findFirst({
-    where: and(
-      eq(humanApprovals.featureRequestId, featureRequestId),
-      eq(humanApprovals.decision, "approved"),
-    ),
-    orderBy: [desc(humanApprovals.createdAt)],
-  });
-}
-
 /**
  * Records a human approval decision (approved / rejected / changes_requested)
  * with optional structured notes, transitions feature status, and logs the
@@ -412,25 +311,14 @@ export async function recordHumanApproval(input: {
   reviewerUserId: string;
   decision: "approved" | "rejected" | "changes_requested";
   notes?: string;
+  /** Set when caller already ran validateHumanApprovalEligibility. */
+  skipEligibilityCheck?: boolean;
 }) {
   const feature = await getFeatureRequest(input.featureRequestId);
   const fromStatus = feature.status as FeatureStatus;
 
   if (input.decision === "approved" && fromStatus === "approved") {
-    const existing = await findLatestApprovedDecision(input.featureRequestId);
-    if (existing) {
-      logger.info("review.human_approval_idempotent", {
-        featureRequestId: input.featureRequestId,
-        approvalId: existing.id,
-      });
-      return {
-        id: existing.id,
-        decision: "approved" as const,
-        nextStatus: "approved" as const,
-        slack: undefined,
-        idempotent: true as const,
-      };
-    }
+    return resolveIdempotentApprovedDecision(input.featureRequestId);
   }
 
   if (
@@ -442,7 +330,7 @@ export async function recordHumanApproval(input: {
     await assertReleaseReviewer(input.reviewerUserId, input.featureRequestId);
   }
 
-  if (input.decision === "approved") {
+  if (input.decision === "approved" && !input.skipEligibilityCheck) {
     await validateHumanApprovalEligibility(input.featureRequestId);
   }
 
@@ -524,31 +412,13 @@ export async function recordHumanApproval(input: {
       error instanceof ServiceError &&
       error.code === "CONFLICT"
     ) {
-      const existing = await findLatestApprovedDecision(input.featureRequestId);
-      if (existing) {
-        return {
-          id: existing.id,
-          decision: "approved" as const,
-          nextStatus: "approved" as const,
-          slack: undefined,
-          idempotent: true as const,
-        };
-      }
+      return resolveIdempotentApprovedDecision(input.featureRequestId);
     }
     throw error;
   }
 
   if (idempotentAfterRace) {
-    const existing = await findLatestApprovedDecision(input.featureRequestId);
-    if (existing) {
-      return {
-        id: existing.id,
-        decision: "approved" as const,
-        nextStatus: "approved" as const,
-        slack: undefined,
-        idempotent: true as const,
-      };
-    }
+    return resolveIdempotentApprovedDecision(input.featureRequestId);
   }
 
   await appendFeatureActivity(input.featureRequestId, {
@@ -602,10 +472,39 @@ export async function listHumanApprovals(featureRequestId: string) {
 export async function markFeatureShipped(featureRequestId: string, userId: string) {
   const { ws, feature } = await assertReleaseReviewer(userId, featureRequestId);
 
+  if (feature.status === "shipped") {
+    logger.info("review.feature_ship_idempotent", { featureRequestId, userId });
+    return {
+      status: "shipped" as const,
+      slack: undefined,
+      release: undefined,
+      idempotent: true as const,
+    };
+  }
+
   if (feature.status !== "approved") {
     throw new ServiceError(
       "PRECONDITION_FAILED",
       `Cannot ship: feature is "${feature.status}", expected "approved". Approve the feature first.`,
+    );
+  }
+
+  const freshRow = await db.query.featureRequests.findFirst({
+    where: eq(featureRequests.id, featureRequestId),
+    columns: { status: true },
+  });
+  if (freshRow?.status === "shipped") {
+    return {
+      status: "shipped" as const,
+      slack: undefined,
+      release: undefined,
+      idempotent: true as const,
+    };
+  }
+  if (freshRow?.status !== "approved") {
+    throw new ServiceError(
+      "CONFLICT",
+      `Cannot ship: feature is "${freshRow?.status ?? "unknown"}", expected "approved". Refresh and retry.`,
     );
   }
 
@@ -624,9 +523,54 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
     hadGithubConnection: Boolean(gh.installationId),
   });
 
-  await withTransaction(async (tx) => {
-    await guardedUpdateFeatureStatusInTx(tx, featureRequestId, "approved", "shipped");
-  });
+  let alreadyShippedInTx = false;
+  try {
+    await withTransaction(async (tx) => {
+      const row = await tx.query.featureRequests.findFirst({
+        where: eq(featureRequests.id, featureRequestId),
+        columns: { status: true },
+      });
+      if (!row) {
+        throw new ServiceError("NOT_FOUND", "Feature request not found");
+      }
+      if (row.status === "shipped") {
+        alreadyShippedInTx = true;
+        return;
+      }
+      if (row.status !== "approved") {
+        throw new ServiceError(
+          "CONFLICT",
+          `Cannot ship: feature is "${row.status}", expected "approved". Refresh and retry.`,
+        );
+      }
+      await guardedUpdateFeatureStatusInTx(tx, featureRequestId, "approved", "shipped");
+    });
+  } catch (error) {
+    if (error instanceof ServiceError && error.code === "CONFLICT") {
+      const row = await db.query.featureRequests.findFirst({
+        where: eq(featureRequests.id, featureRequestId),
+        columns: { status: true },
+      });
+      if (row?.status === "shipped") {
+        return {
+          status: "shipped" as const,
+          slack: undefined,
+          release,
+          idempotent: true as const,
+        };
+      }
+    }
+    throw error;
+  }
+
+  if (alreadyShippedInTx) {
+    return {
+      status: "shipped" as const,
+      slack: undefined,
+      release,
+      idempotent: true as const,
+    };
+  }
 
   const releaseDetail = release.merge.merged
     ? `PR #${release.merge.prNumber} merged`
@@ -681,21 +625,18 @@ export async function resolveReviewIssue(
   resolutionNotes?: string,
   userId?: string,
 ) {
-  const issue = userId
-    ? await assertReviewIssueInUserWorkspace(userId, issueId)
-    : await db.query.aiReviewIssues.findFirst({
-        where: eq(aiReviewIssues.id, issueId),
-        with: { aiReview: { columns: { featureRequestId: true, id: true, iteration: true } } },
-      });
-
-  if (!issue) {
-    throw new ServiceError("NOT_FOUND", "AI review issue not found");
+  if (!userId) {
+    throw new ServiceError("UNAUTHORIZED", "User context is required to resolve review issues.");
   }
 
-  await db
-    .update(aiReviewIssues)
-    .set({ resolved })
-    .where(eq(aiReviewIssues.id, issueId));
+  const issue = await assertReviewIssueInUserWorkspace(userId, issueId);
+
+  await withTransaction(async (tx) => {
+    await tx
+      .update(aiReviewIssues)
+      .set({ resolved })
+      .where(eq(aiReviewIssues.id, issueId));
+  });
 
   const featureRequestId = issue.aiReview?.featureRequestId;
   let resolutionSummary: Awaited<ReturnType<typeof getIssueResolutionSummary>> | null = null;

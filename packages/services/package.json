@@ -9,7 +9,7 @@
     "test:agent-eval": "vitest run ai/agent-eval.golden.test.ts ai/agent-loop.integration.test.ts",
     "test:agent-live": "vitest run ai/agent-live-eval.test.ts",
     "test:github-eval": "vitest run github/installation.test.ts github/webhook.test.ts github/github-webhook-processors.test.ts github/github-octokit-release.test.ts github/github-eval.golden.test.ts github/github-webhook-dedup.integration.test.ts github/github-webhook-outbox.integration.test.ts github/webhook-pr-review-dispatch.test.ts github/webhook-outbox.test.ts github/webhook-outbox-scheduler.test.ts github/github-live-smoke.test.ts github/repo-context.test.ts",
-    "test:review-eval": "vitest run review.gate.test.ts review-eval.golden.test.ts review-idempotency.test.ts review-health.test.ts",
+    "test:review-eval": "vitest run review.gate.test.ts review-gate-idempotency.test.ts review-auth.test.ts review-eval.golden.test.ts review-idempotency.test.ts review-health.test.ts",
     "test:db": "dotenv -- vitest run core-workflow-db.integration.test.ts"
   },
   "dependencies": {
