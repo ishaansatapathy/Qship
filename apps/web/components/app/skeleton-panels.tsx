@@ -42,8 +42,31 @@ export function AttentionCardSkeleton() {
 export function DeliveryPanelCompactSkeleton() {
   return (
     <div className="qship-delivery-panel qship-delivery-panel--skeleton" data-compact="true" aria-hidden>
-      <span className="qship-skeleton qship-delivery-skeleton-title" />
+      <div className="qship-delivery-panel-head">
+        <span className="qship-skeleton qship-delivery-skeleton-title" />
+      </div>
       <span className="qship-skeleton qship-delivery-skeleton-line" />
+    </div>
+  );
+}
+
+export function DeliveryPanelSkeleton() {
+  return (
+    <div className="qship-delivery-panel qship-delivery-panel--skeleton" aria-hidden>
+      <div className="qship-delivery-panel-head">
+        <span className="qship-skeleton qship-delivery-skeleton-title" />
+        <span className="qship-skeleton qship-delivery-skeleton-pill" />
+      </div>
+      <div className="qship-delivery-summary">
+        <span className="qship-skeleton qship-delivery-skeleton-line" />
+        <span className="qship-skeleton qship-delivery-skeleton-line qship-delivery-skeleton-line--short" />
+        <span className="qship-skeleton qship-delivery-skeleton-callout" />
+      </div>
+      <div className="qship-delivery-timeline-wrap">
+        <span className="qship-skeleton qship-delivery-skeleton-label" />
+        <span className="qship-skeleton qship-delivery-skeleton-event" />
+        <span className="qship-skeleton qship-delivery-skeleton-event" />
+      </div>
     </div>
   );
 }
