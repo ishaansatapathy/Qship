@@ -35,7 +35,7 @@ export const authRouter = router({
     .input(zodUndefinedModel)
     .query(() => getEnabledAuthProviders()),
 
-  setupProfile: protectedProcedure
+  setupProfile: mutationProcedure
     .input(z.object({ fullName: z.string().min(1).optional(), displayName: z.string().optional() }).passthrough())
     .mutation(({ ctx, input }) => ({
       id: ctx.user.id,

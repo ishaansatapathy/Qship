@@ -56,22 +56,24 @@ export function createRateLimiter(options: RateLimitOptions) {
   };
 }
 
+/** Paths exempt from global rate limiting (health probes, public API docs). */
+export function isGlobalRateLimitExempt(path: string): boolean {
+  return (
+    path === "/health" ||
+    path === "/ready" ||
+    path === "/" ||
+    path === "/openapi.json" ||
+    path === "/docs" ||
+    path.startsWith("/docs/")
+  );
+}
+
 /** Global API rate limit — 300 requests / 15 min per IP. */
 export const globalRateLimiter = createRateLimiter({
   keyPrefix: "global",
   limit: 300,
   windowMs: 15 * 60 * 1000,
-  skip: (req) => {
-    const path = req.path;
-    return (
-      path === "/health" ||
-      path === "/ready" ||
-      path === "/" ||
-      path === "/openapi.json" ||
-      path === "/docs" ||
-      path.startsWith("/docs/")
-    );
-  },
+  skip: (req) => isGlobalRateLimitExempt(req.path),
 });
 
 /** Auth-sensitive routes — 30 requests / 15 min per IP. */

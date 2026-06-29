@@ -84,6 +84,7 @@ jobs:
       NEXT_PUBLIC_DEMO_LOGIN_ENABLED: "true"
       DEMO_USER_EMAIL: demo@shipflow.dev
       DEMO_USER_PASSWORD: DemoPass123!
+      PUBLIC_OPENAPI_DOCS: "true"
       CI: "true"
 
     steps:
@@ -118,6 +119,9 @@ jobs:
 
       - name: Review loop eval gate
         run: pnpm --filter @repo/services test:review-eval
+
+      - name: Engineering quality eval gate
+        run: pnpm --filter @repo/trpc test:engineering-eval && pnpm --filter @repo/api test:rate-limit
 
       - name: Build all packages and apps
         run: pnpm build

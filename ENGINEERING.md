@@ -61,7 +61,7 @@ Implemented in `apps/api/src/middleware/` and wired in `apps/api/src/server.ts`:
 | Helmet | `server.ts:28-33` | Security headers (CSP disabled for Scalar UI) |
 | CORS | `server.ts:35-40` | Single-origin credentialed requests (`CLIENT_URL`) |
 | Request ID | `middleware/error-handler.ts` | Correlation ID on every request |
-| Global rate limit | `middleware/rate-limiters.ts` | 300 req / 15 min per IP (health exempt) |
+| Global rate limit | `middleware/rate-limiters.ts` | 300 req / 15 min per IP (health + `/docs` + `/openapi.json` exempt) |
 | Agent rate limit | `middleware/rate-limiters.ts` | 20 req / 1 min on `/agent/stream`, `/mcp` |
 | Body size limit | `server.ts` | `express.json({ limit: "256kb" })` |
 | Trusted origin + CSRF | `middleware/trusted-origin.ts` | Blocks cross-site POST/PATCH/DELETE |
@@ -85,7 +85,7 @@ BetterAuth also enforces `trustedOrigins` in `packages/auth/index.ts`.
 ## Database layer
 
 - **ORM:** Drizzle with typed schema in `packages/database/models/`
-- **Migrations:** `packages/database/drizzle/` — 43 migrations, 14 performance indexes
+- **Migrations:** `packages/database/drizzle/` — 52 migrations, 14+ performance indexes in `0041_add_indexes.sql`
 - **Type safety:** booleans/integers (not text), SQL enums for `billing_status`, `clarification_role`
 - **Health:** `packages/database/health.ts` — `pingDatabase()`, used by `/health` and `/ready`
 - **Pool:** Configurable timeouts, Neon SSL detection in `packages/database/pg.ts`
@@ -97,7 +97,7 @@ BetterAuth also enforces `trustedOrigins` in `packages/auth/index.ts`.
 | Package | Runner | Scope |
 |---------|--------|-------|
 | `@repo/services` | Vitest | Domain logic, security, AI guardrails, review health, workflow |
-| `@repo/trpc` | Vitest | Error sanitization, procedure helpers |
+| `@repo/trpc` | Vitest | Error sanitization, procedure helpers, **engineering eval gate** |
 | `web` | Playwright | Demo login, pipeline pages (E2E) |
 | CI | GitHub Actions | `pnpm test` + API smoke + build gate |
 
@@ -108,6 +108,7 @@ packages/services/security/trusted-origin.test.ts   # CSRF / origin validation
 packages/services/review-health.test.ts             # Review loop scoring
 packages/services/feature-analytics.test.ts         # Pipeline health derivation
 packages/services/ai/tool-parity.test.ts            # Agent ↔ MCP 37-tool parity
+packages/trpc/server/engineering-eval.golden.test.ts  # Monorepo + OpenAPI + CI invariants
 packages/trpc/server/error-handler.test.ts          # No stack trace leaks
 ```
 
@@ -126,7 +127,7 @@ pnpm test          # Vitest unit tests
 `.github/workflows/ci.yml` — three parallel jobs:
 
 1. **static** — `pnpm check-types` + `pnpm lint`
-2. **test** — Postgres service → migrate → seed → `pnpm test` → `pnpm build` → API smoke (`/health`, `/ready`, `/openapi.json`)
+2. **test** — Postgres service → migrate → seed → `pnpm test` → golden eval gates (`test:agent-eval`, `test:github-eval`, `test:review-eval`, `test:engineering-eval`) → `pnpm build` → API smoke (`/health`, `/ready`, `/openapi.json`, `/docs` with `PUBLIC_OPENAPI_DOCS=true`)
 3. **e2e** — Playwright on main/PR (report uploaded on failure only — never committed)
 
 **Repo cleanliness gate:** CI fails if `test-results/`, `playwright-report/`, or `error-context.md` are tracked.

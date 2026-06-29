@@ -145,11 +145,16 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 |---|---|
 | Turborepo monorepo | `apps/web`, `apps/api`, `packages/*` |
 | tRPC v11 + OpenAPI bridge | `packages/trpc`, Scalar at `/docs` |
-| 51 DB migrations | `packages/database/drizzle/` |
-| 14 perf indexes | migration `0041_add_indexes.sql` |
-| CI: types + lint + unit + agent eval + E2E | `.github/workflows/ci.yml` |
+| 52 DB migrations | `packages/database/drizzle/` |
+| 14+ perf indexes | migration `0041_add_indexes.sql` |
+| CI: types + lint + unit + golden evals + E2E | `.github/workflows/ci.yml` |
 | 249+ unit tests | `pnpm test` in CI |
 | Playwright E2E | `apps/web/e2e/shipflow-demo.spec.ts` |
+| **Engineering eval gate (15 invariants)** | `packages/trpc/server/engineering-eval.golden.test.ts` |
+
+**CI merge gate:** `pnpm --filter @repo/trpc test:engineering-eval` + `pnpm --filter @repo/api test:rate-limit` in `ci.yml`
+
+**Production docs:** set `PUBLIC_OPENAPI_DOCS=true` on Railway; `/docs` and `/openapi.json` are exempt from global rate limiting.
 
 ---
 
