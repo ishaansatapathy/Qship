@@ -3,6 +3,7 @@ import { runPrdGenerationWorkflow } from "../workflows/prd-generation";
 import { runTaskGenerationWorkflow } from "../workflows/task-generation";
 import { runAiReviewWorkflow } from "../workflows/ai-review-workflow";
 import { runCodeImplementationWorkflow } from "../workflows/code-implementation";
+import { processGithubWebhookOutbox } from "../github/webhook-outbox";
 
 export const generatePrdFunction = inngest.createFunction(
   { id: "shipflow-generate-prd", name: "Generate PRD" },
@@ -61,9 +62,22 @@ export const codeImplementFunction = inngest.createFunction(
   },
 );
 
+/** Drains failed GitHub webhook deliveries from Postgres outbox (every 2 minutes). */
+export const githubWebhookOutboxFunction = inngest.createFunction(
+  { id: "shipflow-github-webhook-outbox", name: "Process GitHub webhook outbox" },
+  { cron: "*/2 * * * *" },
+  async ({ step }) => {
+    const processed = await step.run("process-github-webhook-outbox", () =>
+      processGithubWebhookOutbox(25),
+    );
+    return { processed };
+  },
+);
+
 export const inngestFunctions = [
   generatePrdFunction,
   generateTasksFunction,
   aiReviewFunction,
   codeImplementFunction,
+  githubWebhookOutboxFunction,
 ];

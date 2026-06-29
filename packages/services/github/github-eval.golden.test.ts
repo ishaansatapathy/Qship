@@ -11,7 +11,7 @@ import {
   syncInstallationRepositoriesForOrg,
   verifyGithubWebhookSignature,
 } from "./installation";
-import { executeFeatureRelease } from "./release-ship";
+import { inngestFunctions } from "../inngest/functions";
 import {
   dispatchWebhookPullRequestAiReview,
   enqueueGithubWebhookRetry,
@@ -20,6 +20,7 @@ import {
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
 } from "./index";
+import { executeFeatureRelease } from "./release-ship";
 
 /** Labeled invariants for GitHub integration merge gate (see AI_EVAL.md §3). */
 export const GITHUB_EVAL_INVARIANTS = [
@@ -39,6 +40,8 @@ export const GITHUB_EVAL_INVARIANTS = [
   "async_webhook_pr_review",
   "repo_auto_sync_on_webhook",
   "webhook_operator_visibility",
+  "inngest_outbox_cron",
+  "github_live_smoke_optional",
 ] as const;
 
 export const GITHUB_EVAL_INVARIANT_COUNT = GITHUB_EVAL_INVARIANTS.length;
@@ -91,5 +94,10 @@ describe("github integration eval harness", () => {
   it("release ship module performs squash merge path", () => {
     const releaseSource = readFileSync(path.resolve(__dirname, "./release-ship.ts"), "utf8");
     expect(releaseSource).toContain('merge_method: "squash"');
+  });
+
+  it("registers Inngest cron for webhook outbox processing", () => {
+    const ids = inngestFunctions.map((fn) => fn.id());
+    expect(ids).toContain("shipflow-github-webhook-outbox");
   });
 });

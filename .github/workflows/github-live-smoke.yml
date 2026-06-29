@@ -1,0 +1,51 @@
+name: GitHub live smoke
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  live-smoke:
+    name: GitHub App live smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Load GitHub App secrets
+        id: github
+        env:
+          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          GITHUB_APP_SLUG: ${{ secrets.GITHUB_APP_SLUG }}
+          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+        run: |
+          if [ -n "$GITHUB_APP_ID" ] && [ -n "$GITHUB_APP_PRIVATE_KEY" ] && [ -n "$GITHUB_APP_SLUG" ] && [ -n "$GITHUB_WEBHOOK_SECRET" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "GITHUB_APP_ID=$GITHUB_APP_ID" >> "$GITHUB_ENV"
+            echo "GITHUB_APP_SLUG=$GITHUB_APP_SLUG" >> "$GITHUB_ENV"
+            echo "GITHUB_WEBHOOK_SECRET=$GITHUB_WEBHOOK_SECRET" >> "$GITHUB_ENV"
+            printf 'GITHUB_APP_PRIVATE_KEY<<EOF\n%s\nEOF\n' "$GITHUB_APP_PRIVATE_KEY" >> "$GITHUB_ENV"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Add GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, GITHUB_WEBHOOK_SECRET to repo Secrets to run live GitHub smoke."
+          fi
+
+      - name: Run GitHub live smoke (Octokit + HMAC)
+        if: steps.github.outputs.configured == 'true'
+        run: pnpm --filter @repo/services exec vitest run github/github-live-smoke.test.ts
+        env:
+          GITHUB_LIVE_SMOKE: "1"
