@@ -16,6 +16,14 @@ const FEATURE_BRANCH_RE = /^shipflow\/([0-9a-f-]{36})$/i;
 const FEATURE_TAG_RE = /ShipFlow-Feature:\s*([0-9a-f-]{36})/i;
 
 function extractFeatureId(pr: { head?: { ref?: string }; body?: string | null }): string | null {
+  return extractFeatureIdFromPullRequest(pr);
+}
+
+/** Exported for tests and tooling — links PRs to ShipFlow features. */
+export function extractFeatureIdFromPullRequest(pr: {
+  head?: { ref?: string };
+  body?: string | null;
+}): string | null {
   const branchMatch = pr.head?.ref?.match(FEATURE_BRANCH_RE);
   if (branchMatch?.[1]) return branchMatch[1];
 

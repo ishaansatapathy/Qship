@@ -89,7 +89,7 @@ Every step is tracked, queryable via 37 MCP tools, and accessible via the ShipFl
 | `installation_repositories.removed` | `github/webhook.ts` |
 | PR → feature auto-linking | `github/webhook.ts` → `processGithubPullRequestWebhook` |
 | Merged PR → `human_review` (PM sign-off) | `github/webhook.ts` — pre-approved → `approved` |
-| Webhook idempotency guard | `github/webhook.ts` — LRU set on delivery ID |
+| Webhook idempotency guard | `github/webhook-dedup.ts` — Postgres delivery ID dedup (7-day retention) |
 | Paginated PR diff (no 100-file ceiling) | `github/diff.ts` |
 | Per-file patch truncation + binary exclusion | `github/diff.ts` |
 | Rich PR body with PRD checklist | `github/pr.ts` |
@@ -124,7 +124,7 @@ The agent and MCP server share the same 37 tools, verified by a CI test (`tool-p
 ### 4. Production-grade GitHub App integration
 - Installation token cache (55 min TTL) — no JWT round-trip on every request
 - Paginated repo sync — no 100-repo ceiling
-- Delivery-ID idempotency guard — prevents double-processing of replayed webhooks
+- Delivery-ID idempotency guard — Postgres `github_webhook_deliveries` prevents double-processing of replayed webhooks
 - `installation.deleted` webhook disconnects org and evicts token
 - Merged PR → feature transitions to `human_review` (human gate preserved)
 - Review comments update in-place (no spam on each push)

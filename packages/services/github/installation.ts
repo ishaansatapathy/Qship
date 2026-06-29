@@ -9,6 +9,23 @@ import { ensurePersonalWorkspace, getMembershipForUser } from "../organization";
 import { getAppOctokit, getInstallationOctokit } from "./client";
 import { getGithubAppConfig, isGithubAppConfigured } from "./config";
 
+const INSTALL_STATE_TTL_MS = 15 * 60 * 1000;
+
+function getInstallStateSecret(): string {
+  const { webhookSecret } = getGithubAppConfig();
+  return (
+    webhookSecret ||
+    process.env.BETTER_AUTH_SECRET?.trim() ||
+    process.env.JWT_SECRET?.trim() ||
+    "shipflow-dev-install-state"
+  );
+}
+
+type SignedInstallStatePayload = GithubInstallState & {
+  nonce: string;
+  issuedAt: number;
+};
+
 // ── Install state encoding ────────────────────────────────────────────────────
 
 export type GithubInstallState = {
@@ -19,17 +36,46 @@ export type GithubInstallState = {
 };
 
 export function encodeGithubInstallState(state: GithubInstallState): string {
-  return Buffer.from(JSON.stringify(state), "utf8").toString("base64url");
+  const payload: SignedInstallStatePayload = {
+    organizationId: state.organizationId,
+    returnTo: state.returnTo,
+    nonce: crypto.randomBytes(16).toString("hex"),
+    issuedAt: Date.now(),
+  };
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", getInstallStateSecret())
+    .update(encoded)
+    .digest("base64url");
+  return `${encoded}.${signature}`;
 }
 
 export function decodeGithubInstallState(raw: string | null | undefined): GithubInstallState | null {
   if (!raw?.trim()) return null;
+
+  const dot = raw.lastIndexOf(".");
+  if (dot <= 0) return null;
+
+  const encoded = raw.slice(0, dot);
+  const signature = raw.slice(dot + 1);
+  const expected = crypto.createHmac("sha256", getInstallStateSecret()).update(encoded).digest("base64url");
+  const expectedBuf = Buffer.from(expected);
+  const receivedBuf = Buffer.from(signature);
+  if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
+    return null;
+  }
+
   try {
     const parsed = JSON.parse(
-      Buffer.from(raw, "base64url").toString("utf8"),
-    ) as GithubInstallState;
-    if (!parsed.organizationId) return null;
-    return parsed;
+      Buffer.from(encoded, "base64url").toString("utf8"),
+    ) as SignedInstallStatePayload;
+    if (!parsed.organizationId || !parsed.nonce || typeof parsed.issuedAt !== "number") return null;
+    if (Date.now() - parsed.issuedAt > INSTALL_STATE_TTL_MS) return null;
+    return {
+      organizationId: parsed.organizationId,
+      returnTo: parsed.returnTo,
+      nonce: parsed.nonce,
+    };
   } catch {
     return null;
   }
@@ -42,8 +88,8 @@ export function buildGithubInstallUrl(params: { organizationId: string; returnTo
   }
 
   const state = encodeGithubInstallState({
-    ...params,
-    nonce: crypto.randomBytes(16).toString("hex"),
+    organizationId: params.organizationId,
+    returnTo: params.returnTo,
   });
   return `https://github.com/apps/${appSlug}/installations/new?state=${encodeURIComponent(state)}`;
 }
@@ -266,7 +312,14 @@ export async function completeGithubInstallation(params: {
   }
 
   const decodedState = decodeGithubInstallState(params.state);
-  const organizationId = decodedState?.organizationId ?? membership.organizationId;
+  if (!decodedState?.nonce) {
+    throw new ServiceError(
+      "FORBIDDEN",
+      "Invalid or expired GitHub install state — start connect from Settings again",
+    );
+  }
+
+  const organizationId = decodedState.organizationId;
 
   if (organizationId !== membership.organizationId) {
     throw new ServiceError("FORBIDDEN", "You can only connect GitHub to your own workspace");

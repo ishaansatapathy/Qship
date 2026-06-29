@@ -1,9 +1,10 @@
+import crypto from "node:crypto";
 import type { Request, Response } from "express";
 
 import { logger } from "@repo/logger";
 import { ServiceError } from "@repo/services/errors";
 import { isProductionEnv } from "@repo/services/runtime-env";
-import { verifyGithubWebhookSignature } from "@repo/services/github";
+import { isGithubWebhookConfigured, verifyGithubWebhookSignature } from "@repo/services/github";
 import {
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
@@ -32,6 +33,11 @@ export async function handleGithubWebhook(req: Request, res: Response) {
     return res.status(400).json({ error: "Missing X-GitHub-Delivery header" });
   }
   const deliveryId = deliveryHeader ?? crypto.randomUUID();
+
+  if (!isGithubWebhookConfigured()) {
+    logger.error("webhook.github.secret_not_configured", { event });
+    return res.status(503).json({ error: "Webhook secret not configured" });
+  }
 
   // ── Signature verification ────────────────────────────────────────────────────
   const payload = Buffer.isBuffer(req.body)

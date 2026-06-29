@@ -47,6 +47,20 @@ test.describe("ShipFlow demo journey", () => {
     await expect(assistant).toHaveText(/security|can't process/i);
   });
 
+  test("settings shows GitHub connection controls", async ({ page }) => {
+    await demoLogin(page, "/settings");
+    await expect(page.getByRole("heading", { name: /^GitHub$/i })).toBeVisible();
+    await expect(page.getByText(/repositories, webhooks, pull requests/i)).toBeVisible();
+  });
+
+  test("requests prompts GitHub connect when not linked", async ({ page }) => {
+    await demoLogin(page, "/requests");
+    await page.getByText(/oauth login for enterprise customers/i).click();
+    await expect(page.getByRole("link", { name: /connect github to implement/i })).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
   test("intake hub simulates email channel intake", async ({ page }) => {
     await demoLogin(page, "/inbox");
     await expect(page.getByRole("heading", { name: /intake hub/i })).toBeVisible();
