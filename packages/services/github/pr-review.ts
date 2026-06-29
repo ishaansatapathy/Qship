@@ -5,7 +5,7 @@ import { logger } from "@repo/logger";
 
 import type { PrReviewIssue as PrAiReviewIssue } from "../feature-ai";
 import { runDeltaAiReview, runFeatureAiReview, runPrAiReview } from "../feature-ai";
-import { getFeatureRequest, updateFeatureMetadata, updateFeatureStatus } from "../feature-request";
+import { getFeatureRequest, transitionFeatureStatus } from "../feature-request";
 import { consumeAiReviewCredit, getPreviousBlockingIssues, persistAiReview } from "../review";
 import { getInstallationOctokit } from "./client";
 import { fetchPullRequestDiff } from "./diff";
@@ -186,17 +186,9 @@ export async function runPullRequestAiReview(pullRequestId: string) {
     return { ok: false as const, reason: "github_not_connected" as const };
   }
 
-  await updateFeatureStatus(feature.id, "ai_review");
+  await transitionFeatureStatus(feature.id, "ai_review");
 
-  try {
-    await consumeAiReviewCredit(org.id);
-  } catch (err) {
-    // Credit exhaustion is non-fatal — log and continue so the review still runs.
-    logger.warn("pr_review.no_credits_continuing", {
-      featureId: feature.id,
-      reason: err instanceof Error ? err.message : String(err),
-    });
-  }
+  await consumeAiReviewCredit(org.id);
 
   const octokit = getInstallationOctokit(org.githubInstallationId);
   const { owner, name: repo } = prRow.repository;
@@ -306,6 +298,8 @@ export async function runFeatureAiReviewWithOptionalPr(
   // Fallback: PRD-only review without code diff — still persisted to DB so
   // the human-approval gate (which checks ai_reviews) works correctly.
   logger.info("pr_review.fallback_feature_only", { featureId });
+
+  await consumeAiReviewCredit(organizationId);
 
   const review = await runFeatureAiReview({
     title: feature.title,

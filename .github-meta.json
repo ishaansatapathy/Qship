@@ -36,8 +36,8 @@
     "Vitest",
     "GitHub Actions"
   ],
-  "agent_tools": 35,
-  "mcp_tools": 35,
+  "agent_tools": 37,
+  "mcp_tools": 37,
   "db_migrations": 43,
   "db_indexes": 14,
   "ci": "https://github.com/ishaansatapathy/Qship/actions",
@@ -62,7 +62,7 @@
   "rubric_highlights": {
     "core_workflow": "FSM + Slack approve/ship notifications — packages/services/slack/notify.ts",
     "slack_integration": "GET /integrations/slack — live webhook or auditable simulated delivery",
-    "ai_agent": "35 tools, delta re-review, 9-dim PR review — packages/services/feature-ai.ts",
+    "ai_agent": "37 tools, delta re-review, 9-dim PR review — packages/services/feature-ai.ts",
     "github": "HMAC webhooks, paginated diff, GitHub App — packages/services/github/",
     "review_loop": "validateHumanApprovalEligibility + getReviewDelta — packages/services/review.ts",
     "engineering": "Turborepo, tRPC, 43 migrations, CI — .github/workflows/ci.yml"

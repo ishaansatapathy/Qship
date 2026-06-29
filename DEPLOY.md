@@ -258,7 +258,7 @@ Test mode keys OK for hackathon demo.
 | 9 | Sign in with **Google** | OAuth redirect OK |
 | 10 | Sign in with **GitHub** | OAuth redirect OK |
 | 11 | `/settings` → Connect GitHub App | Install flow |
-| 12 | MCP `tools/list` curl | **35 tools** |
+| 12 | MCP `tools/list` curl | **37 tools** |
 | 13 | `/integrations/slack` | `mode: live` or `simulated` |
 | 14 | `/requests` → Bulk export → Approve | Timeline: **Slack notification sent ✓** |
 

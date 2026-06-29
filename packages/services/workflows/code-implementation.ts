@@ -3,12 +3,12 @@ import db from "@repo/database";
 import { engineeringTasks, repositories } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
-import { generateFeatureImplementation } from "../feature-codegen";
+import { generateFeatureImplementation, validateGeneratedCodeSyntax } from "../feature-codegen";
 import { ServiceError } from "../errors";
 import {
   appendFeatureActivity,
   getFeatureRequest,
-  updateFeatureStatus,
+  transitionFeatureStatus,
 } from "../feature-request";
 import { commitGeneratedFilesToFeatureBranch } from "../github/code-commit";
 import { createFeaturePullRequest } from "../github/pr";
@@ -48,7 +48,7 @@ export async function runCodeImplementationWorkflow(input: {
     }
 
     if (["planning", "plan_approved", "prd_ready"].includes(feature.status)) {
-      await updateFeatureStatus(input.featureId, "in_development");
+      await transitionFeatureStatus(input.featureId, "in_development");
     }
 
     await assertWorkflowRunActive(input.workflowRunId);
@@ -101,6 +101,8 @@ export async function runCodeImplementationWorkflow(input: {
       })),
       repoSnippets,
     });
+
+    validateGeneratedCodeSyntax(codegen.files);
 
     await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {

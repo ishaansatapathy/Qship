@@ -13,13 +13,15 @@ import {
   appendFeatureActivity,
   getFeatureRequest,
   guardedUpdateFeatureStatus,
-  updateFeatureStatus,
+  transitionFeatureStatus,
 } from "./feature-request";
 import type { FeatureStatus } from "./workflow";
 import { executeFeatureRelease } from "./github/release-ship";
 import { getGithubConnectionForUser } from "./github/installation";
 import { notifySlackFeatureApproved, notifySlackFeatureShipped } from "./slack";
 import type { PrAiReviewResult } from "./feature-ai";
+import { assertReleaseReadyForShip } from "./release-validation";
+import { isProductionEnv } from "./runtime-env";
 import { assertReleaseReviewer, assertReviewIssueInUserWorkspace } from "./workflow-guards";
 import {
   buildReviewHealthSummary,
@@ -105,7 +107,7 @@ export async function persistAiReview(input: {
 
   const blockingCount = input.review.issues.filter((i) => i.severity === "blocking").length;
   const nextStatus = input.review.pass ? "human_review" : "fix_needed";
-  await updateFeatureStatus(input.featureRequestId, nextStatus);
+  await transitionFeatureStatus(input.featureRequestId, nextStatus);
 
   await appendFeatureActivity(input.featureRequestId, {
     kind: "ai_review",
@@ -299,6 +301,15 @@ export async function validateHumanApprovalEligibility(featureRequestId: string)
       `Cannot approve: AI review has ${blockingCount} unresolved blocking issue(s). Resolve them and re-run the AI review if needed.`,
     );
   }
+
+  const rawAnalysis = latestReview.rawAnalysis as { demoOnly?: boolean } | null;
+  if (isProductionEnv() && rawAnalysis?.demoOnly) {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      "Cannot approve: AI review was seeded for demo only. Run a real AI review before approval.",
+    );
+  }
+
   return latestReview;
 }
 
@@ -437,10 +448,18 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
   }
 
   const gh = await getGithubConnectionForUser(userId);
+  const openPr =
+    feature.pullRequests?.find((pr) => pr.state === "open") ?? feature.pullRequests?.[0];
+
   const release = await executeFeatureRelease({
     featureId: featureRequestId,
     organizationId: ws.organization.id,
     installationId: gh.installationId,
+  });
+
+  assertReleaseReadyForShip(release, {
+    hadOpenPr: Boolean(openPr),
+    hadGithubConnection: Boolean(gh.installationId),
   });
 
   await guardedUpdateFeatureStatus(featureRequestId, "approved", "shipped");

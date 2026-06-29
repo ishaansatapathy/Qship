@@ -19,6 +19,7 @@ import {
   updateEngineeringTaskStatus,
   updateFeatureMetadata,
   updateFeatureStatus,
+  transitionFeatureStatus,
 } from "./feature-request";
 import {
   generateApprovalBriefing,
@@ -716,7 +717,7 @@ export async function executeShipflowTool(
       const role = args.role === "user" ? "user" : "agent";
       const row = await addClarificationMessage({ featureRequestId: id, role, content });
       if (role === "user") {
-        await updateFeatureStatus(id, "clarifying").catch(() => undefined);
+        await transitionFeatureStatus(id, "clarifying");
       }
       return JSON.stringify({ id: row.id, featureRequestId: id, role, content: row.content });
     }

@@ -14,7 +14,7 @@
 | API ready | https://repoapi-production-adfe.up.railway.app/ready | `ready: true` |
 | OpenAPI | https://repoapi-production-adfe.up.railway.app/openapi.json | OpenAPI 3.1 JSON |
 | Scalar docs | https://repoapi-production-adfe.up.railway.app/docs | Scalar UI |
-| MCP index | https://repoapi-production-adfe.up.railway.app/mcp/ | JSON with **35** tool names |
+| MCP index | https://repoapi-production-adfe.up.railway.app/mcp/ | JSON with **37** tool names |
 | Slack status | https://repoapi-production-adfe.up.railway.app/integrations/slack | `{ mode, channelHint }` |
 | GitHub repo | https://github.com/ishaansatapathy/Qship | Source code |
 
@@ -37,7 +37,7 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/openapi.json >/dev/null
 curl -fsS https://repoapi-production-adfe.up.railway.app/docs >/dev/null
 curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\[.*\]' | tr ',' '\n' | wc -l
-# Expect: 35 tools in array
+# Expect: 37 tools in array
 ```
 
 ---
@@ -70,11 +70,11 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 ### 2. AI Agent Quality · /20
 
-**Claim:** 35-tool agent with streaming, MCP parity, structured AI outputs.
+**Claim:** 37-tool agent with streaming, MCP parity, structured AI outputs.
 
 | Capability | Evidence |
 |---|---|
-| 35 MCP + agent tools | `packages/services/shipflow-agent-tools.ts` |
+| 37 MCP + agent tools | `packages/services/shipflow-agent-tools.ts` |
 | CI parity test | `packages/services/ai/tool-parity.test.ts` |
 | 9-dimension PR review | `feature-ai.ts` → `runPrAiReview` |
 | Delta re-review | `feature-ai.ts` → `runDeltaAiReview` |
@@ -169,7 +169,7 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 1. **Delta-aware re-review** — each prior blocking issue classified RESOLVED / UNRESOLVED (`runDeltaAiReview`).
 2. **Approval gate at all entry points** — UI, tRPC, and agent tool (`validateHumanApprovalEligibility`).
-3. **35 tools with CI parity** — agent and MCP share identical tool surface.
+3. **37 tools with CI parity** — agent and MCP share identical tool surface.
 4. **FSM-validated workflow** — illegal status jumps rejected (`guardedUpdateFeatureStatus`).
 5. **Scalar OpenAPI from tRPC** — `trpc-to-openapi` + live `/docs`.
 
@@ -179,7 +179,7 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 ```
 Browser (Next.js) ──tRPC──► Express API (Railway) ──► Neon Postgres
-                                ├── /mcp (35 tools)
+                                ├── /mcp (37 tools)
                                 ├── /agent/stream (SSE)
                                 ├── /webhooks/github (HMAC)
                                 └── packages/services (OpenAI, Octokit, Inngest)
