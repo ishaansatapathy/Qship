@@ -7,6 +7,14 @@ export const BILLING_PLANS = {
     repositoryLimit: 1,
     features: ["Pipeline overview", "10 AI reviews / month", "1 linked repo"],
   },
+  test: {
+    id: "test" as const,
+    name: "Test",
+    priceInr: 10,
+    aiReviewCredits: 20,
+    repositoryLimit: 2,
+    features: ["Live payment test (₹10)", "20 AI reviews", "2 repos"],
+  },
   pro: {
     id: "pro" as const,
     name: "Pro",

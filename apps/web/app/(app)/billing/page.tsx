@@ -52,7 +52,7 @@ export default function BillingPage() {
           theme: { color: "#dc2626" },
           handler: (response) => {
             confirmPayment.mutate({
-              planTier: result.planTier as "pro" | "enterprise",
+              planTier: result.planTier as "test" | "pro" | "enterprise",
               orderId: response.razorpay_order_id,
               paymentId: response.razorpay_payment_id,
               signature: response.razorpay_signature,
@@ -73,7 +73,6 @@ export default function BillingPage() {
   const plans = data?.plans ?? BILLING_PLAN_LIST;
   const activeTier = data?.planTier ?? "free";
   const checkoutReady = summary.isSuccess && Boolean(data);
-  const razorpayConfigured = data?.razorpayConfigured ?? false;
   const paying = checkout.isPending || confirmPayment.isPending;
 
   return (
@@ -163,7 +162,11 @@ export default function BillingPage() {
                 {active ? <span className="qship-req-status-pill">Current</span> : null}
               </div>
               <p style={{ margin: "8px 0", fontSize: 28, fontWeight: 600 }}>
-                {plan.priceInr === 0 ? "Free" : `₹${plan.priceInr}/mo`}
+                {plan.priceInr === 0
+                  ? "Free"
+                  : plan.id === "test"
+                    ? `₹${plan.priceInr}`
+                    : `₹${plan.priceInr}/mo`}
               </p>
               <ul style={{ margin: "12px 0", paddingLeft: 18, fontSize: 13, opacity: 0.85 }}>
                 {plan.features.map((f) => (
@@ -200,24 +203,14 @@ export default function BillingPage() {
         })}
       </div>
 
-      {!razorpayConfigured ? (
+      {summary.isSuccess && data && !data.razorpayConfigured ? (
         <p className="qship-req-rec" style={{ marginTop: 20 }}>
           <Sparkles size={14} style={{ verticalAlign: -2 }} /> Razorpay keys not set — paid plans
           upgrade instantly in <strong>demo mode</strong>. Add <code>RAZORPAY_KEY_ID</code>,{" "}
           <code>RAZORPAY_KEY_SECRET</code>, and optional <code>RAZORPAY_WEBHOOK_SECRET</code> in{" "}
           <code>.env</code> for live checkout + webhooks.
         </p>
-      ) : (
-        <p className="qship-req-rec" style={{ marginTop: 20 }}>
-          <CreditCard size={14} style={{ verticalAlign: -2 }} /> Razorpay checkout is live. Test card:{" "}
-          <code>4111 1111 1111 1111</code> · OTP <code>123456</code>. Webhook URL (API):{" "}
-          <code>
-            {process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://repoapi-production-adfe.up.railway.app"}
-            /webhooks/razorpay
-          </code>
-          .
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }
