@@ -25,6 +25,8 @@ import { createToolMemoryTracker, loadAgentApprovalDefaults, prepareAgentRun, tr
 import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
+import type { AgentPendingConfirmation } from "./agent-pending-confirm";
+import { AgentTrace } from "./agent-trace";
 
 export async function runAgentChatStream(
   tenantId: string,
@@ -34,6 +36,7 @@ export async function runAgentChatStream(
     userEmail?: string;
     focus?: AgentFocus;
     toolMemory?: AgentToolMemoryEntry[];
+    pendingConfirmation?: AgentPendingConfirmation | null;
   },
   onToolCall: (toolName: string) => void,
   onTokenDelta?: (delta: string) => void,
@@ -68,7 +71,8 @@ export async function runAgentChatStream(
 
   const actions: AgentActionCard[] = [];
   const approvalDefaults = await loadAgentApprovalDefaults(tenantId);
-  const runId = crypto.randomUUID();
+  const trace = new AgentTrace();
+  let pendingConfirmation = input.pendingConfirmation ?? null;
 
   const prepared = await prepareAgentRun(tenantId, input, approvalDefaults);
   const memoryTracker = createToolMemoryTracker(prepared, input.toolMemory ?? []);
@@ -78,6 +82,11 @@ export async function runAgentChatStream(
     actions,
     userMessage: input.message.trim(),
     approvalDefaults,
+    pendingConfirmation,
+    onPendingChange: (next) => {
+      pendingConfirmation = next;
+    },
+    trace,
   });
 
   let walkthroughTaskIdUpdate: string | null | undefined;
@@ -115,10 +124,11 @@ export async function runAgentChatStream(
   });
 
   logger.info("agent.stream.completed", {
-    runId,
+    ...trace.toLogPayload(),
     tenantId,
     toolCalls: memoryTracker.getNewEntries().length,
     focusCleared: prepared.focusCleared,
+    hasPendingConfirmation: Boolean(pendingConfirmation),
   });
 
   return {
@@ -129,5 +139,8 @@ export async function runAgentChatStream(
     toolMemory: memoryTracker.getMergedMemory(),
     newToolMemoryEntries: memoryTracker.getNewEntries(),
     walkthroughTaskId: walkthroughTaskIdUpdate,
+    pendingConfirmation,
+    traceId: trace.traceId,
+    traceSpans: trace.toSpans(),
   };
 }

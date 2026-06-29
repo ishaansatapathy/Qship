@@ -108,6 +108,8 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
   try {
     let effectiveHistory = history;
     let effectiveToolMemory = toolMemory ?? [];
+    let effectivePendingConfirmation: import("@repo/services/ai/agent-pending-confirm").AgentPendingConfirmation | null =
+      null;
     let effectiveFocus = {
       contextId: focusContextId,
       eventId: focusEventId,
@@ -125,6 +127,7 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
       }
       effectiveHistory = session.messages;
       effectiveToolMemory = session.toolMemory;
+      effectivePendingConfirmation = session.pendingConfirmation;
       if (focusCleared) {
         effectiveFocus = {
           contextId: undefined,
@@ -159,6 +162,7 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
         message: message.trim(),
         history: effectiveHistory,
         toolMemory: effectiveToolMemory,
+        pendingConfirmation: effectivePendingConfirmation,
         userEmail: userEmail ?? user.email,
         focus: effectiveFocus,
       },
@@ -183,6 +187,7 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
         userMessage: message.trim(),
         assistantReply: result.reply,
         toolMemory: result.toolMemory ?? effectiveToolMemory,
+        pendingConfirmation: result.pendingConfirmation ?? null,
         focusCleared: result.focusCleared,
         focus: result.focusCleared
           ? null
@@ -208,6 +213,9 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
       effectiveFocus: result.effectiveFocus ?? effectiveFocus,
       toolMemory: result.toolMemory ?? effectiveToolMemory,
       walkthroughTaskId: persistedWalkthroughTaskId ?? null,
+      pendingConfirmation: result.pendingConfirmation ?? null,
+      traceId: result.traceId,
+      traceSpans: result.traceSpans,
     });
   } catch (error) {
     if (abortController.signal.aborted) return;

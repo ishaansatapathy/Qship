@@ -8,10 +8,10 @@ describe("trimAgentHistory", () => {
     content: `message-${i}`,
   }));
 
-  it("keeps last 12 messages without focus", () => {
+  it("keeps last 8 messages without focus", () => {
     const trimmed = trimAgentHistory(history, undefined);
-    expect(trimmed).toHaveLength(12);
-    expect(trimmed[0]?.content).toBe("message-8");
+    expect(trimmed).toHaveLength(8);
+    expect(trimmed[0]?.content).toBe("message-12");
   });
 
   it("keeps last 4 messages when feature focus is active", () => {

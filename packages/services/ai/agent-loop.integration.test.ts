@@ -49,6 +49,7 @@ function registerDefaults(overrides?: Partial<ApprovalDefaults>) {
 async function runTrajectory(
   userMessage: string,
   tools: Array<{ name: string; args?: Record<string, unknown> }>,
+  opts?: { pendingConfirmation?: import("./agent-pending-confirm").AgentPendingConfirmation | null },
 ) {
   const { runOpenAiToolLoop } = await import("./openai-tools");
   vi.mocked(runOpenAiToolLoop).mockImplementationOnce(
@@ -61,7 +62,10 @@ async function runTrajectory(
     },
   );
 
-  return runAgentChat("user-1", { message: userMessage });
+  return runAgentChat("user-1", {
+    message: userMessage,
+    pendingConfirmation: opts?.pendingConfirmation ?? null,
+  });
 }
 
 describe("runAgentChat golden trajectories", () => {
@@ -91,9 +95,24 @@ describe("runAgentChat golden trajectories", () => {
     expect(result.reply).not.toContain("confirmationRequired");
   });
 
-  it("trajectory: allows AI review after affirmative follow-up", async () => {
-    const result = await runTrajectory("yes go ahead", [{ name: "run_ai_review", args: { id: "feat-1" } }]);
+  it("trajectory: allows AI review after affirmative follow-up with pending action", async () => {
+    const pending = {
+      id: "pending-1",
+      tool: "run_ai_review",
+      args: { id: "feat-1" },
+      label: "Run AI review (feat-1)",
+      proposedAt: new Date().toISOString(),
+    };
+
+    const result = await runTrajectory("yes go ahead", [{ name: "run_ai_review", args: { id: "feat-1" } }], {
+      pendingConfirmation: pending,
+    });
     expect(result.reply).toContain('"tool":"run_ai_review"');
+  });
+
+  it("trajectory: blocks affirmative without pending action", async () => {
+    const result = await runTrajectory("yes go ahead", [{ name: "run_ai_review", args: { id: "feat-1" } }]);
+    expect(result.reply).toContain("confirmationRequired");
   });
 
   it("trajectory: blocks ship without explicit ship intent", async () => {

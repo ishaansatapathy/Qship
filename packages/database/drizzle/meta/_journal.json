@@ -323,6 +323,13 @@
       "when": 1782100005000,
       "tag": "0045_shipflow_user_approval_prefs",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1782100006000,
+      "tag": "0046_agent_pending_confirmation",
+      "breakpoints": true
     }
   ]
 }

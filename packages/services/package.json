@@ -6,6 +6,7 @@
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
     "test": "vitest run",
+    "test:agent-eval": "vitest run ai/agent-eval.golden.test.ts ai/agent-loop.integration.test.ts",
     "test:db": "dotenv -- vitest run core-workflow-db.integration.test.ts"
   },
   "dependencies": {
