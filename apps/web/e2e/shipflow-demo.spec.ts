@@ -53,6 +53,12 @@ test.describe("ShipFlow demo journey", () => {
     await expect(page.getByText(/repositories, webhooks, pull requests/i)).toBeVisible();
   });
 
+  test("settings GitHub section explains sync for webhook-linked repos", async ({ page }) => {
+    await demoLogin(page, "/settings");
+    await expect(page.getByText(/repositories, webhooks, pull requests/i)).toBeVisible();
+    await expect(page.getByRole("link", { name: /^connect$/i })).toBeVisible();
+  });
+
   test("requests prompts GitHub connect when not linked", async ({ page }) => {
     await demoLogin(page, "/requests");
     await page.getByText(/oauth login for enterprise customers/i).click();

@@ -168,7 +168,7 @@ function agentWelcomeCopy(opts: { settingsReady: boolean }) {
 
   return (
     <>
-      Attach a feature with 📎 for timeline + context. Ask for PRDs, tasks, reviews, or pipeline summaries in plain
+      Attach a feature to see its timeline and context. Ask for PRDs, tasks, reviews, or pipeline summaries in plain
       language — use <strong style={{ color: "var(--qship-text)" }}>Stop</strong> anytime to cancel a long run.
     </>
   );

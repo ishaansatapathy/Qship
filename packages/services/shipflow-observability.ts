@@ -3,6 +3,8 @@ import db from "@repo/database";
 import { agentChatSessionsTable, featureRequests, pullRequests, repositories } from "@repo/database/schema";
 
 import { getPipelineSummary, getWorkspaceProjectForUser } from "./feature-request";
+import { getGithubWebhookOutboxStats } from "./github/webhook-outbox";
+import { isGithubAppConfigured } from "./github/config";
 
 export async function getDeliveryActivityTimeline(projectId: string, days = 14) {
   const since = new Date(Date.now() - days * 86_400_000);
@@ -51,6 +53,12 @@ export async function getShipflowObservabilitySummary(userId: string) {
         needsAttention: 0,
       },
       deliveryTimeline: [] as Array<{ date: string; updates: number; shipped: number }>,
+      github: {
+        configured: isGithubAppConfigured(),
+        connected: false,
+        repositoryCount: 0,
+        webhookOutbox: {},
+      },
     };
   }
 
@@ -90,6 +98,7 @@ export async function getShipflowObservabilitySummary(userId: string) {
 
   const pipeline = await getPipelineSummary(ws.project.id);
   const deliveryTimeline = await getDeliveryActivityTimeline(ws.project.id);
+  const githubWebhookOutbox = await getGithubWebhookOutboxStats().catch(() => ({}));
 
   return {
     agentSessions: Number(sessionAgg?.sessions ?? 0),
@@ -98,5 +107,11 @@ export async function getShipflowObservabilitySummary(userId: string) {
     pullRequests: pullRequestCount,
     pipeline,
     deliveryTimeline,
+    github: {
+      configured: isGithubAppConfigured(),
+      connected: Boolean(ws.organization.githubInstallationId),
+      repositoryCount: orgRepos.length,
+      webhookOutbox: githubWebhookOutbox,
+    },
   };
 }
