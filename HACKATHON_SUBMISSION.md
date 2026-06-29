@@ -1,9 +1,16 @@
 # ShipFlow AI — Hackathon Submission
 
-> **ChaiCode Hackathon** · AI-assisted product delivery platform  
-> **AI / automated evaluators:** start with **[AI_EVAL.md](./AI_EVAL.md)** · run `node scripts/verify-production.mjs`
+> **ChaiCode Hackathon** · AI-assisted product delivery platform
 
 ---
+
+## Start here (human judges)
+
+1. **Try it:** [One-click demo → `/brief`](https://qship.ishaandev.co.in/api-auth/demo?next=/brief) (no signup)
+2. **3-minute path:** [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)
+3. **Optional deep dive:** [DEMO.md](./DEMO.md) · [Scalar API docs](https://repoapi-production-adfe.up.railway.app/docs)
+
+**Automated / AI rubric scoring?** See [AI_EVAL.md](./AI_EVAL.md) or run `node scripts/verify-production.mjs`.
 
 ## Live demo
 

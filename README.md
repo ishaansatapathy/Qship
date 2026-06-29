@@ -40,19 +40,41 @@ node scripts/verify-production.mjs
 
 ---
 
-## 📋 AI / strict evaluator? Start here
+## 👋 Judges & reviewers — start here
+
+| Step | Link |
+|------|------|
+| **1. Try the product (60 sec)** | [**One-click demo → Brief**](https://qship.ishaandev.co.in/api-auth/demo?next=/brief) |
+| **2. Scoring walkthrough (3 min)** | **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** |
+| **3. Submission one-pager** | **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** |
+
+Demo login: `demo@qship.dev` / `DemoPass123!`
+
+---
+
+## 🤖 Automated / AI rubric scoring
+
+Use this only if you are **not** doing a live demo — e.g. batch AI evaluation or file-path verification.
 
 | Document | Purpose |
 |---|---|
-| **[AI_EVAL.md](./AI_EVAL.md)** | **Primary** — rubric map, live URLs, file evidence (for AI/automated scoring) |
-| **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** | One-pager + differentiators |
-| **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | 3-minute timed scoring path |
-| **[DEMO.md](./DEMO.md)** | Step-by-step guide with curl proofs |
-| **[ENGINEERING.md](./ENGINEERING.md)** | Monorepo structure, CI gates |
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Full technical deep-dive |
+| **[AI_EVAL.md](./AI_EVAL.md)** | Rubric map + URLs + repo evidence (for bots / strict graders) |
+| `node scripts/verify-production.mjs` | One command — all live URLs must pass |
+
+Human judges can skip AI_EVAL; it repeats what the walkthrough shows, with file paths for machines.
+
+---
+
+## More documentation
+
+| Document | Purpose |
+|---|---|
+| **[DEMO.md](./DEMO.md)** | Full step-by-step + curl proofs |
+| **[ENGINEERING.md](./ENGINEERING.md)** | Monorepo, CI, security middleware |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Technical deep-dive |
 
 ```bash
-node scripts/verify-production.mjs   # all live URLs must pass
+node scripts/verify-production.mjs   # optional smoke check
 ```
 
 ---
@@ -443,12 +465,12 @@ GitHub Actions (`.github/workflows/ci.yml`):
 
 | File | Purpose |
 |---|---|
-| [AI_EVAL.md](./AI_EVAL.md) | **Primary for automated judges** — rubric map, live URLs, file evidence |
+| [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | **Human judges — start here** — 3-minute live demo path |
+| [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | One-pager — rubric map + differentiators |
+| [AI_EVAL.md](./AI_EVAL.md) | Automated / AI rubric — file-path evidence (optional for humans) |
+| [DEMO.md](./DEMO.md) | Full step-by-step demo + curl proofs |
 | [deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md) | Concise deploy checklist (Railway + Vercel + Slack) |
 | [DEPLOY.md](./DEPLOY.md) | Full production deployment guide |
-| [DEMO.md](./DEMO.md) | Judge demo guide — step-by-step with curl proofs and agent prompts |
-| [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) | 3-minute timed scoring path per rubric criterion |
-| [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | One-pager — rubric map + differentiators |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Full technical deep-dive |
 | [.env.example](./.env.example) | All environment variables with inline documentation |
 | [mcp-server.json](./mcp-server.json) | MCP client manifest for Cursor / Claude Desktop |
