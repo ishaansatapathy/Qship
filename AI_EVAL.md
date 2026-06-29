@@ -99,6 +99,8 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 | HMAC-SHA256 webhooks | `packages/services/github/installation.ts` |
 | Delivery idempotency (Postgres) | `packages/services/github/webhook-dedup.ts` |
 | Signed install state + nonce | `packages/services/github/installation.ts` |
+| Webhook processor tests | `github/github-webhook-processors.test.ts` |
+| Octokit merge contract test | `github/github-octokit-release.test.ts` |
 | Paginated PR diff | `packages/services/github/diff.ts` |
 | PR body with PRD checklist | `packages/services/github/pr.ts` |
 | Update-in-place review comment | `packages/services/github/pr-review.ts` |

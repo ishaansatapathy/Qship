@@ -8,13 +8,20 @@ import { ServiceError } from "../errors";
 import { ensurePersonalWorkspace, getMembershipForUser } from "../organization";
 import { getAppOctokit, getInstallationOctokit } from "./client";
 import { getGithubAppConfig, isGithubAppConfigured } from "./config";
+import { isProductionEnv } from "../runtime-env";
 
 const INSTALL_STATE_TTL_MS = 15 * 60 * 1000;
 
 function getInstallStateSecret(): string {
   const { webhookSecret } = getGithubAppConfig();
+  if (webhookSecret) return webhookSecret;
+  if (isProductionEnv()) {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      "GITHUB_WEBHOOK_SECRET is required to sign GitHub install state in production",
+    );
+  }
   return (
-    webhookSecret ||
     process.env.BETTER_AUTH_SECRET?.trim() ||
     process.env.JWT_SECRET?.trim() ||
     "shipflow-dev-install-state"
