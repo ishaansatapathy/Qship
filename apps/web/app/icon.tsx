@@ -15,10 +15,10 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#e31e24",
+          color: "#0066ff",
           fontWeight: 800,
           fontStyle: "italic",
-          border: "2px solid #e31e24",
+          border: "2px solid #0066ff",
           borderRadius: 8,
         }}
       >

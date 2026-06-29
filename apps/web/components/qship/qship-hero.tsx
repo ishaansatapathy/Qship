@@ -4,8 +4,6 @@
 
 import { useState } from "react";
 
-import Image from "next/image";
-
 import {
 
   Bot,
@@ -28,7 +26,7 @@ import {
 
 } from "lucide-react";
 
-import { QshipWordmark } from "./qship-logo";
+import { QshipLogoMark, QshipWordmark } from "./qship-logo";
 
 import { InViewAnnotation } from "./qship-reveal";
 
@@ -72,7 +70,7 @@ function RequestsState() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
 
-          <Image src="/mascot-standing.png" alt="" width={20} height={20} />
+          <QshipLogoMark size={20} />
 
           <QshipWordmark size="sm" />
 
@@ -88,7 +86,7 @@ function RequestsState() {
 
             className="qship-rotator-row"
 
-            style={{ marginBottom: 8, opacity: i === 0 ? 1 : 0.55, borderColor: i === 0 ? "rgba(227,30,36,0.35)" : undefined }}
+            style={{ marginBottom: 8, opacity: i === 0 ? 1 : 0.55, borderColor: i === 0 ? "rgba(0,102,255,0.35)" : undefined }}
 
           >
 
@@ -216,7 +214,7 @@ function ReviewState() {
 
     <div style={{ minHeight: 380, padding: "26px 28px" }}>
 
-      <div className="qship-rotator-row" style={{ borderColor: "rgba(227,30,36,0.35)" }}>
+      <div className="qship-rotator-row" style={{ borderColor: "rgba(0,102,255,0.35)" }}>
 
         <GitPullRequest size={14} color="var(--qship-accent-bright)" />
 
@@ -397,33 +395,9 @@ export function QshipHero() {
 
             <div style={{ marginTop: 40, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
 
-              <div className="qship-cta-wrap">
-
-                <video
-
-                  className="qship-mascot"
-
-                  src="/mascot.webm"
-
-                  autoPlay
-
-                  loop
-
-                  muted
-
-                  playsInline
-
-                  aria-hidden
-
-                />
-
-                <a href="#get-started" className="qship-btn-primary">
-
-                  Start free
-
-                </a>
-
-              </div>
+              <a href="#get-started" className="qship-btn-primary">
+                Start free
+              </a>
 
               <a href="#how" className="qship-btn-ghost">
 

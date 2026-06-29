@@ -912,11 +912,11 @@ html {
 }
 
 .landing-page {
-  --ben10-green: #70b404;
-  --ben10-green-rgb: 112 180 4;
-  --ben10-green-soft: #9ed926;
-  --ben10-green-dim: #8ec42d;
-  --ben10-green-glow: #b8f038;
+  --ben10-green: #0066ff;
+  --ben10-green-rgb: 0 102 255;
+  --ben10-green-soft: #4d94ff;
+  --ben10-green-dim: #3385ff;
+  --ben10-green-glow: #66a3ff;
   background: var(--landing-bg);
   color: #fff;
 }

@@ -45,7 +45,7 @@ const BENTO = [
   {
     title: "Human approval gate",
     desc: "Verify PRD, tasks, PR, and review history before anything ships.",
-    visual: <ListChecks size={18} color="#ff6b6f" />,
+    visual: <ListChecks size={18} color="#4d94ff" />,
   },
   {
     title: "Multi-tenant workspaces",
@@ -125,14 +125,14 @@ export function QshipIntegrations() {
                   width: 52,
                   height: 52,
                   borderRadius: 14,
-                  background: "rgba(234,67,53,0.1)",
-                  border: "1px solid rgba(234,67,53,0.2)",
+                  background: "rgba(0, 102, 255, 0.1)",
+                  border: "1px solid rgba(0, 102, 255, 0.2)",
                   display: "grid",
                   placeItems: "center",
                   margin: "0 auto 12px",
                 }}
               >
-                <Github size={22} color="#ff6b6f" />
+                <Github size={22} color="#4d94ff" />
               </div>
               <div style={{ fontWeight: 700 }}>GitHub</div>
               <div style={{ fontSize: 13, color: "var(--qship-muted)", marginTop: 4 }}>Repos · PRs · Webhooks</div>
@@ -156,14 +156,14 @@ export function QshipIntegrations() {
                   width: 52,
                   height: 52,
                   borderRadius: 14,
-                  background: "rgba(227, 30, 36,0.1)",
-                  border: "1px solid rgba(227, 30, 36,0.2)",
+                  background: "rgba(0, 102, 255,0.1)",
+                  border: "1px solid rgba(0, 102, 255,0.2)",
                   display: "grid",
                   placeItems: "center",
                   margin: "0 auto 12px",
                 }}
               >
-                <Bot size={22} color="#ff6b6f" />
+                <Bot size={22} color="#4d94ff" />
               </div>
               <div style={{ fontWeight: 700 }}>AI SDK</div>
               <div style={{ fontSize: 13, color: "var(--qship-muted)", marginTop: 4 }}>PRD · Review · QA</div>
@@ -312,12 +312,9 @@ export function QshipCta() {
   return (
     <section id="get-started" className="qship-shell qship-section">
       <div className="qship-frame" style={{ padding: "80px 32px", textAlign: "center" }}>
-        <div className="qship-cta-wrap" style={{ marginBottom: 0 }}>
-          <video className="qship-mascot" src="/mascot.webm" autoPlay loop muted playsInline aria-hidden />
-          <a href="/sign-in" className="qship-btn-primary">
-            Get started free
-          </a>
-        </div>
+        <a href="/sign-in" className="qship-btn-primary">
+          Get started free
+        </a>
 
         <p style={{ marginTop: 28, fontSize: 13, color: "var(--qship-dim)" }}>
           Free vs paid plans · AI review credits · repo limits via Razorpay

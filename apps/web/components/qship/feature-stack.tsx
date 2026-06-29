@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
+import { QshipLogoMark } from "./qship-logo";
 
 type FeatureTab = {
   id: string;
@@ -34,7 +34,7 @@ const tabs: FeatureTab[] = [
   {
     id: "tasks",
     label: "Task planning",
-    dot: "bg-[#e31e24]",
+    dot: "bg-[#0066FF]",
     title: "PRD → engineering tasks",
     description:
       "Kanban-ready tasks with acceptance criteria — no orphan tickets, no missing context.",
@@ -52,7 +52,7 @@ const tabs: FeatureTab[] = [
   {
     id: "ship",
     label: "Ship to production",
-    dot: "bg-[#e31e24]",
+    dot: "bg-[#0066FF]",
     title: "The AI delivery & governance platform",
     description:
       "Human approval is the final gate. Nothing ships until a reviewer signs off.",
@@ -68,7 +68,7 @@ function PreviewPanel({ type }: { type: FeatureTab["preview"] }) {
           <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--qship-dim)", margin: 0 }}>User</p>
           <p style={{ marginTop: 4, fontSize: 13, color: "var(--qship-text)", margin: 0 }}>Add export for user data — GDPR thing</p>
         </div>
-        <div style={{ borderRadius: 8, border: "1px solid rgba(227,30,36,0.25)", background: "var(--qship-accent-soft)", padding: 12 }}>
+        <div style={{ borderRadius: 8, border: "1px solid rgba(0,102,255,0.25)", background: "var(--qship-accent-soft)", padding: 12 }}>
           <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--qship-accent-bright)", margin: 0 }}>Qship AI</p>
           <p style={{ marginTop: 4, fontSize: 13, color: "var(--qship-text)", margin: 0 }}>
             We already have account deletion. Do you need CSV/JSON export, audit logs, or both?
@@ -99,7 +99,7 @@ function PreviewPanel({ type }: { type: FeatureTab["preview"] }) {
           <div key={col} style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)", padding: 10 }}>
             <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--qship-dim)", margin: 0 }}>{col}</p>
             {i === 1 && (
-              <div style={{ marginTop: 8, borderRadius: 6, border: "1px solid rgba(227,30,36,0.3)", background: "var(--qship-accent-soft)", padding: 8, color: "var(--qship-text)" }}>
+              <div style={{ marginTop: 8, borderRadius: 6, border: "1px solid rgba(0,102,255,0.3)", background: "var(--qship-accent-soft)", padding: 8, color: "var(--qship-text)" }}>
                 Export API endpoint
               </div>
             )}
@@ -119,7 +119,7 @@ function PreviewPanel({ type }: { type: FeatureTab["preview"] }) {
           <span style={{ borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", padding: "2px 8px", fontSize: 11, color: "var(--qship-muted)" }}>Req gaps (1)</span>
         </div>
         <ul style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8, padding: 0, listStyle: "none" }}>
-          <li style={{ borderRadius: 8, border: "1px solid rgba(227,30,36,0.25)", background: "var(--qship-accent-soft)", padding: "8px 12px", color: "var(--qship-text)", fontSize: 12 }}>
+          <li style={{ borderRadius: 8, border: "1px solid rgba(0,102,255,0.25)", background: "var(--qship-accent-soft)", padding: "8px 12px", color: "var(--qship-text)", fontSize: 12 }}>
             Race condition in concurrent export requests
           </li>
           <li style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", padding: "8px 12px", color: "var(--qship-muted)", fontSize: 12 }}>
@@ -132,13 +132,20 @@ function PreviewPanel({ type }: { type: FeatureTab["preview"] }) {
 
   return (
     <div style={{ position: "relative", display: "flex", minHeight: 200, flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 20 }}>
-      <Image
-        src="/mascot-coder.png"
-        alt="Qship shipping code"
-        width={160}
-        height={130}
-        style={{ objectFit: "contain", filter: "drop-shadow(0 8px 24px rgba(227,30,36,0.3))" }}
-      />
+      <div
+        style={{
+          width: 88,
+          height: 88,
+          borderRadius: 22,
+          border: "1px solid rgba(0, 102, 255, 0.35)",
+          background: "rgba(0, 102, 255, 0.08)",
+          display: "grid",
+          placeItems: "center",
+          boxShadow: "0 8px 32px rgba(0, 102, 255, 0.2)",
+        }}
+      >
+        <QshipLogoMark size={48} />
+      </div>
       <p style={{ position: "absolute", bottom: 12, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--qship-accent-bright)", margin: 0 }}>
         Human approved · Shipped
       </p>
@@ -177,7 +184,7 @@ export function FeatureStack() {
                 tab.dot === "bg-teal-400" ? "qship-dot-teal" :
                 tab.dot === "bg-white" ? "qship-dot-white" :
                 tab.dot === "bg-yellow-400" ? "qship-dot-yellow" :
-                "qship-dot-red";
+                "qship-dot-blue";
 
               return (
                 <button
@@ -218,7 +225,7 @@ export function FeatureStack() {
                   active.dot === "bg-teal-400" ? "qship-dot-teal" :
                   active.dot === "bg-white" ? "qship-dot-white" :
                   active.dot === "bg-yellow-400" ? "qship-dot-yellow" :
-                  "qship-dot-red"
+                  "qship-dot-blue"
                 }`} />
                 <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--qship-text)" }}>
                   {active.label}

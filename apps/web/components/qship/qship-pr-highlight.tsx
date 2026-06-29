@@ -120,8 +120,8 @@ export function QshipPrHighlight() {
                     style={{
                       marginTop: 20,
                       borderRadius: 10,
-                      border: "1px solid rgba(227,30,36,0.35)",
-                      background: "rgba(227,30,36,0.06)",
+                      border: "1px solid rgba(0,102,255,0.35)",
+                      background: "rgba(0,102,255,0.06)",
                       padding: 16,
                     }}
                   >
