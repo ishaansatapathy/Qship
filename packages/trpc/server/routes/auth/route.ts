@@ -1,23 +1,29 @@
 import { getEnabledAuthProviders } from "@repo/auth";
+import { getSettingsService } from "@repo/services/settings";
 
 import { z, zodUndefinedModel } from "../../schema";
-import { protectedProcedure, publicProcedure, router } from "../../trpc";
+import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 /** ShipFlow session — BetterAuth handles sign-in on the web app. */
 export const authRouter = router({
-  me: protectedProcedure.input(zodUndefinedModel).query(({ ctx }) => ({
-    id: ctx.user.id,
-    email: ctx.user.email,
-    fullName: ctx.user.fullName,
-    displayName: ctx.user.displayName,
-    emailVerified: ctx.user.emailVerified,
-    profileImageUrl: ctx.user.profileImageUrl,
-    role: "user" as const,
-    autoApproveEmail: false,
-    autoApproveAgentEmail: false,
-    autoApproveCalendar: false,
-    twoFactorEnabled: false,
-  })),
+  me: protectedProcedure.input(zodUndefinedModel).query(async ({ ctx }) => {
+    try {
+      const approvalDefaults = await getSettingsService().getApprovalDefaults(ctx.user.id);
+      return {
+        id: ctx.user.id,
+        email: ctx.user.email,
+        fullName: ctx.user.fullName,
+        displayName: ctx.user.displayName,
+        emailVerified: ctx.user.emailVerified,
+        profileImageUrl: ctx.user.profileImageUrl,
+        role: "user" as const,
+        ...approvalDefaults,
+        twoFactorEnabled: false,
+      };
+    } catch (error) {
+      mapServiceError(error);
+    }
+  }),
 
   logout: protectedProcedure.input(zodUndefinedModel).mutation(async () => ({
     message: "Signed out",

@@ -70,18 +70,20 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 ### 2. AI Agent Quality · /20
 
-**Claim:** 37-tool agent with streaming, MCP parity, structured AI outputs.
+**Claim:** 37-tool streaming agent, MCP parity, golden eval harness, single-turn UX (no double confirm).
 
 | Capability | Evidence |
 |---|---|
-| 37 MCP + agent tools | `packages/services/shipflow-agent-tools.ts` |
+| 37 MCP + agent tools | `packages/services/shipflow-agent-tools/` (domain handlers + registry) |
 | CI parity test | `packages/services/ai/tool-parity.test.ts` |
-| 9-dimension PR review | `feature-ai.ts` → `runPrAiReview` |
-| Delta re-review | `feature-ai.ts` → `runDeltaAiReview` |
-| Risk-aware triage | `feature-ai.ts` → `triageFeatureRequest` |
-| Technical PRD + rollback | `feature-ai.ts` → `generateFeaturePrd` |
-| Task walkthrough | `explain_engineering_task`, `advance_task_walkthrough` |
+| Golden eval (49 cases) | `packages/services/ai/agent-eval-cases.ts` + `agent-eval.golden.test.ts` |
+| Trajectory integration | `packages/services/ai/agent-loop.integration.test.ts` |
+| CI merge gate | `.github/workflows/ci.yml` → `pnpm test:agent-eval` |
+| Injection + intent guards | `agent-guard.ts`, `agent-tool-confirm.ts` |
+| Session memory + compaction | `agent-sessions.ts`, `agent-memory-retrieval.ts`, `agent-compaction.ts` |
+| Trace spans + `x-trace-id` | `agent-trace.ts`, `apps/api/src/routes/agent-stream.ts` |
 | SSE streaming | `apps/api/src/routes/agent-stream.ts` |
+| 8 tool rounds | `openai-tools.ts` → `MAX_TOOL_ROUNDS = 8` |
 
 **MCP public list:** `GET https://repoapi-production-adfe.up.railway.app/mcp/` or `POST …/mcp` method `tools/list`.
 
@@ -132,8 +134,8 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 | tRPC v11 + OpenAPI bridge | `packages/trpc`, Scalar at `/docs` |
 | 43 DB migrations | `packages/database/drizzle/` |
 | 14 perf indexes | migration `0041_add_indexes.sql` |
-| CI: types + lint + unit + E2E | `.github/workflows/ci.yml` |
-| 135+ unit tests | `pnpm test` in CI |
+| CI: types + lint + unit + agent eval + E2E | `.github/workflows/ci.yml` |
+| 249+ unit tests | `pnpm test` in CI |
 | Playwright E2E | `apps/web/e2e/shipflow-demo.spec.ts` |
 
 ---

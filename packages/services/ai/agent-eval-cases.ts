@@ -1,5 +1,3 @@
-import type { AgentPendingConfirmation } from "./agent-pending-confirm";
-
 export type AgentInjectionEvalCase = {
   id: string;
   message: string;
@@ -11,7 +9,6 @@ export type AgentConfirmationEvalCase = {
   tool: string;
   message: string;
   expectAllowed: boolean;
-  pending?: AgentPendingConfirmation | null;
 };
 
 const INJECTION_MESSAGES_FLAGGED = [
@@ -93,14 +90,12 @@ export const AGENT_CONFIRMATION_EVAL_CASES: AgentConfirmationEvalCase[] = [
     tool: row.tool,
     message: row.message,
     expectAllowed: false,
-    pending: null,
   })),
   ...CONFIRMATION_ALLOWED.map((row, index) => ({
     id: `conf-allow-${index + 1}`,
     tool: row.tool,
     message: row.message,
     expectAllowed: true,
-    pending: null,
   })),
 ];
 

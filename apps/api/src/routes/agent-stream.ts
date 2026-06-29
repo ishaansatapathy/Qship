@@ -185,7 +185,6 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
         userMessage: message.trim(),
         assistantReply: result.reply,
         toolMemory: result.toolMemory ?? effectiveToolMemory,
-        pendingConfirmation: null,
         focusCleared: result.focusCleared,
         focus: result.focusCleared
           ? null
