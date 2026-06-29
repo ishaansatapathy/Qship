@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isInngestCloudConfigured } from "../inngest/client";
 
-const mockProcessOutbox = vi.fn(async () => 3);
+const mocks = vi.hoisted(() => ({
+  mockProcessOutbox: vi.fn(async () => 3),
+}));
 
 vi.mock("./webhook-outbox", () => ({
-  processGithubWebhookOutbox: mockProcessOutbox,
+  processGithubWebhookOutbox: mocks.mockProcessOutbox,
 }));
 
 vi.mock("../inngest/client", () => ({
@@ -29,7 +31,7 @@ describe("startGithubWebhookOutboxProcessor", () => {
     startGithubWebhookOutboxProcessor();
 
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(mockProcessOutbox).toHaveBeenCalledWith(20);
+    expect(mocks.mockProcessOutbox).toHaveBeenCalledWith(20);
   });
 
   it("skips interval when Inngest cloud cron is configured", () => {
@@ -37,6 +39,6 @@ describe("startGithubWebhookOutboxProcessor", () => {
     startGithubWebhookOutboxProcessor();
 
     vi.advanceTimersByTime(120_000);
-    expect(mockProcessOutbox).not.toHaveBeenCalled();
+    expect(mocks.mockProcessOutbox).not.toHaveBeenCalled();
   });
 });

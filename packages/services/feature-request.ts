@@ -1,4 +1,4 @@
-import { db, desc, eq } from "@repo/database";
+import { and, db, desc, eq } from "@repo/database";
 import {
   clarificationMessages,
   engineeringTasks,
@@ -62,7 +62,18 @@ export async function guardedUpdateFeatureStatus(
       `Cannot transition feature from "${from}" to "${to}". Allowed: ${allowed.join(", ") || "none"}.`,
     );
   }
-  return updateFeatureStatus(featureRequestId, to);
+  const [row] = await db
+    .update(featureRequests)
+    .set({ status: to, updatedAt: new Date() })
+    .where(and(eq(featureRequests.id, featureRequestId), eq(featureRequests.status, from)))
+    .returning();
+  if (!row) {
+    throw new ServiceError(
+      "CONFLICT",
+      `Cannot transition feature from "${from}" to "${to}": status changed concurrently. Refresh and retry.`,
+    );
+  }
+  return row;
 }
 
 /** Reads current status and applies a validated FSM transition. */
@@ -99,9 +110,14 @@ export async function guardedUpdateFeatureStatusInTx(
   const [row] = await tx
     .update(featureRequests)
     .set({ status: to, updatedAt: new Date() })
-    .where(eq(featureRequests.id, featureRequestId))
+    .where(and(eq(featureRequests.id, featureRequestId), eq(featureRequests.status, from)))
     .returning();
-  if (!row) throw new ServiceError("NOT_FOUND", "Feature request not found");
+  if (!row) {
+    throw new ServiceError(
+      "CONFLICT",
+      `Cannot transition feature from "${from}" to "${to}": status changed concurrently. Refresh and retry.`,
+    );
+  }
   return row;
 }
 

@@ -209,6 +209,13 @@ function FeatureDetailPanel({
       staleTime: 60_000,
     },
   );
+  const approvalEligibility = trpc.feature.getApprovalEligibility.useQuery(
+    { id: featureId },
+    {
+      enabled: detail.data?.status === "human_review",
+      staleTime: 10_000,
+    },
+  );
 
   const githubConnected = githubStatus.data?.connected === true;
 
@@ -609,7 +616,12 @@ function FeatureDetailPanel({
             <button
               type="button"
               className="qship-btn-accent"
-              disabled={approve.isPending}
+              disabled={approve.isPending || approvalEligibility.data?.eligible === false}
+              title={
+                approvalEligibility.data?.eligible === false
+                  ? approvalEligibility.data.reason
+                  : undefined
+              }
               onClick={() => {
                 const briefing = approvalBriefing.data;
                 const desc = briefing
