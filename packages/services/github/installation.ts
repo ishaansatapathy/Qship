@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 import { db, eq } from "@repo/database";
-import { organizations, repositories } from "@repo/database/schema";
+import { organizationMembers, organizations, projects, repositories } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
 import { ServiceError } from "../errors";
@@ -222,6 +222,42 @@ async function syncInstallationRepositories(
   }
 }
 
+/** Reuses a GitHub installation already linked on another workspace the same user belongs to. */
+async function copyGithubLinkFromSiblingOrgs(userId: string, organizationId: string) {
+  const memberships = await db.query.organizationMembers.findMany({
+    where: eq(organizationMembers.userId, userId),
+    with: { organization: true },
+  });
+
+  const donor = memberships.find(
+    (member) =>
+      member.organizationId !== organizationId &&
+      Boolean(member.organization.githubInstallationId),
+  );
+  if (!donor?.organization.githubInstallationId) return false;
+
+  await db
+    .update(organizations)
+    .set({
+      githubInstallationId: donor.organization.githubInstallationId,
+      githubAccountLogin: donor.organization.githubAccountLogin,
+      updatedAt: new Date(),
+    })
+    .where(eq(organizations.id, organizationId));
+
+  await syncInstallationRepositories(
+    organizationId,
+    donor.organization.githubInstallationId,
+  ).catch(() => undefined);
+
+  logger.info("github.installation.healed_from_sibling_org", {
+    organizationId,
+    donorOrganizationId: donor.organizationId,
+    installationId: donor.organization.githubInstallationId,
+  });
+  return true;
+}
+
 /** Drops or reclaims repo rows that block sync because full_name is globally unique. */
 async function clearStaleRepositoryClaim(params: {
   organizationId: string;
@@ -246,8 +282,7 @@ async function clearStaleRepositoryClaim(params: {
     otherOrg?.githubInstallationId === installationId;
   const sameGithubAccount =
     Boolean(currentAccountLogin) &&
-    Boolean(otherOrg?.githubAccountLogin) &&
-    otherOrg.githubAccountLogin === currentAccountLogin;
+    otherOrg?.githubAccountLogin === currentAccountLogin;
   const otherOrgDisconnected = !otherOrg?.githubInstallationId;
 
   if (!sameInstallation && !sameGithubAccount && !otherOrgDisconnected) {
@@ -316,12 +351,21 @@ export async function getGithubConnectionForUser(userId: string) {
 
   const org = membership.organization;
 
-  // Background refresh — errors are intentionally swallowed so a GitHub API
-  // hiccup never breaks the settings page load.
-  if (org.githubInstallationId && isGithubAppConfigured()) {
+  if (!org.githubInstallationId && isGithubAppConfigured()) {
+    const healed = await copyGithubLinkFromSiblingOrgs(userId, org.id);
+    if (!healed) {
+      await syncGithubInstallationForUser(userId).catch((error) => {
+        logger.warn("github.connection.heal_failed", {
+          userId,
+          organizationId: org.id,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+  } else if (org.githubInstallationId && isGithubAppConfigured()) {
+    // Background refresh — errors are intentionally swallowed so a GitHub API
+    // hiccup never breaks the settings page load.
     await syncInstallationRepositories(org.id, org.githubInstallationId).catch(() => undefined);
-  } else if (isGithubAppConfigured()) {
-    await syncGithubInstallationForUser(userId).catch(() => undefined);
   }
 
   const refreshed = await getMembershipForUser(userId);
