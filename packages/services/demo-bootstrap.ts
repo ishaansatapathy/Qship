@@ -3,6 +3,8 @@ import db from "@repo/database";
 import { aiReviews, featureRequests } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
+import { isDemoModeEnabled } from "./runtime-env";
+
 const BULK_EXPORT_TITLE = "Bulk export for compliance reports";
 const BULK_EXPORT_SLACK_HINT =
   " Notify #product-shipping in Slack when approved for release.";
@@ -50,12 +52,9 @@ async function ensureBulkExportSlackHint(): Promise<boolean> {
   return true;
 }
 
-/**
- * On API boot (demo mode), backfill passing AI reviews for human_review features
- * so judges can approve instantly without re-running seed.
- */
+/** On API boot (non-production demo mode), backfill passing AI reviews for human_review features. */
 export async function ensureDemoWorkflowReady(): Promise<{ backfilled: number }> {
-  if (process.env.DEMO_LOGIN_ENABLED !== "true") {
+  if (!isDemoModeEnabled()) {
     return { backfilled: 0 };
   }
 

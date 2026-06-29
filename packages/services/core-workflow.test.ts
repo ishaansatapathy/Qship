@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { ServiceError } from "./errors";
+import { guardedUpdateFeatureStatus } from "./feature-request";
 import { FEATURE_STATUSES } from "./workflow";
+import { RELEASE_REVIEWER_ROLES } from "./workflow-guards";
+import { validateGeneratedCodeSyntax } from "./feature-codegen";
 
-describe("core workflow constants", () => {
+describe("core workflow FSM", () => {
   it("includes the full delivery lifecycle", () => {
     for (const status of [
       "submitted",
@@ -19,18 +23,47 @@ describe("core workflow constants", () => {
       expect(FEATURE_STATUSES).toContain(status);
     }
   });
+
+  it("rejects illegal status transitions", async () => {
+    await expect(guardedUpdateFeatureStatus("missing-id", "submitted", "shipped")).rejects.toThrow(
+      ServiceError,
+    );
+  });
 });
 
 describe("workflow guard rules", () => {
   it("defines owner/admin as release reviewer roles", () => {
-    const roles = new Set(["owner", "admin"]);
-    expect(roles.has("owner")).toBe(true);
-    expect(roles.has("member")).toBe(false);
+    expect(RELEASE_REVIEWER_ROLES.has("owner")).toBe(true);
+    expect(RELEASE_REVIEWER_ROLES.has("admin")).toBe(true);
+    expect(RELEASE_REVIEWER_ROLES.has("member")).toBe(false);
+    expect(RELEASE_REVIEWER_ROLES.has("viewer")).toBe(false);
   });
 });
 
-describe("ship release env", () => {
-  it("documents optional deploy webhook for real ship step", () => {
-    expect(process.env.SHIP_DEPLOY_WEBHOOK_URL ?? "").toBeTypeOf("string");
+describe("codegen syntax gate", () => {
+  it("accepts valid TypeScript", () => {
+    expect(() =>
+      validateGeneratedCodeSyntax([
+        {
+          path: "src/feature.ts",
+          content: "export const ok = true;\n",
+          action: "create",
+          summary: "ok",
+        },
+      ]),
+    ).not.toThrow();
+  });
+
+  it("rejects invalid TypeScript before commit", () => {
+    expect(() =>
+      validateGeneratedCodeSyntax([
+        {
+          path: "src/broken.ts",
+          content: "export const x = \n",
+          action: "create",
+          summary: "broken",
+        },
+      ]),
+    ).toThrow(ServiceError);
   });
 });

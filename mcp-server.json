@@ -1,7 +1,7 @@
 {
   "$schema": "https://modelcontextprotocol.io/schemas/mcp-server.json",
   "name": "shipflow-mcp",
-  "description": "ShipFlow MCP — 35 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration + analytics.",
+  "description": "ShipFlow MCP — 37 feature-delivery tools at POST /mcp. Full parity with the ShipFlow Agent (CI-verified). Workspace-scoped feature pipeline + GitHub integration + analytics.",
   "version": "1.0.0",
   "transport": {
     "type": "http",
@@ -43,6 +43,10 @@
     {
       "name": "generate_feature_tasks",
       "description": "Break a PRD into engineering tasks and move the feature to planning status."
+    },
+    {
+      "name": "implement_feature_code",
+      "description": "Generate AI implementation files, commit to shipflow/<featureId> branch, and open a pull request."
     },
     {
       "name": "add_clarification",
@@ -115,6 +119,10 @@
     {
       "name": "request_changes",
       "description": "Request changes before approval — moves feature to fix_needed."
+    },
+    {
+      "name": "ship_feature",
+      "description": "Ship an approved feature: merge linked PR, trigger deploy webhook, notify Slack."
     },
     {
       "name": "get_approval_history",

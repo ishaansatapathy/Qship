@@ -21,7 +21,7 @@ Related: [`README.md`](README.md) · [`DEMO.md`](DEMO.md) · [`JUDGE_WALKTHROUGH
 Next.js (web)  ──tRPC/REST──►  Express API  ──Octokit──►  GitHub App
      │                              │
      │                              ├── Postgres (features, PRDs, sessions)
-     │                              ├── MCP (35 tools)
+     │                              ├── MCP (37 tools)
      │                              └── OpenAI (triage, PRD, review)
      └── SSE /agent/stream ◄────────┘
 ```
@@ -33,7 +33,7 @@ Next.js (web)  ──tRPC/REST──►  Express API  ──Octokit──►  Gi
 | Auth | BetterAuth — email/password + Google OAuth |
 | Database | PostgreSQL + Drizzle ORM |
 | AI | OpenAI gpt-4o-mini (configurable via `OPENAI_MODEL`) |
-| MCP | MCP 2024-11-05 — **35** ShipFlow tools |
+| MCP | MCP 2024-11-05 — **37** ShipFlow tools |
 
 ### Monorepo layout
 
@@ -161,7 +161,7 @@ submitted → clarifying → prd_generating → prd_ready → planning → plan_
 
 ---
 
-## 5. MCP (35 tools)
+## 5. MCP (37 tools)
 
 **Endpoint:** `POST /mcp` (JSON-RPC 2.0)
 
@@ -213,7 +213,7 @@ submitted → clarifying → prd_generating → prd_ready → planning → plan_
 | `explain_engineering_task` | Task walkthrough pseudo-code |
 | `advance_task_walkthrough` | Mark task done + explain next |
 
-**Full manifest (35 tools):** `mcp-server.json` · CI parity: `packages/services/ai/tool-parity.test.ts`
+**Full manifest (37 tools):** `mcp-server.json` · CI parity: `packages/services/ai/tool-parity.test.ts`
 
 ### Example curl
 
@@ -229,7 +229,7 @@ curl -s -X POST http://localhost:8000/mcp \
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /agent/stream` | SSE streaming chat with **35** ShipFlow tools |
+| `POST /agent/stream` | SSE streaming chat with **37** ShipFlow tools |
 
 Rate limit: **20 requests/min/user**.
 

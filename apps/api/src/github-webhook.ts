@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 
 import { logger } from "@repo/logger";
 import { ServiceError } from "@repo/services/errors";
+import { isProductionEnv } from "@repo/services/runtime-env";
 import { verifyGithubWebhookSignature } from "@repo/services/github";
 import {
   processGithubInstallationWebhook,
@@ -25,7 +26,12 @@ import {
 export async function handleGithubWebhook(req: Request, res: Response) {
   const signature = req.header("x-hub-signature-256");
   const event = req.header("x-github-event") ?? "unknown";
-  const deliveryId = req.header("x-github-delivery") ?? crypto.randomUUID();
+  const deliveryHeader = req.header("x-github-delivery");
+  if (!deliveryHeader && isProductionEnv()) {
+    logger.warn("webhook.github.missing_delivery_id", { event: req.header("x-github-event") });
+    return res.status(400).json({ error: "Missing X-GitHub-Delivery header" });
+  }
+  const deliveryId = deliveryHeader ?? crypto.randomUUID();
 
   // ── Signature verification ────────────────────────────────────────────────────
   const payload = Buffer.isBuffer(req.body)

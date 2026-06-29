@@ -3,9 +3,10 @@ import db from "@repo/database";
 import { featureRequests, organizations, pullRequests, repositories } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
-import { appendFeatureActivity, updateFeatureStatus } from "../feature-request";
+import { appendFeatureActivity, transitionFeatureStatus } from "../feature-request";
 import { invalidateInstallationCache } from "./client";
 import { runPullRequestAiReview } from "./pr-review";
+import { isGithubDeliveryDuplicate } from "./webhook-dedup";
 
 // ── Feature-linking conventions ───────────────────────────────────────────────
 
@@ -20,29 +21,6 @@ function extractFeatureId(pr: { head?: { ref?: string }; body?: string | null })
 
   const tagMatch = (pr.body ?? "").match(FEATURE_TAG_RE);
   return tagMatch?.[1] ?? null;
-}
-
-// ── Idempotency guard ─────────────────────────────────────────────────────────
-//
-// GitHub guarantees at-least-once delivery, so the same webhook event may
-// arrive more than once. We de-duplicate using the X-GitHub-Delivery header.
-// A fixed-size LRU-like set avoids unbounded memory growth on long-running
-// servers. The limit is large enough to cover any retry storms.
-
-const MAX_SEEN_DELIVERIES = 2_000;
-const seenDeliveries = new Set<string>();
-
-function isAlreadyProcessed(deliveryId: string): boolean {
-  if (seenDeliveries.has(deliveryId)) return true;
-
-  // Evict oldest entries when the set grows too large.
-  if (seenDeliveries.size >= MAX_SEEN_DELIVERIES) {
-    const oldest = seenDeliveries.values().next().value;
-    if (oldest) seenDeliveries.delete(oldest);
-  }
-
-  seenDeliveries.add(deliveryId);
-  return false;
 }
 
 // ── pull_request event ────────────────────────────────────────────────────────
@@ -68,7 +46,7 @@ export async function processGithubPullRequestWebhook(
   payload: GithubPullRequestPayload,
   deliveryId = "unknown",
 ) {
-  if (isAlreadyProcessed(deliveryId)) {
+  if (await isGithubDeliveryDuplicate(deliveryId, "pull_request")) {
     logger.info("webhook.pull_request.duplicate_skipped", { deliveryId });
     return { handled: false, reason: "duplicate_delivery" as const };
   }
@@ -177,7 +155,7 @@ export async function processGithubPullRequestWebhook(
 
     if (existingApproval?.decision === "approved") {
       // Already approved by a human — mark shipped-ready.
-      await updateFeatureStatus(feature.id, "approved");
+      await transitionFeatureStatus(feature.id, "approved");
       await appendFeatureActivity(feature.id, {
         kind: "status",
         title: "Pull request merged (pre-approved)",
@@ -186,7 +164,7 @@ export async function processGithubPullRequestWebhook(
       });
     } else {
       // Gate the feature at human_review — PM must confirm before approved.
-      await updateFeatureStatus(feature.id, "human_review");
+      await transitionFeatureStatus(feature.id, "human_review");
       await appendFeatureActivity(feature.id, {
         kind: "status",
         title: "Pull request merged — awaiting human approval",
@@ -215,7 +193,7 @@ export async function processGithubPullRequestWebhook(
 
   // ── Open / sync — update status + trigger AI review ──────────────────────────
   if (["opened", "reopened", "synchronize"].includes(action)) {
-    await updateFeatureStatus(feature.id, "pr_open");
+    await transitionFeatureStatus(feature.id, "pr_open");
     await appendFeatureActivity(feature.id, {
       kind: "status",
       title: action === "synchronize" ? "Pull request updated" : "Pull request linked",
@@ -267,7 +245,7 @@ export async function processGithubInstallationWebhook(
   payload: GithubInstallationPayload,
   deliveryId = "unknown",
 ) {
-  if (isAlreadyProcessed(deliveryId)) {
+  if (await isGithubDeliveryDuplicate(deliveryId, "installation")) {
     return { handled: false, reason: "duplicate_delivery" as const };
   }
 

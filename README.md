@@ -64,7 +64,7 @@ Feature Request → Triage → Clarifying Questions → PRD → Engineering Task
       → Code (GitHub PR) → AI Review → Fix Loop → Human Approval → Ship
 ```
 
-Every stage is tracked in real time, queryable via tRPC, accessible via 35 MCP tools, and navigable through the ShipFlow Agent chat.
+Every stage is tracked in real time, queryable via tRPC, accessible via 37 MCP tools, and navigable through the ShipFlow Agent chat.
 
 ### Slack notifications (Core Workflow closure)
 
@@ -129,8 +129,8 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 | **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
 | **Slack approve/ship alerts** | Timeline after Approve or Ship | `notifySlackFeatureApproved`, `GET /integrations/slack` |
 | **Approval audit trail** | Timeline events per decision | `get_approval_history` |
-| **ShipFlow Agent** | `/agent` — 35-tool streaming copilot | `POST /agent/stream` |
-| **MCP server** | Cursor / Claude integration | `POST /mcp` — 35 tools |
+| **ShipFlow Agent** | `/agent` — 37-tool streaming copilot | `POST /agent/stream` |
+| **MCP server** | Cursor / Claude integration | `POST /mcp` — 37 tools |
 | **GitHub App connect** | `/settings` — install + repo sync | `github.*` tRPC |
 | **GitHub PR webhook** | Auto-links PRs to features | `POST /webhooks/github` |
 | **Duplicate detection** | Before every new feature | `check_existing_capability` |
@@ -141,9 +141,9 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 
 ---
 
-## ShipFlow Agent — 35 tools
+## ShipFlow Agent — 37 tools
 
-The streaming agent at `/agent` and the MCP server at `/mcp` share the same 35 tools, verified by CI parity test.
+The streaming agent at `/agent` and the MCP server at `/mcp` share the same 37 tools, verified by CI parity test.
 
 | Category | Tools |
 |---|---|
@@ -203,7 +203,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 │              Browser (Next.js on Vercel — qship.ishaandev.co.in)   │
 │  /brief      Pipeline overview + counts by stage                   │
 │  /requests   Feature hub — submit, triage, PRD, tasks, timeline    │
-│  /agent      ShipFlow Agent — SSE streaming, 35 tools              │
+│  /agent      ShipFlow Agent — SSE streaming, 37 tools              │
 │  /tasks      Engineering Kanban (backlog → todo → done)            │
 │  /analytics  Delivery metrics + throughput                         │
 │  /settings   GitHub App connect + repo sync + approval toggles     │
@@ -214,7 +214,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 │        Express API (apps/api on Railway — long-lived process)      │
 │  /trpc              Type-safe tRPC procedures (all features)        │
 │  /api/*             REST — trpc-to-openapi auto-generated           │
-│  /mcp               MCP 2024-11-05 JSON-RPC — 35 ShipFlow tools    │
+│  /mcp               MCP 2024-11-05 JSON-RPC — 37 ShipFlow tools    │
 │  /agent/stream      SSE streaming agent (rate-limited, guardrailed) │
 │  /webhooks/github   GitHub App events (HMAC-SHA256 verified)       │
 │  /health  /ready    Liveness + readiness probes (+ Slack status)   │
@@ -257,7 +257,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 | **Auth** | BetterAuth — Google OAuth, email/password, demo login |
 | **Database** | PostgreSQL 16 + Drizzle ORM — 43 migrations, 14 perf indexes |
 | **AI** | OpenAI `gpt-4o-mini` — triage, PRD, tasks, 9-dim PR review, delta re-review |
-| **MCP** | MCP 2024-11-05 — 35 tools, JSON-RPC 2.0, CI parity test |
+| **MCP** | MCP 2024-11-05 — 37 tools, JSON-RPC 2.0, CI parity test |
 | **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |
 | **Background jobs** | In-process workflows on Railway (PRD gen, task gen, AI review); Inngest optional |
 | **Billing** | Razorpay — subscription checkout + webhook |
@@ -361,7 +361,7 @@ pnpm db:generate      # Regenerate Drizzle client after schema changes
 
 ## MCP integration
 
-ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **35 tools**.
+ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **37 tools**.
 
 ### Configure in Cursor / Claude Desktop
 

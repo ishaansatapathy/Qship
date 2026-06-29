@@ -283,7 +283,7 @@ for t in tools:
 "
 ```
 
-Expected: **35 tools** listed.
+Expected: **37 tools** listed.
 
 ### OpenAPI schema
 
@@ -358,7 +358,7 @@ curl -s -X POST http://localhost:8000/mcp \
 | **GitHub** | 55-min token cache, paginated repo sync, idempotent webhook delivery |
 | **CI** | Parallel static + integration + E2E jobs, Playwright artifacts on failure |
 | **Security** | HMAC-SHA256 webhooks, approval gate validation, scoped tool execution |
-| **MCP** | 35 tools, CI parity test, JSON-RPC 2.0 spec-compliant |
+| **MCP** | 37 tools, CI parity test, JSON-RPC 2.0 spec-compliant |
 
 ---
 
@@ -368,11 +368,11 @@ curl -s -X POST http://localhost:8000/mcp \
 |---|---|---|
 | Working demo | One-click login, all pages load | https://qship.ishaandev.co.in |
 | API live | `/health`, `/ready`, `/docs` all 200 | https://repoapi-production-adfe.up.railway.app |
-| AI agent quality | 9-dim review, delta re-review, 35 tools | `/agent`, `feature-ai.ts` |
+| AI agent quality | 9-dim review, delta re-review, 37 tools | `/agent`, `feature-ai.ts` |
 | Review loop | Iteration tracking, delta, approval gate | `review.ts`, `/requests` |
 | Human approval | Validate → approve/reject/changes | UI + agent tools |
 | GitHub integration | Webhooks, PR link, AI comment | `packages/services/github/` |
-| MCP | 35 tools, spec-compliant, public list | `POST /mcp` |
+| MCP | 37 tools, spec-compliant, public list | `POST /mcp` |
 | Documentation | README + DEMO + JUDGE_WALKTHROUGH + ARCHITECTURE | This repo |
 | Code quality | TypeScript strict, CI green, Drizzle migrations | `.github/workflows/ci.yml` |
 | Deployment | Vercel (web + API) + Neon DB | live URLs above |

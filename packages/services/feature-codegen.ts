@@ -1,4 +1,5 @@
 import type { PrdContent } from "@repo/database/schema";
+import ts from "typescript";
 
 import { ServiceError } from "./errors";
 import { createChatCompletion, isOpenAiConfigured } from "./ai/openai";
@@ -45,6 +46,43 @@ export function sanitizeGeneratedContent(content: string): string {
     );
   }
   return lines.join("\n").trimEnd() + "\n";
+}
+
+function scriptKindForPath(path: string): ts.ScriptKind | null {
+  if (path.endsWith(".tsx")) return ts.ScriptKind.TSX;
+  if (path.endsWith(".ts")) return ts.ScriptKind.TS;
+  if (path.endsWith(".jsx")) return ts.ScriptKind.JSX;
+  if (path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".cjs")) {
+    return ts.ScriptKind.JS;
+  }
+  return null;
+}
+
+/** Parses generated JS/TS files and rejects syntax errors before any GitHub write. */
+export function validateGeneratedCodeSyntax(files: GeneratedCodeFile[]): void {
+  for (const file of files) {
+    validateCodegenPath(file.path);
+    const content = sanitizeGeneratedContent(file.content);
+    const kind = scriptKindForPath(file.path);
+    if (!kind) continue;
+
+    const sourceFile = ts.createSourceFile(
+      file.path,
+      content,
+      ts.ScriptTarget.Latest,
+      true,
+      kind,
+    );
+
+    if (sourceFile.parseDiagnostics.length > 0) {
+      const diagnostic = sourceFile.parseDiagnostics[0]!;
+      const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+      throw new ServiceError(
+        "PRECONDITION_FAILED",
+        `Generated code syntax error in ${file.path}: ${message}`,
+      );
+    }
+  }
 }
 
 function requireOpenAi() {

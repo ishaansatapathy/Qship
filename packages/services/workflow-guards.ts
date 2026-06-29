@@ -1,5 +1,6 @@
 import { ServiceError } from "./errors";
 import { assertFeatureInUserWorkspace } from "./feature-request";
+import { isDemoModeEnabled } from "./runtime-env";
 
 const RELEASE_REVIEWER_ROLES = new Set(["owner", "admin"]);
 
@@ -19,7 +20,7 @@ export async function assertReleaseReviewer(userId: string, featureId: string) {
     );
   }
 
-  const demoMode = process.env.DEMO_LOGIN_ENABLED === "true";
+  const demoMode = isDemoModeEnabled();
   if (!demoMode && feature.createdByUserId && feature.createdByUserId === userId) {
     throw new ServiceError(
       "FORBIDDEN",

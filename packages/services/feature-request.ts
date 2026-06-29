@@ -28,10 +28,10 @@ const ALLOWED_TRANSITIONS: Partial<Record<FeatureStatus, FeatureStatus[]>> = {
   prd_ready:           ["planning", "prd_generating"],
   planning:            ["plan_approved", "in_development", "prd_ready"],
   plan_approved:       ["in_development"],
-  in_development:      ["pr_open", "planning"],
-  pr_open:             ["ai_review", "in_development", "fix_needed"],
+  pr_open:             ["ai_review", "in_development", "fix_needed", "human_review", "approved"],
   ai_review:           ["human_review", "fix_needed"],
-  fix_needed:          ["ai_review", "pr_open"],
+  fix_needed:          ["ai_review", "pr_open", "human_review"],
+  in_development:      ["pr_open", "planning", "human_review"],
   human_review:        ["approved", "fix_needed", "rejected"],
   approved:            ["shipped"],
   shipped:             [],
@@ -56,6 +56,23 @@ export async function guardedUpdateFeatureStatus(
     );
   }
   return updateFeatureStatus(featureRequestId, to);
+}
+
+/** Reads current status and applies a validated FSM transition. */
+export async function transitionFeatureStatus(
+  featureRequestId: string,
+  to: FeatureStatus,
+) {
+  const row = await db.query.featureRequests.findFirst({
+    where: eq(featureRequests.id, featureRequestId),
+    columns: { status: true },
+  });
+  if (!row) throw new ServiceError("NOT_FOUND", "Feature request not found");
+  const from = row.status as FeatureStatus;
+  if (from === to) {
+    return row;
+  }
+  return guardedUpdateFeatureStatus(featureRequestId, from, to);
 }
 
 export async function getWorkspaceProjectForUser(userId: string) {

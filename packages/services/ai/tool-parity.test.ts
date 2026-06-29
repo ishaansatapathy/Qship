@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { AGENT_TOOLS } from "./agent-internals";
@@ -9,7 +11,17 @@ describe("agent ↔ MCP tool parity", () => {
     const agentNames = AGENT_TOOLS.map((tool) => tool.function.name).sort();
 
     expect(agentNames).toEqual(mcpNames);
-    expect(agentNames.length).toBeGreaterThanOrEqual(36);
+    expect(agentNames.length).toBe(SHIPFLOW_MCP_TOOLS.length);
+  });
+
+  it("mcp-server.json matches runtime tool registry", () => {
+    const manifestPath = path.resolve(__dirname, "../../../mcp-server.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      tools: Array<{ name: string }>;
+    };
+    const manifestNames = manifest.tools.map((t) => t.name).sort();
+    const runtimeNames = SHIPFLOW_MCP_TOOLS.map((t) => t.name).sort();
+    expect(manifestNames).toEqual(runtimeNames);
   });
 
   it("agent tools are ShipFlow-only (no legacy Gmail/calendar tools)", () => {
