@@ -6465,6 +6465,31 @@
   font-weight: 600;
 }
 
+.qship-delivery-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.qship-delivery-panel-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--qship-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--qship-muted);
+  cursor: pointer;
+}
+
+.qship-delivery-panel-dismiss:hover {
+  color: var(--qship-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .qship-delivery-status {
   margin: 4px 0 0;
   font-size: 11px;

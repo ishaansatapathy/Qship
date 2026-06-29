@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, Clock3, Sparkles, User } from "lucide-react";
+import { Bot, Clock3, Sparkles, User, X } from "lucide-react";
 
 import { trpc } from "~/trpc/client";
 import { SkeletonList } from "~/components/app/skeleton-list";
@@ -23,10 +23,12 @@ export function FeatureDeliveryPanel({
   featureId,
   compact,
   showOpenLink,
+  onDismiss,
 }: {
   featureId: string;
   compact?: boolean;
   showOpenLink?: boolean;
+  onDismiss?: () => void;
 }) {
   const delivery = trpc.feature.delivery.useQuery({ id: featureId }, { staleTime: 15_000 });
 
@@ -46,11 +48,24 @@ export function FeatureDeliveryPanel({
           <h3>{compact ? "Attached feature" : "Delivery timeline"}</h3>
           {!compact ? <p className="qship-delivery-status">{statusLabel}</p> : null}
         </div>
-        {showOpenLink ? (
-          <Link href={`/requests?id=${featureId}`} className="qship-mono-tag">
-            Open →
-          </Link>
-        ) : null}
+        <div className="qship-delivery-panel-actions">
+          {showOpenLink ? (
+            <Link href={`/requests?id=${featureId}`} className="qship-mono-tag">
+              Open →
+            </Link>
+          ) : null}
+          {onDismiss ? (
+            <button
+              type="button"
+              className="qship-delivery-panel-dismiss"
+              onClick={onDismiss}
+              aria-label="Close attached feature"
+              title="Close"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {compact ? (

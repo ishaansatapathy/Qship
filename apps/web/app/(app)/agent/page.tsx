@@ -992,6 +992,7 @@ function AgentPageContent() {
                       featureId={fromFeatureFocusId(focus.contextId!)}
                       compact
                       showOpenLink
+                      onDismiss={() => void handleClearFocus()}
                     />
                   </div>
                 ) : null}
