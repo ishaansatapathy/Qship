@@ -6,13 +6,14 @@ import {
   updateFeatureStatus,
 } from "../feature-request";
 import { ServiceError } from "../errors";
-import { updateWorkflowRun } from "../workflow-runs";
+import { assertWorkflowRunActive, updateWorkflowRun } from "../workflow-runs";
 
 export async function runTaskGenerationWorkflow(input: {
   featureId: string;
   workflowRunId: string;
 }) {
   try {
+    await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
       status: "running",
       progress: 20,
@@ -24,6 +25,7 @@ export async function runTaskGenerationWorkflow(input: {
       throw new ServiceError("PRECONDITION_FAILED", "Generate a PRD before creating tasks");
     }
 
+    await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
       progress: 50,
       message: "Breaking PRD into engineering tasks…",
@@ -35,6 +37,7 @@ export async function runTaskGenerationWorkflow(input: {
       prd: feature.prd.content,
     });
 
+    await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
       progress: 85,
       message: "Saving task board…",

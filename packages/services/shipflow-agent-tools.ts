@@ -16,8 +16,6 @@ import {
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
-  replaceFeatureTasks,
-  saveFeaturePrd,
   updateEngineeringTaskStatus,
   updateFeatureMetadata,
   updateFeatureStatus,
@@ -26,8 +24,6 @@ import {
   generateApprovalBriefing,
   analyzeChangeRequest,
   generateDeveloperOnboardingGuide,
-  generateFeaturePrd,
-  generateFeatureTasks,
   triageFeatureRequest,
 } from "./feature-ai";
 import {
@@ -37,7 +33,11 @@ import {
 } from "./feature-analytics";
 import { checkExistingCapability } from "./feature-education";
 import { ingestFeatureRequest, type FeatureSource } from "./feature-intake";
-import { runFeatureAiReviewWithOptionalPr } from "./github/pr-review";
+import {
+  dispatchAiReview,
+  dispatchPrdGeneration,
+  dispatchTaskGeneration,
+} from "./inngest/dispatch";
 import {
   listAiReviewsForFeature,
   getLatestAiReview,
@@ -45,10 +45,12 @@ import {
   getReviewStats,
   getReviewLoopHealth,
   listHumanApprovals,
+  markFeatureShipped,
   recordHumanApproval,
   resolveReviewIssue,
   validateHumanApprovalEligibility,
 } from "./review";
+import { assertReleaseReviewer } from "./workflow-guards";
 import {
   getGithubConnectionForUser,
   listGithubRepositoriesForUser,
@@ -149,7 +151,7 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "run_ai_review",
-    description: "Run an AI pre-ship review on a feature (PRD + tasks) and update pipeline status.",
+    description: "Queue an AI pre-ship review workflow (PRD + tasks + optional PR diff). Uses the same orchestrated pipeline as the UI.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -158,7 +160,7 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "request_human_review",
-    description: "Move a feature to human_review — awaiting human sign-off before ship.",
+    description: "Verify a feature is eligible for human approval (AI review passed, blocking issues resolved). Does not bypass gates.",
     inputSchema: {
       type: "object",
       required: ["id"],
@@ -170,7 +172,7 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   },
   {
     name: "update_feature_status",
-    description: "Move a feature request to a new pipeline status.",
+    description: "Deprecated — use generate_feature_prd, generate_feature_tasks, run_ai_review, approve_feature, or ship_feature instead. Direct status jumps are blocked.",
     inputSchema: {
       type: "object",
       required: ["id", "status"],
@@ -289,6 +291,16 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
         id: { type: "string", description: "Feature request UUID" },
         notes: { type: "string", description: "Specific changes required before this can be approved (required)" },
       },
+    },
+  },
+  {
+    name: "ship_feature",
+    description:
+      "Ship an approved feature to production: merge linked GitHub PR, trigger deploy webhook when configured, notify Slack, and mark status shipped.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", description: "Feature request UUID (must be approved)" } },
     },
   },
   {
@@ -603,26 +615,20 @@ export async function executeShipflowTool(
     case "generate_feature_prd": {
       const id = String(args.id ?? "").trim();
       const { feature } = await loadAuthorizedFeature(userId, id);
-      await updateFeatureStatus(id, "prd_generating");
-      const content = await generateFeaturePrd({
-        title: feature.title,
-        rawRequest: feature.rawRequest,
-      });
-      const prd = await saveFeaturePrd(id, content);
-      await updateFeatureStatus(id, "prd_ready");
-      await appendFeatureActivity(id, {
-        kind: "prd",
-        title: "PRD generated",
-        detail: `${content.goals?.length ?? 0} goals · ${content.userStories?.length ?? 0} user stories`,
-        actor: "agent",
-      });
+      const dispatch = await dispatchPrdGeneration(id, userId);
       actions.push({
         kind: "feature_detail",
-        title: `PRD: ${feature.title}`,
-        detail: "prd_ready",
+        title: `PRD queued: ${feature.title}`,
+        detail: dispatch.mode,
         href: `/requests?id=${id}`,
       });
-      return JSON.stringify({ featureId: id, status: "prd_ready", prd: { version: prd.version, content } });
+      return JSON.stringify({
+        featureId: id,
+        status: "prd_generating",
+        workflowRunId: dispatch.workflowRunId,
+        mode: dispatch.mode,
+        message: "PRD generation queued via workflow engine",
+      });
     }
 
     case "generate_feature_tasks": {
@@ -631,30 +637,19 @@ export async function executeShipflowTool(
       if (!feature.prd?.content) {
         return JSON.stringify({ error: "Generate a PRD first (generate_feature_prd)" });
       }
-      const drafts = await generateFeatureTasks({
-        title: feature.title,
-        rawRequest: feature.rawRequest,
-        prd: feature.prd.content,
-      });
-      const tasks = await replaceFeatureTasks(id, drafts);
-      await updateFeatureStatus(id, "planning");
-      await appendFeatureActivity(id, {
-        kind: "tasks",
-        title: "Engineering tasks generated",
-        detail: `${tasks.length} task(s)`,
-        actor: "agent",
-      });
+      const dispatch = await dispatchTaskGeneration(id, userId);
       actions.push({
         kind: "feature_tasks",
-        title: `Tasks: ${feature.title}`,
-        detail: `${tasks.length} engineering task(s)`,
+        title: `Tasks queued: ${feature.title}`,
+        detail: dispatch.mode,
         href: `/requests?id=${id}`,
-        lines: tasks.map((t) => `${t.title} · ${t.status}`),
       });
       return JSON.stringify({
         featureId: id,
-        status: "planning",
-        tasks: tasks.map((t) => ({ id: t.id, title: t.title, status: t.status })),
+        status: feature.status,
+        workflowRunId: dispatch.workflowRunId,
+        mode: dispatch.mode,
+        message: "Task generation queued via workflow engine",
       });
     }
 
@@ -673,21 +668,34 @@ export async function executeShipflowTool(
 
     case "run_ai_review": {
       const id = String(args.id ?? "").trim();
-      const { feature, ws } = await loadAuthorizedFeature(userId, id);
-      const result = await runFeatureAiReviewWithOptionalPr(id, ws.organization.id);
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const dispatch = await dispatchAiReview(id, userId);
       actions.push({
         kind: "ai_review",
-        title: `AI review: ${feature.title}`,
-        detail: result.pass ? "Passed — ready for human review" : "Fixes needed",
+        title: `AI review queued: ${feature.title}`,
+        detail: dispatch.mode,
         href: `/requests?id=${id}`,
       });
-      return JSON.stringify({ featureId: id, ...result });
+      return JSON.stringify({
+        featureId: id,
+        workflowRunId: dispatch.workflowRunId,
+        mode: dispatch.mode,
+        message: "AI review queued via workflow engine",
+      });
     }
 
     case "request_human_review": {
       const id = String(args.id ?? "").trim();
       const note = String(args.note ?? "").trim();
       const { feature } = await loadAuthorizedFeature(userId, id);
+
+      try {
+        await validateHumanApprovalEligibility(id);
+      } catch (error) {
+        const message = error instanceof ServiceError ? error.message : "Not eligible for human review";
+        return JSON.stringify({ error: message, featureId: id, status: feature.status });
+      }
+
       if (note) {
         await addClarificationMessage({
           featureRequestId: id,
@@ -695,37 +703,26 @@ export async function executeShipflowTool(
           content: `Ready for human approval: ${note}`,
         });
       }
-      const row = await updateFeatureStatus(id, "human_review");
-      await appendFeatureActivity(id, {
-        kind: "human_review",
-        title: "Sent for human approval",
-        detail: note || undefined,
-        actor: "agent",
-      });
+
       actions.push({
         kind: "feature_detail",
-        title: `Awaiting approval: ${feature.title}`,
+        title: `Ready for approval: ${feature.title}`,
         detail: "human_review",
         href: `/requests?id=${id}`,
       });
-      return JSON.stringify(featureSummary(row));
+      return JSON.stringify({
+        featureId: id,
+        status: "human_review",
+        eligible: true,
+        message: "Feature passed AI review and is awaiting human approval",
+      });
     }
 
     case "update_feature_status": {
-      const id = String(args.id ?? "").trim();
-      const status = String(args.status ?? "").trim();
-      if (!id || !status) return JSON.stringify({ error: "id and status are required" });
-      if (!(FEATURE_STATUSES as readonly string[]).includes(status)) {
-        return JSON.stringify({ error: `Invalid status. Allowed: ${FEATURE_STATUSES.join(", ")}` });
-      }
-      await loadAuthorizedFeature(userId, id);
-      const row = await updateFeatureStatus(id, status as (typeof FEATURE_STATUSES)[number]);
-      await appendFeatureActivity(id, {
-        kind: "status",
-        title: `Status → ${status}`,
-        actor: "agent",
+      return JSON.stringify({
+        error:
+          "Direct status updates are disabled. Use generate_feature_prd, generate_feature_tasks, run_ai_review, approve_feature, or ship_feature.",
       });
-      return JSON.stringify(featureSummary(row));
     }
 
     case "get_pipeline_summary": {
@@ -901,6 +898,7 @@ export async function executeShipflowTool(
       const notes = String(args.notes ?? "").trim();
       const { feature } = await loadAuthorizedFeature(userId, id);
 
+      await assertReleaseReviewer(userId, id);
       await validateHumanApprovalEligibility(id);
 
       const result = await recordHumanApproval({
@@ -924,11 +922,30 @@ export async function executeShipflowTool(
       });
     }
 
+    case "ship_feature": {
+      const id = String(args.id ?? "").trim();
+      const { feature } = await loadAuthorizedFeature(userId, id);
+      const result = await markFeatureShipped(id, userId);
+      actions.push({
+        kind: "feature_detail",
+        title: `Shipped: ${feature.title}`,
+        detail: result.release.merge.merged ? "PR merged" : "Released",
+        href: `/requests?id=${id}`,
+      });
+      return JSON.stringify({
+        featureId: id,
+        status: result.status,
+        slack: result.slack ?? null,
+        release: result.release,
+      });
+    }
+
     case "reject_feature": {
       const id = String(args.id ?? "").trim();
       const reason = String(args.reason ?? "").trim();
       if (!reason) return JSON.stringify({ error: "reason is required to reject a feature" });
       const { feature } = await loadAuthorizedFeature(userId, id);
+      await assertReleaseReviewer(userId, id);
       const result = await recordHumanApproval({
         featureRequestId: id,
         reviewerUserId: userId,
@@ -949,6 +966,7 @@ export async function executeShipflowTool(
       const notes = String(args.notes ?? "").trim();
       if (!notes) return JSON.stringify({ error: "notes describing the required changes are required" });
       const { feature } = await loadAuthorizedFeature(userId, id);
+      await assertReleaseReviewer(userId, id);
       const result = await recordHumanApproval({
         featureRequestId: id,
         reviewerUserId: userId,
@@ -1078,7 +1096,7 @@ export async function executeShipflowTool(
       const resolved = Boolean(args.resolved);
       const notes = args.notes ? String(args.notes).trim() : undefined;
       if (!issueId) return JSON.stringify({ error: "issueId is required" });
-      const result = await resolveReviewIssue(issueId, resolved, notes);
+      const result = await resolveReviewIssue(issueId, resolved, notes, userId);
       actions.push({
         kind: "feature_detail",
         title: resolved ? `Issue resolved: ${result.title}` : `Issue reopened: ${result.title}`,
