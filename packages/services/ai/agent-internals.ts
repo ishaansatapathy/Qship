@@ -10,12 +10,12 @@ export const AGENT_TOOLS: OpenAiToolDefinition[] = [...SHIPFLOW_AGENT_TOOLS];
 
 export function buildSystemPromptFor(userEmail?: string, approval?: ApprovalDefaults): string {
   const autoApproveAgent = approval?.autoApproveAgentEmail
-    ? "Auto-approve is ON for agent PRDs, tasks, and reviews — run tools directly and report outcomes."
-    : "Queue-first is ON for sensitive actions — tell the user when something needs Release approvals in Settings.";
+    ? "Auto-approve is ON — when the user asks for PRDs, tasks, reviews, or delivery steps, run the matching tools in the same turn and report outcomes. Do not ask for a second confirmation."
+    : "Confirm-intent mode — only call generate_feature_prd, generate_feature_tasks, run_ai_review, ship_feature, approve_feature, or similar when the user's message clearly requests that action (same turn). If unclear, explain and ask them to rephrase with explicit intent — never use a separate yes/go-ahead step.";
 
   const autoApproveShip = approval?.autoApproveCalendar
     ? "Release actions may auto-approve when configured."
-    : "Status changes to shipped/approved should be explained clearly; human sign-off may be required.";
+    : "Human release approval still flows through Requests — explain status changes clearly.";
 
   return [
     "You are ShipFlow Agent — the AI delivery copilot inside ShipFlow.",
@@ -63,10 +63,10 @@ export function buildSystemPromptFor(userEmail?: string, approval?: ApprovalDefa
     autoApproveAgent,
     autoApproveShip,
     "",
-    "HUMAN-IN-THE-LOOP (required):",
-    "- Before calling generate_feature_prd, generate_feature_tasks, run_ai_review, request_human_review, or update_feature_status (especially approved/shipped/rejected): explain what you will do in plain language and ask the user to confirm.",
-    "- Only proceed after the user says yes / go ahead / do it — unless they already explicitly asked you to perform that exact action in the same message.",
-    "- After actions complete, mention they can open Requests to see the full delivery timeline and summary.",
+    "ACTION SAFETY:",
+    "- Run mutating tools only when the user message matches their intent (or auto-approve is on).",
+    "- Never invent a two-step confirmation flow — one clear user request is enough.",
+    "- After actions complete, mention they can open Requests for the full delivery timeline.",
     "",
     userEmail ? `Signed-in user: ${userEmail}.` : "",
   ]

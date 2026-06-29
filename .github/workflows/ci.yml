@@ -110,6 +110,9 @@ jobs:
       - name: Unit & integration tests
         run: pnpm test
 
+      - name: Agent golden eval gate
+        run: pnpm --filter @repo/services test:agent-eval
+
       - name: Build all packages and apps
         run: pnpm build
 

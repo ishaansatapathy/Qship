@@ -8,7 +8,6 @@ import {
 } from "@repo/database/schema";
 
 import type { AgentFocus } from "./agent-focus";
-import type { AgentPendingConfirmation } from "./agent-pending-confirm";
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 
 export type AgentSessionFocus = AgentFocus & {
@@ -21,7 +20,6 @@ export type AgentSessionRecord = {
   title: string | null;
   messages: AgentSessionMessage[];
   toolMemory: AgentToolMemoryEntry[];
-  pendingConfirmation: AgentPendingConfirmation | null;
   focus: AgentSessionFocus;
   createdAt: Date;
   updatedAt: Date;
@@ -54,7 +52,6 @@ function rowToRecord(row: typeof agentChatSessionsTable.$inferSelect): AgentSess
     title: row.title,
     messages: row.messages ?? [],
     toolMemory: (row.toolMemory ?? []) as AgentToolMemoryEntry[],
-    pendingConfirmation: row.pendingConfirmation ?? null,
     focus: {
       contextId: row.focusContextId ?? undefined,
       eventId: row.focusEventId ?? undefined,
@@ -125,6 +122,7 @@ export async function createAgentSession(
       title,
       messages,
       toolMemory: (opts?.toolMemory ?? []) as AgentSessionToolMemoryEntry[],
+      pendingConfirmation: null,
       focusContextId: focus.contextId ?? null,
       focusEventId: focus.eventId ?? null,
       focusContextLabel: focus.contextLabel ?? null,
@@ -146,7 +144,6 @@ export async function updateAgentSession(
     title?: string | null;
     messages?: AgentSessionMessage[];
     toolMemory?: AgentToolMemoryEntry[];
-    pendingConfirmation?: AgentPendingConfirmation | null;
     focus?: AgentSessionFocus | null;
   },
 ): Promise<AgentSessionRecord | null> {
@@ -172,16 +169,13 @@ export async function updateAgentSession(
     focus = existing.focus;
   }
 
-  const pendingConfirmation =
-    patch.pendingConfirmation !== undefined ? patch.pendingConfirmation : existing.pendingConfirmation;
-
   const [row] = await db
     .update(agentChatSessionsTable)
     .set({
       title,
       messages: messages.slice(-MAX_STORED_MESSAGES),
       toolMemory: (patch.toolMemory ?? existing.toolMemory) as AgentSessionToolMemoryEntry[],
-      pendingConfirmation,
+      pendingConfirmation: null,
       focusContextId: focus.contextId ?? null,
       focusEventId: focus.eventId ?? null,
       focusContextLabel: focus.contextLabel ?? null,
@@ -211,7 +205,6 @@ export async function appendAgentSessionTurn(
     userMessage: string;
     assistantReply: string;
     toolMemory: AgentToolMemoryEntry[];
-    pendingConfirmation?: AgentPendingConfirmation | null;
     focus?: AgentSessionFocus | null;
     focusCleared?: boolean;
   },
@@ -228,8 +221,6 @@ export async function appendAgentSessionTurn(
   return updateAgentSession(userId, sessionId, {
     messages,
     toolMemory: input.toolMemory,
-    pendingConfirmation:
-      input.pendingConfirmation !== undefined ? input.pendingConfirmation : existing.pendingConfirmation,
     focus: input.focusCleared ? null : input.focus !== undefined ? input.focus : undefined,
     title: existing.title ?? deriveSessionTitle(messages),
   });

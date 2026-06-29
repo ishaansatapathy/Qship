@@ -25,17 +25,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # secrets context is not allowed in job-level `if` — check in a step instead.
-      - name: Check OpenAI API key
+      # Local .env OPENAI_API_KEY != GitHub secret. Add OPENAI_API_KEY under
+      # repo Settings → Secrets and variables → Actions for this workflow.
+      - name: Load OpenAI API key from GitHub secret
         id: openai
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -n "$OPENAI_API_KEY" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$GITHUB_ENV"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::OPENAI_API_KEY secret not set — skipping live LLM eval."
+            echo "::notice::Add OPENAI_API_KEY in GitHub repo Secrets (Settings → Actions) to run live eval."
           fi
 
       - name: Run live agent eval (10 golden turns)
@@ -43,5 +45,4 @@ jobs:
         run: pnpm --filter @repo/services exec vitest run ai/agent-live-eval.test.ts
         env:
           AGENT_LIVE_EVAL: "1"
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: gpt-4o-mini
