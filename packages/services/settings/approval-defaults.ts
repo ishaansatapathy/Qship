@@ -6,7 +6,7 @@ import type { ApprovalDefaults, SettingsService } from "./index";
 
 const FALLBACK: ApprovalDefaults = {
   autoApproveEmail: false,
-  autoApproveAgentEmail: false,
+  autoApproveAgentEmail: true,
   autoApproveCalendar: false,
 };
 

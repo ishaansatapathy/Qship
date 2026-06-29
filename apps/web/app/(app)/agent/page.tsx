@@ -161,27 +161,15 @@ function readAgentDeepLink(searchParams: ReturnType<typeof useSearchParams>): Ag
   };
 }
 
-function agentWelcomeCopy(opts: {
-  agentAutoApprove: boolean;
-  settingsReady: boolean;
-}) {
+function agentWelcomeCopy(opts: { settingsReady: boolean }) {
   if (!opts.settingsReady) {
-    return "Ask about your pipeline, attach a feature, or request a PRD. I confirm with you before big steps. Loading approval settings…";
-  }
-
-  if (opts.agentAutoApprove) {
-    return (
-      <>
-        Attach a feature with 📎 to see its delivery timeline. I&apos;ll explain planned actions and ask before
-        generating PRDs, tasks, or reviews unless you already said go ahead.
-      </>
-    );
+    return "Ask about your pipeline, attach a feature, or run delivery steps. Loading settings…";
   }
 
   return (
     <>
-      Attach a feature with 📎 to see timeline + summary. I&apos;ll ask before PRDs, tasks, reviews, or status changes —
-      nothing ships without your OK.
+      Attach a feature with 📎 for timeline + context. Ask for PRDs, tasks, reviews, or pipeline summaries in plain
+      language — use <strong style={{ color: "var(--qship-text)" }}>Stop</strong> anytime to cancel a long run.
     </>
   );
 }
@@ -238,13 +226,14 @@ function ActionPanel({
           <p style={{ margin: 0, fontSize: 13, color: "var(--qship-muted)", lineHeight: 1.55, textAlign: "center" }}>
             {agentAutoApprove ? (
               <>
-                Agent PRDs, reviews, and ship steps can run immediately when{" "}
-                <strong style={{ color: "var(--qship-text)" }}>Auto-approve</strong> is on in Settings.
+                Agent PRDs, reviews, and ship steps run when you ask in chat. Turn off{" "}
+                <strong style={{ color: "var(--qship-text)" }}>Auto-approve agent</strong> in Settings to require
+                explicit wording per action.
               </>
             ) : (
               <>
-                Sensitive agent actions go to{" "}
-                <strong style={{ color: "var(--qship-text)" }}>Release approvals</strong> for your sign-off first.
+                Sensitive agent actions need a clear request in the same message (e.g. &quot;generate a PRD&quot;) — no
+                second confirmation step.
               </>
             )}
           </p>
@@ -491,8 +480,8 @@ function AgentPageContent() {
 
   const agentBadge = approvalSettingsReady
     ? agentAutoApprove
-      ? "Auto-approve · agent"
-      : "Queue first · agent"
+      ? "Agent"
+      : "Confirm intent · agent"
     : status.isLoading
       ? "Connecting…"
       : status.isError
@@ -912,7 +901,7 @@ function AgentPageContent() {
                   style={{ fontSize: 13, maxWidth: "100%" }}
                 >
                   <Bot size={13} style={{ opacity: 0.6, flexShrink: 0 }} />
-                  <span>{agentWelcomeCopy({ agentAutoApprove, settingsReady: approvalSettingsReady })}</span>
+                  <span>{agentWelcomeCopy({ settingsReady: approvalSettingsReady })}</span>
                 </div>
               ) : null}
 

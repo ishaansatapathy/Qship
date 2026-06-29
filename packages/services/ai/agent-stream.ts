@@ -11,7 +11,7 @@ import { logger } from "@repo/logger";
 import { ServiceError } from "../errors";
 import { isOpenAiConfigured } from "./openai";
 import type { OpenAiConversationMessage } from "./openai-tools";
-import { runOpenAiToolLoop } from "./openai-tools";
+import { runOpenAiToolLoop, MAX_TOOL_ROUNDS } from "./openai-tools";
 import {
   detectInjectionAttempt,
   estimateTokenCount,
@@ -25,7 +25,6 @@ import { createToolMemoryTracker, loadAgentApprovalDefaults, prepareAgentRun, tr
 import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
-import type { AgentPendingConfirmation } from "./agent-pending-confirm";
 import { AgentTrace } from "./agent-trace";
 
 export async function runAgentChatStream(
@@ -36,11 +35,10 @@ export async function runAgentChatStream(
     userEmail?: string;
     focus?: AgentFocus;
     toolMemory?: AgentToolMemoryEntry[];
-    pendingConfirmation?: AgentPendingConfirmation | null;
   },
   onToolCall: (toolName: string) => void,
   onTokenDelta?: (delta: string) => void,
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; traceId?: string },
 ): Promise<AgentChatResult> {
   if (!isOpenAiConfigured()) {
     throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured. Set OPENAI_API_KEY.");
@@ -71,8 +69,7 @@ export async function runAgentChatStream(
 
   const actions: AgentActionCard[] = [];
   const approvalDefaults = await loadAgentApprovalDefaults(tenantId);
-  const trace = new AgentTrace();
-  let pendingConfirmation = input.pendingConfirmation ?? null;
+  const trace = new AgentTrace(opts?.traceId);
 
   const prepared = await prepareAgentRun(tenantId, input, approvalDefaults);
   const memoryTracker = createToolMemoryTracker(prepared, input.toolMemory ?? []);
@@ -82,10 +79,6 @@ export async function runAgentChatStream(
     actions,
     userMessage: input.message.trim(),
     approvalDefaults,
-    pendingConfirmation,
-    onPendingChange: (next) => {
-      pendingConfirmation = next;
-    },
     trace,
   });
 
@@ -117,7 +110,7 @@ export async function runAgentChatStream(
   ];
 
   const { content } = await runOpenAiToolLoop(messages, AGENT_TOOLS, executeTool, {
-    maxRounds: 6,
+    maxRounds: MAX_TOOL_ROUNDS,
     timeoutMs: 120_000,
     onToken: onTokenDelta,
     signal: opts?.signal,
@@ -128,7 +121,6 @@ export async function runAgentChatStream(
     tenantId,
     toolCalls: memoryTracker.getNewEntries().length,
     focusCleared: prepared.focusCleared,
-    hasPendingConfirmation: Boolean(pendingConfirmation),
   });
 
   return {
@@ -139,7 +131,6 @@ export async function runAgentChatStream(
     toolMemory: memoryTracker.getMergedMemory(),
     newToolMemoryEntries: memoryTracker.getNewEntries(),
     walkthroughTaskId: walkthroughTaskIdUpdate,
-    pendingConfirmation,
     traceId: trace.traceId,
     traceSpans: trace.toSpans(),
   };

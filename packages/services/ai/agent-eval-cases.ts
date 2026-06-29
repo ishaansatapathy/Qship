@@ -102,39 +102,6 @@ export const AGENT_CONFIRMATION_EVAL_CASES: AgentConfirmationEvalCase[] = [
     expectAllowed: true,
     pending: null,
   })),
-  {
-    id: "conf-pending-yes-match",
-    tool: "generate_feature_prd",
-    message: "yes go ahead",
-    expectAllowed: true,
-    pending: {
-      id: "pending-1",
-      tool: "generate_feature_prd",
-      args: { id: "feat-1" },
-      label: "Generate PRD (feat-1)",
-      proposedAt: new Date().toISOString(),
-    },
-  },
-  {
-    id: "conf-pending-yes-mismatch",
-    tool: "ship_feature",
-    message: "yes go ahead",
-    expectAllowed: false,
-    pending: {
-      id: "pending-2",
-      tool: "generate_feature_prd",
-      args: { id: "feat-1" },
-      label: "Generate PRD (feat-1)",
-      proposedAt: new Date().toISOString(),
-    },
-  },
-  {
-    id: "conf-pending-yes-without-pending",
-    tool: "run_ai_review",
-    message: "yes",
-    expectAllowed: false,
-    pending: null,
-  },
 ];
 
 export const AGENT_EVAL_CASE_COUNT =

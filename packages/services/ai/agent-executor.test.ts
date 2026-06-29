@@ -35,7 +35,7 @@ describe("agent tool executor confirmation gate", () => {
     const raw = await execute("generate_feature_prd", { id: "feat-1" });
     const parsed = JSON.parse(raw) as { confirmationRequired?: boolean; error?: string };
     expect(parsed.confirmationRequired).toBe(true);
-    expect(parsed.error).toContain("confirmation required");
+    expect(parsed.error).toContain("did not ask");
   });
 
   it("allows generate_feature_prd when user explicitly asks", async () => {
