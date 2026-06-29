@@ -11,11 +11,11 @@ export async function GET() {
         controller.enqueue(encoder.encode(": ping\n\n"));
       }, 30_000);
 
-      // Close after 5 min; client reconnects automatically.
+      // Close before Vercel's 300s function limit; EventSource reconnects automatically.
       setTimeout(() => {
         clearInterval(interval);
         controller.close();
-      }, 5 * 60_000);
+      }, 55_000);
     },
   });
 

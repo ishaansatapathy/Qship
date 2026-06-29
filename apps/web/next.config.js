@@ -34,10 +34,6 @@ const nextConfig = {
         source: "/mcp",
         destination: `${apiInternalUrl}/mcp`,
       },
-      {
-        source: "/sync/events",
-        destination: `${apiInternalUrl}/sync/events`,
-      },
     ];
   },
   async headers() {
