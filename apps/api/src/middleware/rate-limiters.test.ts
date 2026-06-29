@@ -15,12 +15,13 @@ describe("isGlobalRateLimitExempt", () => {
     expect(isGlobalRateLimitExempt("/openapi.json")).toBe(true);
   });
 
-  it("exempts primary tRPC transport from global IP bucket", () => {
+  it("exempts primary tRPC transport and agent SSE from global IP bucket", () => {
     expect(isGlobalRateLimitExempt("/trpc/github.connectionStatus")).toBe(true);
     expect(isGlobalRateLimitExempt("/trpc/feature.list")).toBe(true);
+    expect(isGlobalRateLimitExempt("/agent/stream")).toBe(true);
   });
 
-  it("rate-limits mutating REST and agent surfaces", () => {
+  it("rate-limits mutating REST and MCP surfaces", () => {
     expect(isGlobalRateLimitExempt("/api/feature/requests")).toBe(false);
     expect(isGlobalRateLimitExempt("/mcp")).toBe(false);
   });

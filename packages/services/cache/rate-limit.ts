@@ -1,3 +1,5 @@
+import { logger } from "@repo/logger";
+
 import { cacheIncr, cacheIncrDistributed } from "./kv-store";
 
 export type RateLimitResult = {
@@ -26,11 +28,15 @@ export async function checkDistributedRateLimit(
     count = requiresDistributedRateLimit()
       ? await cacheIncrDistributed(`rl:${key}`, windowMs)
       : await cacheIncr(`rl:${key}`, windowMs);
-  } catch {
+  } catch (error) {
     if (requiresDistributedRateLimit()) {
+      logger.warn("rate_limit.redis_unavailable_allowing_request", {
+        key,
+        message: error instanceof Error ? error.message : String(error),
+      });
       return {
-        allowed: false,
-        remaining: 0,
+        allowed: true,
+        remaining: limit,
         limit,
       };
     }

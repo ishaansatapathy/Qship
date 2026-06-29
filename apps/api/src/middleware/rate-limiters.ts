@@ -69,7 +69,7 @@ export function createRateLimiter(options: RateLimitOptions) {
   };
 }
 
-/** Paths exempt from global rate limiting (health probes, public API docs). */
+/** Paths exempt from global rate limiting (health probes, public API docs, authenticated transports). */
 export function isGlobalRateLimitExempt(path: string): boolean {
   return (
     path === "/health" ||
@@ -79,7 +79,8 @@ export function isGlobalRateLimitExempt(path: string): boolean {
     path === "/docs" ||
     path.startsWith("/docs/") ||
     path === "/trpc" ||
-    path.startsWith("/trpc/")
+    path.startsWith("/trpc/") ||
+    path === "/agent/stream"
   );
 }
 
