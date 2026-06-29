@@ -27,10 +27,6 @@ const nextConfig = {
         destination: `${apiInternalUrl}/auth/:path*`,
       },
       {
-        source: "/agent/stream",
-        destination: `${apiInternalUrl}/agent/stream`,
-      },
-      {
         source: "/mcp",
         destination: `${apiInternalUrl}/mcp`,
       },

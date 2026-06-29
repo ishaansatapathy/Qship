@@ -57,10 +57,12 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
   }
 
   if (!skipInTests()) {
-    const result = await checkDistributedRateLimit(`agent:${user.id}`, 20, 60_000);
+    const result = await checkDistributedRateLimit(`agent:${user.id}`, 40, 60_000);
     res.setHeader("RateLimit-Remaining", String(result.remaining));
     if (!result.allowed) {
-      return res.status(429).json({ error: "Too many agent requests. Please wait." });
+      return res.status(429).json({
+        error: "Too many agent messages this minute. Wait a moment and try again.",
+      });
     }
   }
 
