@@ -3,3 +3,4 @@ export * from "./client";
 export * from "./installation";
 export * from "./webhook";
 export * from "./webhook-outbox";
+export * from "./webhook-pr-review-dispatch";

@@ -4,6 +4,22 @@ import { describe, expect, it } from "vitest";
 
 import { SHIPFLOW_MCP_TOOLS } from "../shipflow-agent-tools";
 import { AGENT_TOOLS } from "../ai/agent-internals";
+import {
+  buildGithubInstallUrl,
+  decodeGithubInstallState,
+  encodeGithubInstallState,
+  syncInstallationRepositoriesForOrg,
+  verifyGithubWebhookSignature,
+} from "./installation";
+import { executeFeatureRelease } from "./release-ship";
+import {
+  dispatchWebhookPullRequestAiReview,
+  enqueueGithubWebhookRetry,
+  extractFeatureIdFromPullRequest,
+  getGithubWebhookOutboxStats,
+  processGithubInstallationWebhook,
+  processGithubPullRequestWebhook,
+} from "./index";
 
 /** Labeled invariants for GitHub integration merge gate (see AI_EVAL.md §3). */
 export const GITHUB_EVAL_INVARIANTS = [
@@ -19,13 +35,17 @@ export const GITHUB_EVAL_INVARIANTS = [
   "agent_mcp_tool_parity",
   "repo_picker_multi_repo",
   "sync_installation_exposed",
+  "webhook_outbox_retry",
+  "async_webhook_pr_review",
+  "repo_auto_sync_on_webhook",
+  "webhook_operator_visibility",
 ] as const;
 
 export const GITHUB_EVAL_INVARIANT_COUNT = GITHUB_EVAL_INVARIANTS.length;
 
 describe("github integration eval harness", () => {
   it(`documents ${GITHUB_EVAL_INVARIANT_COUNT}+ integration invariants`, () => {
-    expect(GITHUB_EVAL_INVARIANT_COUNT).toBeGreaterThanOrEqual(8);
+    expect(GITHUB_EVAL_INVARIANT_COUNT).toBeGreaterThanOrEqual(12);
   });
 
   it("agent and MCP expose the same GitHub tool names", () => {
@@ -45,5 +65,31 @@ describe("github integration eval harness", () => {
     expect(names).toContain("github_connection_status");
     expect(names).toContain("list_github_repositories");
     expect(names).toContain("implement_feature_code");
+  });
+
+  it("runtime exports cover production GitHub integration surface", () => {
+    expect(typeof encodeGithubInstallState).toBe("function");
+    expect(typeof decodeGithubInstallState).toBe("function");
+    expect(typeof verifyGithubWebhookSignature).toBe("function");
+    expect(typeof buildGithubInstallUrl).toBe("function");
+    expect(typeof syncInstallationRepositoriesForOrg).toBe("function");
+    expect(typeof processGithubPullRequestWebhook).toBe("function");
+    expect(typeof processGithubInstallationWebhook).toBe("function");
+    expect(typeof executeFeatureRelease).toBe("function");
+    expect(typeof enqueueGithubWebhookRetry).toBe("function");
+    expect(typeof getGithubWebhookOutboxStats).toBe("function");
+    expect(typeof dispatchWebhookPullRequestAiReview).toBe("function");
+  });
+
+  it("webhook processor returns operator guidance when repo is unsynced", async () => {
+    const webhookSource = readFileSync(path.resolve(__dirname, "./webhook.ts"), "utf8");
+    expect(webhookSource).toContain("operatorAction");
+    expect(webhookSource).toContain("syncInstallationRepositoriesForOrg");
+    expect(webhookSource).toContain("dispatchWebhookPullRequestAiReview");
+  });
+
+  it("release ship module performs squash merge path", () => {
+    const releaseSource = readFileSync(path.resolve(__dirname, "./release-ship.ts"), "utf8");
+    expect(releaseSource).toContain('merge_method: "squash"');
   });
 });

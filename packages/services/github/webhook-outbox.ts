@@ -127,3 +127,8 @@ export async function getGithubWebhookOutboxStats() {
 
   return Object.fromEntries(rows.map((row) => [row.status, row.count]));
 }
+
+/** Test helper — clears outbox rows (integration tests only). */
+export async function clearGithubWebhookOutboxForTests() {
+  await db.delete(githubWebhookOutbox);
+}

@@ -110,6 +110,13 @@ export function buildGithubInstallUrl(params: { organizationId: string; returnTo
  *
  * Also removes repositories that were revoked since the last sync.
  */
+export async function syncInstallationRepositoriesForOrg(
+  organizationId: string,
+  installationId: string,
+): Promise<void> {
+  return syncInstallationRepositories(organizationId, installationId);
+}
+
 async function syncInstallationRepositories(
   organizationId: string,
   installationId: string,

@@ -46,6 +46,14 @@ vi.mock("../feature-request", () => ({
   appendFeatureActivity: (...args: unknown[]) => mockAppend(...args),
 }));
 
+vi.mock("./installation", () => ({
+  syncInstallationRepositoriesForOrg: vi.fn(async () => undefined),
+}));
+
+vi.mock("./webhook-pr-review-dispatch", () => ({
+  dispatchWebhookPullRequestAiReview: vi.fn(async () => ({ queued: true, workflowRunId: "wf-test" })),
+}));
+
 vi.mock("@repo/database", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@repo/database")>();
   return {

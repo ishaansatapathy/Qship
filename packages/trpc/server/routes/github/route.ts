@@ -3,6 +3,7 @@ import {
   buildGithubInstallUrl,
   disconnectGithubForUser,
   getGithubConnectionForUser,
+  getGithubWebhookOutboxStats,
   isGithubAppConfigured,
   listGithubRepositoriesForUser,
   syncGithubInstallationForUser,
@@ -112,4 +113,32 @@ export const githubRouter = router({
       mapServiceError(error);
     }
   }),
+
+  webhookHealth: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/github/webhook-health",
+        tags: ["GitHub"],
+        protect: true,
+        summary: "Webhook outbox queue depth and GitHub App configuration",
+      },
+    })
+    .input(zodUndefinedModel)
+    .output(
+      z.object({
+        configured: z.boolean(),
+        outbox: z.record(z.string(), z.number()),
+      }),
+    )
+    .query(async () => {
+      try {
+        return {
+          configured: isGithubAppConfigured(),
+          outbox: await getGithubWebhookOutboxStats(),
+        };
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
 });

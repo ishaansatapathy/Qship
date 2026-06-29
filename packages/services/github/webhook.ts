@@ -5,7 +5,8 @@ import { logger } from "@repo/logger";
 
 import { appendFeatureActivity, transitionFeatureStatus } from "../feature-request";
 import { invalidateInstallationCache } from "./client";
-import { runPullRequestAiReview } from "./pr-review";
+import { syncInstallationRepositoriesForOrg } from "./installation";
+import { dispatchWebhookPullRequestAiReview } from "./webhook-pr-review-dispatch";
 import { isGithubDeliveryDuplicate } from "./webhook-dedup";
 
 // ── Feature-linking conventions ───────────────────────────────────────────────
@@ -82,19 +83,48 @@ export async function processGithubPullRequestWebhook(
     return { handled: false, reason: "unknown_installation" as const };
   }
 
-  // ── Repo lookup ───────────────────────────────────────────────────────────────
-  const repoRow = await db.query.repositories.findFirst({
+  // ── Repo lookup (auto-sync once when missing) ───────────────────────────────
+  let repoRow = await db.query.repositories.findFirst({
     where: and(
       eq(repositories.organizationId, org.id),
       eq(repositories.githubRepoId, String(repoMeta.id)),
     ),
   });
+
+  let autoSynced = false;
   if (!repoRow) {
-    logger.info("webhook.pull_request.repo_not_synced", {
+    logger.warn("webhook.pull_request.repo_not_synced", {
       fullName: repoMeta.full_name,
       orgId: org.id,
+      githubRepoId: repoMeta.id,
+      action: "auto_sync_attempt",
     });
-    return { handled: false, reason: "repo_not_synced" as const };
+    try {
+      await syncInstallationRepositoriesForOrg(org.id, String(installationId));
+      autoSynced = true;
+      repoRow = await db.query.repositories.findFirst({
+        where: and(
+          eq(repositories.organizationId, org.id),
+          eq(repositories.githubRepoId, String(repoMeta.id)),
+        ),
+      });
+    } catch (error) {
+      logger.error("webhook.pull_request.repo_sync_failed", {
+        fullName: repoMeta.full_name,
+        orgId: org.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (!repoRow) {
+    return {
+      handled: false,
+      reason: "repo_not_synced" as const,
+      autoSynced,
+      operatorAction: "sync_repositories",
+      message: `Repository ${repoMeta.full_name ?? repoMeta.id} is not linked. Sync repositories in Settings → GitHub.`,
+    };
   }
 
   // ── Feature linking ───────────────────────────────────────────────────────────
@@ -209,9 +239,14 @@ export async function processGithubPullRequestWebhook(
       actor: "system",
     });
 
-    // AI review is fire-and-forget; errors are logged but never surface to GitHub.
-    void runPullRequestAiReview(prId).catch((error) => {
-      logger.error("webhook.pull_request.auto_review_failed", {
+    // Queue AI review asynchronously — never block the GitHub webhook response.
+    const headSha = pr.head?.sha ?? "unknown";
+    void dispatchWebhookPullRequestAiReview({
+      pullRequestId: prId,
+      featureId: feature.id,
+      headSha,
+    }).catch((error) => {
+      logger.error("webhook.pull_request.review_queue_failed", {
         featureId: feature.id,
         prId,
         error: error instanceof Error ? error.message : String(error),
@@ -227,6 +262,7 @@ export async function processGithubPullRequestWebhook(
     pullRequestId: prId,
     prNumber: pr.number,
     state,
+    autoSynced: autoSynced || undefined,
   };
 }
 
