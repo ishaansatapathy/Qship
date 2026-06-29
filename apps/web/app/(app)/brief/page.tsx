@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type CSSProperties } from "react";
+import { useMemo } from "react";
 import {
   ArrowRight,
   Bot,
@@ -41,15 +41,6 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: "Rejected",
 };
 
-const STATUS_ACCENT: Record<string, string> = {
-  submitted: "#94a3b8",
-  duplicate_education: "#fbbf24",
-  prd_ready: "#38bdf8",
-  human_review: "#fb923c",
-  fix_needed: "#f87171",
-  ai_review: "#a78bfa",
-};
-
 const STATUS_HINT: Record<string, string> = {
   submitted: "Open & generate PRD",
   prd_ready: "Review PRD",
@@ -59,10 +50,10 @@ const STATUS_HINT: Record<string, string> = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  P0: "#f87171",
-  P1: "#fb923c",
-  P2: "#fbbf24",
-  P3: "#94a3b8",
+  P0: "var(--qship-text)",
+  P1: "var(--qship-accent-bright)",
+  P2: "var(--qship-accent)",
+  P3: "var(--qship-dim)",
 };
 
 function getTriage(feature: FeatureRow) {
@@ -110,18 +101,14 @@ function greetingForHour() {
 function PipelineStat({
   label,
   value,
-  accent,
 }: {
   label: string;
   value: number;
-  accent?: string;
 }) {
   return (
     <div className="qship-req-stat">
       <span className="qship-req-stat-label">{label}</span>
-      <span className="qship-req-stat-value" style={accent ? { color: accent } : undefined}>
-        {value}
-      </span>
+      <span className="qship-req-stat-value">{value}</span>
     </div>
   );
 }
@@ -245,18 +232,10 @@ export default function BriefPage() {
         ) : (
           <div className="qship-req-stats qship-content-reveal" style={{ marginBottom: 20 }}>
             <PipelineStat label="Total" value={summary.data?.total ?? 0} />
-            <PipelineStat label="In delivery" value={summary.data?.inDelivery ?? 0} accent="#38bdf8" />
-            <PipelineStat
-              label="Needs attention"
-              value={needsAttention.length}
-              accent="#fbbf24"
-            />
-            <PipelineStat
-              label="Awaiting approval"
-              value={summary.data?.awaitingApproval ?? 0}
-              accent="#fb923c"
-            />
-            <PipelineStat label="Shipped" value={summary.data?.shipped ?? 0} accent="#34d399" />
+            <PipelineStat label="In delivery" value={summary.data?.inDelivery ?? 0} />
+            <PipelineStat label="Needs attention" value={needsAttention.length} />
+            <PipelineStat label="Awaiting approval" value={summary.data?.awaitingApproval ?? 0} />
+            <PipelineStat label="Shipped" value={summary.data?.shipped ?? 0} />
           </div>
         )}
 
@@ -349,7 +328,6 @@ export default function BriefPage() {
                   <div className="qship-brief-attention-stack">
                     {needsAttention.map((feature: FeatureRow) => {
                       const triage = getTriage(feature);
-                      const accent = STATUS_ACCENT[feature.status] ?? "#71717a";
                       const summary =
                         triage?.impactSummary?.trim() ||
                         feature.rawRequest.trim();
@@ -360,7 +338,6 @@ export default function BriefPage() {
                           href={`/requests?id=${encodeURIComponent(feature.id)}`}
                           className="qship-brief-attention-card"
                           data-status={feature.status}
-                          style={{ "--attention-accent": accent } as CSSProperties}
                         >
                           <div className="qship-brief-attention-card-inner">
                             <div className="qship-brief-attention-card-head">

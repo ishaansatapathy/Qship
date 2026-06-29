@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type CSSProperties } from "react";
+import { useMemo } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Kanban, Loader2, ListTodo } from "lucide-react";
 
@@ -12,11 +12,11 @@ import { StatSkeletonGrid } from "~/components/app/skeleton-panels";
 type TaskRow = RouterOutputs["feature"]["taskBoard"]["tasks"][number];
 
 const COLUMNS = [
-  { id: "backlog", label: "Backlog", accent: "#71717a" },
-  { id: "todo", label: "To do", accent: "#94a3b8" },
-  { id: "in_progress", label: "In progress", accent: "#38bdf8" },
-  { id: "review", label: "Review", accent: "#a78bfa" },
-  { id: "done", label: "Done", accent: "#4ade80" },
+  { id: "backlog", label: "Backlog" },
+  { id: "todo", label: "To do" },
+  { id: "in_progress", label: "In progress" },
+  { id: "review", label: "Review" },
+  { id: "done", label: "Done" },
 ] as const;
 
 function TaskCard({
@@ -120,21 +120,15 @@ export default function TasksPage() {
             </div>
             <div className="qship-req-stat">
               <span className="qship-req-stat-label">In progress</span>
-              <span className="qship-req-stat-value" style={{ color: "#38bdf8" }}>
-                {byColumn.get("in_progress")?.length ?? 0}
-              </span>
+              <span className="qship-req-stat-value">{byColumn.get("in_progress")?.length ?? 0}</span>
             </div>
             <div className="qship-req-stat">
               <span className="qship-req-stat-label">In review</span>
-              <span className="qship-req-stat-value" style={{ color: "#a78bfa" }}>
-                {byColumn.get("review")?.length ?? 0}
-              </span>
+              <span className="qship-req-stat-value">{byColumn.get("review")?.length ?? 0}</span>
             </div>
             <div className="qship-req-stat">
               <span className="qship-req-stat-label">Done</span>
-              <span className="qship-req-stat-value" style={{ color: "#4ade80" }}>
-                {doneCount}
-              </span>
+              <span className="qship-req-stat-value">{doneCount}</span>
             </div>
           </div>
         )}
@@ -165,7 +159,6 @@ export default function TasksPage() {
                   key={col.id}
                   className="qship-kanban-column"
                   data-testid={`kanban-column-${col.id}`}
-                  style={{ "--kanban-accent": col.accent } as CSSProperties}
                 >
                   <header className="qship-kanban-column-head">
                     <span className="qship-kanban-column-dot" />

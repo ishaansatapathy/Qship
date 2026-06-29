@@ -346,7 +346,7 @@ function ActionPanel({
         {(latest.kind === "email_queued" || latest.kind === "calendar_queued") &&
         latest.disposition === "sent" ? (
           <div className="qship-inbox-banner" style={{ marginTop: 4, borderColor: "rgba(52, 211, 153, 0.25)" }}>
-            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: "#34d399" }}>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: "var(--qship-accent-bright)" }}>
               Sent immediately — auto-approve is on for this action type.
             </p>
           </div>

@@ -51,10 +51,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  P0: "#f87171",
-  P1: "#fb923c",
-  P2: "#fbbf24",
-  P3: "#71717a",
+  P0: "var(--qship-text)",
+  P1: "var(--qship-accent-bright)",
+  P2: "var(--qship-accent)",
+  P3: "var(--qship-dim)",
 };
 
 function getTriage(feature: FeatureRow | FeatureDetail) {
@@ -74,18 +74,14 @@ function getTriage(feature: FeatureRow | FeatureDetail) {
 function PipelineStat({
   label,
   value,
-  accent,
 }: {
   label: string;
   value: number;
-  accent?: string;
 }) {
   return (
     <div className="qship-req-stat">
       <span className="qship-req-stat-label">{label}</span>
-      <span className="qship-req-stat-value" style={accent ? { color: accent } : undefined}>
-        {value}
-      </span>
+      <span className="qship-req-stat-value">{value}</span>
     </div>
   );
 }
@@ -679,10 +675,10 @@ function FeatureDetailPanel({
               style={{
                 color:
                   reviewHealth.data.healthLabel === "healthy"
-                    ? "#34d399"
+                    ? "var(--qship-accent-bright)"
                     : reviewHealth.data.healthLabel === "needs_attention"
-                      ? "#fbbf24"
-                      : "#f87171",
+                      ? "var(--qship-text)"
+                      : "var(--qship-muted)",
                 marginLeft: 8,
               }}
             >
@@ -691,7 +687,7 @@ function FeatureDetailPanel({
           </h3>
           <p style={{ fontSize: 13, opacity: 0.8 }}>{reviewHealth.data.summary}</p>
           {reviewHealth.data.cycleTimes?.slaStatus !== "ok" && (
-            <p style={{ fontSize: 12, color: "#fbbf24" }}>
+            <p style={{ fontSize: 12, color: "var(--qship-accent-bright)" }}>
               ⚠ SLA {reviewHealth.data.cycleTimes.slaStatus} ·{" "}
               {reviewHealth.data.cycleTimes.waitingInHumanReviewHours}h waiting for approval
             </p>
@@ -705,12 +701,12 @@ function FeatureDetailPanel({
             <ShieldCheck size={14} /> Review delta (latest vs previous)
           </h3>
           {reviewDelta.data.resolved.length > 0 && (
-            <p style={{ fontSize: 13, color: "#34d399" }}>
+            <p style={{ fontSize: 13, color: "var(--qship-accent-bright)" }}>
               ✓ {reviewDelta.data.resolved.length} issue{reviewDelta.data.resolved.length !== 1 ? "s" : ""} resolved
             </p>
           )}
           {reviewDelta.data.newIssues.length > 0 && (
-            <p style={{ fontSize: 13, color: "#fb923c" }}>
+            <p style={{ fontSize: 13, color: "var(--qship-muted)" }}>
               ✗ {reviewDelta.data.newIssues.length} new issue{reviewDelta.data.newIssues.length !== 1 ? "s" : ""} introduced
             </p>
           )}
@@ -731,10 +727,10 @@ function FeatureDetailPanel({
               style={{
                 color:
                   approvalBriefing.data.approvalRecommendation === "approve"
-                    ? "#34d399"
+                    ? "var(--qship-accent-bright)"
                     : approvalBriefing.data.approvalRecommendation === "hold"
-                      ? "#fbbf24"
-                      : "#f87171",
+                      ? "var(--qship-text)"
+                      : "var(--qship-muted)",
                 marginLeft: 8,
               }}
             >
@@ -805,7 +801,7 @@ function FeatureDetailPanel({
               <div key={review.id} className="qship-review-iteration" data-pass={passed ? "true" : "false"}>
                 <div className="qship-review-iteration-head">
                   <strong>Iteration {review.iteration}</strong>
-                  <span className="qship-req-tag" style={{ color: passed ? "#34d399" : "#fb923c" }}>
+                  <span className="qship-req-tag" style={{ color: passed ? "var(--qship-accent-bright)" : "var(--qship-text)" }}>
                     {passed ? "✓ Passed" : `✗ ${blocking.length} blocking`}
                   </span>
                   <span style={{ fontSize: 11, opacity: 0.5 }}>
@@ -957,14 +953,10 @@ function RequestsPageContent() {
         ) : (
           <div className="qship-req-stats qship-content-reveal">
             <PipelineStat label="Total" value={summary.data?.total ?? 0} />
-            <PipelineStat label="In delivery" value={summary.data?.inDelivery ?? 0} accent="#38bdf8" />
-            <PipelineStat
-              label="Needs attention"
-              value={summary.data?.needsAttention ?? 0}
-              accent="#fbbf24"
-            />
-            <PipelineStat label="Awaiting approval" value={summary.data?.awaitingApproval ?? 0} accent="#fb923c" />
-            <PipelineStat label="Shipped" value={summary.data?.shipped ?? 0} accent="#34d399" />
+            <PipelineStat label="In delivery" value={summary.data?.inDelivery ?? 0} />
+            <PipelineStat label="Needs attention" value={summary.data?.needsAttention ?? 0} />
+            <PipelineStat label="Awaiting approval" value={summary.data?.awaitingApproval ?? 0} />
+            <PipelineStat label="Shipped" value={summary.data?.shipped ?? 0} />
           </div>
         )}
 
