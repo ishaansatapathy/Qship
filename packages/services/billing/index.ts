@@ -128,17 +128,34 @@ export async function confirmRazorpayUpgrade(
   }
 
   const plan = BILLING_PLANS[planTier];
-  await db
-    .update(organizations)
-    .set({
-      planTier,
-      aiReviewCredits: plan.aiReviewCredits,
-      repositoryLimit: plan.repositoryLimit,
-      billingStatus: "active",
-      razorpayCustomerId: input.paymentId,
-      updatedAt: new Date(),
-    })
-    .where(eq(organizations.id, membership.organization.id));
+  const org = membership.organization;
+
+  if (org.razorpayCustomerId === input.paymentId && org.planTier === planTier) {
+    return { planTier, planName: plan.name };
+  }
+
+  try {
+    await db
+      .update(organizations)
+      .set({
+        planTier,
+        aiReviewCredits: plan.aiReviewCredits,
+        repositoryLimit: plan.repositoryLimit,
+        billingStatus: "active",
+        razorpayCustomerId: input.paymentId,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, org.id));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("plan_tier") || message.includes("invalid input value for enum")) {
+      throw new ServiceError(
+        "INTERNAL",
+        "Payment received but plan activation failed — run database migration 0052_plan_tier_test, then retry.",
+      );
+    }
+    throw error;
+  }
 
   return { planTier, planName: plan.name };
 }
