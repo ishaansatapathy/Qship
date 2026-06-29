@@ -317,7 +317,7 @@ export function QshipCta() {
         </a>
 
         <p style={{ marginTop: 28, fontSize: 13, color: "var(--qship-dim)" }}>
-          Free vs paid plans · AI review credits · repo limits via Razorpay
+          Free vs paid plans · AI review credits via Razorpay
         </p>
       </div>
     </section>

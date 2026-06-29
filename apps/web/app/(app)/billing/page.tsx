@@ -156,10 +156,6 @@ export default function BillingPage() {
             <span className="qship-req-stat-value">{data.aiReviewCredits}</span>
           </div>
           <div className="qship-req-stat">
-            <span className="qship-req-stat-label">Repo limit</span>
-            <span className="qship-req-stat-value">{data.repositoryLimit}</span>
-          </div>
-          <div className="qship-req-stat">
             <span className="qship-req-stat-label">Status</span>
             <span className="qship-req-stat-value">{data.billingStatus}</span>
           </div>
@@ -172,10 +168,6 @@ export default function BillingPage() {
           </div>
           <div className="qship-req-stat">
             <span className="qship-req-stat-label">AI credits</span>
-            <span className="qship-req-stat-value">—</span>
-          </div>
-          <div className="qship-req-stat">
-            <span className="qship-req-stat-label">Repo limit</span>
             <span className="qship-req-stat-value">—</span>
           </div>
           <div className="qship-req-stat">
