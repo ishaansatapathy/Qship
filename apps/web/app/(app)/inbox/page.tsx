@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -21,7 +21,6 @@ const CHANNELS: {
   key: ChannelKey;
   label: string;
   icon: typeof Mail;
-  accent: string;
   desc: string;
   sample?: {
     title: string;
@@ -34,7 +33,6 @@ const CHANNELS: {
     key: "email",
     label: "Email",
     icon: Mail,
-    accent: "#38bdf8",
     desc: "Support emails land here — triage + duplicate check run automatically.",
     sample: {
       title: "CSV export for compliance audit",
@@ -48,7 +46,6 @@ const CHANNELS: {
     key: "support_ticket",
     label: "Support tickets",
     icon: Headphones,
-    accent: "#fb923c",
     desc: "Zendesk / Intercom tickets sync into the same pipeline.",
     sample: {
       title: "Bulk invite admins from CSV",
@@ -62,7 +59,6 @@ const CHANNELS: {
     key: "customer_call",
     label: "Customer calls",
     icon: Phone,
-    accent: "#a78bfa",
     desc: "Call notes transcribed and ingested as structured requests.",
     sample: {
       title: "Slack alert when PR merges",
@@ -76,7 +72,6 @@ const CHANNELS: {
     key: "manual",
     label: "In-app",
     icon: Rocket,
-    accent: "#94a3b8",
     desc: "Employees submit from Feature Requests — already working.",
   },
 ];
@@ -144,9 +139,11 @@ export default function InboxPage() {
   return (
     <div className="qship-app-page">
       <div className="qship-brief-page">
-        <header className="qship-brief-header">
+        <header className="qship-brief-header qship-intake-header">
           <div className="qship-brief-header-main">
-            <Mail size={18} style={{ opacity: 0.75 }} />
+            <div className="qship-intake-icon-wrap">
+              <Mail size={18} />
+            </div>
             <div>
               <h1>Intake hub</h1>
               <p>Simulate email, support, and call intake — or connect webhooks in production.</p>
@@ -158,28 +155,22 @@ export default function InboxPage() {
           </Link>
         </header>
 
-        <div className="qship-req-stats qship-content-reveal" style={{ marginBottom: 20 }}>
+        <div className="qship-req-stats qship-intake-stats qship-content-reveal">
           <div className="qship-req-stat">
             <span className="qship-req-stat-label">Total intake</span>
             <span className="qship-req-stat-value">{counts.total}</span>
           </div>
           <div className="qship-req-stat">
             <span className="qship-req-stat-label">Email</span>
-            <span className="qship-req-stat-value" style={{ color: "#38bdf8" }}>
-              {counts.email}
-            </span>
+            <span className="qship-req-stat-value">{counts.email}</span>
           </div>
           <div className="qship-req-stat">
             <span className="qship-req-stat-label">Support</span>
-            <span className="qship-req-stat-value" style={{ color: "#fb923c" }}>
-              {counts.support_ticket}
-            </span>
+            <span className="qship-req-stat-value">{counts.support_ticket}</span>
           </div>
           <div className="qship-req-stat">
             <span className="qship-req-stat-label">Calls</span>
-            <span className="qship-req-stat-value" style={{ color: "#a78bfa" }}>
-              {counts.customer_call}
-            </span>
+            <span className="qship-req-stat-value">{counts.customer_call}</span>
           </div>
           <div className="qship-req-stat">
             <span className="qship-req-stat-label">In-app</span>
@@ -187,15 +178,13 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <section className="qship-brief-section qship-content-reveal">
+        <section className="qship-brief-section qship-intake-section qship-content-reveal">
           <div className="qship-brief-section-head">
-            <Sparkles size={14} />
+            <Sparkles size={14} style={{ opacity: 0.55 }} />
             <h2>Channels</h2>
-            <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--qship-dim)" }}>
-              Click Simulate to test
-            </span>
+            <span className="qship-intake-section-hint">Simulate to test intake</span>
           </div>
-          <div className="qship-brief-section-body qship-intake-channels">
+          <div className="qship-brief-section-body qship-intake-channel-list">
             {CHANNELS.map((channel) => {
               const isActive = active === channel.key;
               const isExternal = channel.key !== "manual";
@@ -203,29 +192,33 @@ export default function InboxPage() {
               return (
                 <div
                   key={channel.key}
-                  className="qship-brief-attention-card qship-intake-channel"
+                  className="qship-intake-channel"
                   data-active={isActive}
-                  style={{ "--attention-accent": channel.accent } as CSSProperties}
                 >
-                  <div className="qship-brief-attention-card-inner">
-                    <div className="qship-brief-attention-card-head">
-                      <channel.icon size={14} />
-                      <strong>{channel.label}</strong>
-                      {isExternal ? (
-                        <button
-                          type="button"
-                          className="qship-btn-ghost qship-intake-sim-btn"
-                          onClick={() => openChannel(channel.key)}
-                        >
-                          Simulate
-                        </button>
-                      ) : (
-                        <Link href="/requests" className="qship-btn-ghost qship-intake-sim-btn">
-                          Open requests
-                        </Link>
-                      )}
+                  <div className="qship-intake-channel-row">
+                    <div className="qship-intake-channel-icon" aria-hidden>
+                      <channel.icon size={17} strokeWidth={1.75} />
                     </div>
-                    <p className="qship-brief-attention-desc">{channel.desc}</p>
+                    <div className="qship-intake-channel-copy">
+                      <div className="qship-intake-channel-title-row">
+                        <strong>{channel.label}</strong>
+                        {isExternal ? (
+                          <button
+                            type="button"
+                            className="qship-intake-action"
+                            onClick={() => openChannel(channel.key)}
+                          >
+                            Simulate
+                          </button>
+                        ) : (
+                          <Link href="/requests" className="qship-intake-action">
+                            Open requests
+                          </Link>
+                        )}
+                      </div>
+                      <p className="qship-intake-channel-desc">{channel.desc}</p>
+                    </div>
+                  </div>
 
                     {isActive && isExternal ? (
                       <div className="qship-intake-form">
@@ -271,7 +264,6 @@ export default function InboxPage() {
                         </div>
                       </div>
                     ) : null}
-                  </div>
                 </div>
               );
             })}
@@ -297,7 +289,6 @@ export default function InboxPage() {
                     key={feature.id}
                     href={`/requests?id=${encodeURIComponent(feature.id)}`}
                     className="qship-brief-attention-card"
-                    style={{ "--attention-accent": "#38bdf8" } as CSSProperties}
                   >
                     <div className="qship-brief-attention-card-inner">
                       <div className="qship-brief-attention-card-head">

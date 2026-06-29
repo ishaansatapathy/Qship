@@ -18,12 +18,10 @@ function StatCard({
   label,
   value,
   icon: Icon,
-  accent,
 }: {
   label: string;
   value: number;
   icon: React.ElementType;
-  accent?: string;
 }) {
   return (
     <div
@@ -37,7 +35,7 @@ function StatCard({
         flex: "1 1 130px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 7, color: accent ?? "var(--qship-muted)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--qship-accent-bright)" }}>
         <Icon size={13} />
         <span style={{ fontSize: 11, fontFamily: "var(--qship-mono)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
           {label}
@@ -73,10 +71,10 @@ export default function AnalyticsPage() {
         ) : (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <StatCard label="Total requests" value={data?.total ?? 0} icon={Rocket} />
-            <StatCard label="In delivery" value={data?.inDelivery ?? 0} icon={Sparkles} accent="#38bdf8" />
-            <StatCard label="Needs attention" value={data?.needsAttention ?? 0} icon={BarChart2} accent="#fbbf24" />
-            <StatCard label="Awaiting approval" value={data?.awaitingApproval ?? 0} icon={CheckCircle2} accent="#fb923c" />
-            <StatCard label="Shipped" value={data?.shipped ?? 0} icon={CheckCircle2} accent="#34d399" />
+            <StatCard label="In delivery" value={data?.inDelivery ?? 0} icon={Sparkles} />
+            <StatCard label="Needs attention" value={data?.needsAttention ?? 0} icon={BarChart2} />
+            <StatCard label="Awaiting approval" value={data?.awaitingApproval ?? 0} icon={CheckCircle2} />
+            <StatCard label="Shipped" value={data?.shipped ?? 0} icon={CheckCircle2} />
           </div>
         )}
 
@@ -125,12 +123,12 @@ export default function AnalyticsPage() {
               <AreaChart data={timeline} margin={{ top: 4, right: 4, bottom: 0, left: -28 }}>
                 <defs>
                   <linearGradient id="colorQueued" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ff6b6f" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#ff6b6f" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#0066ff" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#0066ff" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorApproved" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#34d399" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#4d94ff" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#4d94ff" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
@@ -161,7 +159,7 @@ export default function AnalyticsPage() {
                   type="monotone"
                   dataKey="updates"
                   name="Pipeline updates"
-                  stroke="#ff6b6f"
+                  stroke="#0066ff"
                   strokeWidth={1.5}
                   fill="url(#colorQueued)"
                   dot={false}
@@ -170,7 +168,7 @@ export default function AnalyticsPage() {
                   type="monotone"
                   dataKey="shipped"
                   name="Shipped / approved"
-                  stroke="#34d399"
+                  stroke="#4d94ff"
                   strokeWidth={1.5}
                   fill="url(#colorApproved)"
                   dot={false}
