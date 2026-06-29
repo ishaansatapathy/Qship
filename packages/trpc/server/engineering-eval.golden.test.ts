@@ -154,10 +154,11 @@ describe("engineering quality eval harness", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("exempts public API docs from global rate limiting", () => {
+  it("exempts public API docs and tRPC transport from global rate limiting", () => {
     const limiter = readRepo("apps/api/src/middleware/rate-limiters.ts");
     expect(limiter).toContain("isGlobalRateLimitExempt");
     expect(limiter).toContain('path === "/openapi.json"');
     expect(limiter).toContain('path.startsWith("/docs/")');
+    expect(limiter).toContain('path.startsWith("/trpc/")');
   });
 });

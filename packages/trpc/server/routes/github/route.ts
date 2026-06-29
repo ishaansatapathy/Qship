@@ -30,7 +30,17 @@ export const githubRouter = router({
     .input(zodUndefinedModel)
     .output(githubConnectionOutput).query(async ({ ctx }) => {
     try {
-      return await getGithubConnectionForUser(ctx.user.id);
+      const result = await getGithubConnectionForUser(ctx.user.id);
+      return githubConnectionOutput.parse({
+        connected: Boolean(result.connected),
+        configured: Boolean(result.configured),
+        accountLogin: result.accountLogin ?? null,
+        installationId:
+          result.installationId != null && result.installationId !== ""
+            ? String(result.installationId)
+            : null,
+        repositoryCount: Number(result.repositoryCount ?? 0),
+      });
     } catch (error) {
       mapServiceError(error);
     }

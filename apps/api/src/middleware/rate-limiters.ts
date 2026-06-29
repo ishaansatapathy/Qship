@@ -39,9 +39,22 @@ export function createRateLimiter(options: RateLimitOptions) {
 
       if (!result.allowed) {
         res.setHeader("Retry-After", String(Math.ceil(options.windowMs / 1000)));
+        const message = "Rate limit exceeded. Please retry shortly.";
+        if (req.path === "/trpc" || req.path.startsWith("/trpc/")) {
+          res.status(429).json({
+            error: {
+              json: {
+                message,
+                code: -32029,
+                data: { code: "TOO_MANY_REQUESTS", httpStatus: 429 },
+              },
+            },
+          });
+          return;
+        }
         res.status(429).json({
           error: "Too many requests",
-          message: "Rate limit exceeded. Please retry shortly.",
+          message,
         });
         return;
       }
@@ -64,7 +77,9 @@ export function isGlobalRateLimitExempt(path: string): boolean {
     path === "/" ||
     path === "/openapi.json" ||
     path === "/docs" ||
-    path.startsWith("/docs/")
+    path.startsWith("/docs/") ||
+    path === "/trpc" ||
+    path.startsWith("/trpc/")
   );
 }
 

@@ -15,8 +15,12 @@ describe("isGlobalRateLimitExempt", () => {
     expect(isGlobalRateLimitExempt("/openapi.json")).toBe(true);
   });
 
-  it("rate-limits mutating API traffic", () => {
-    expect(isGlobalRateLimitExempt("/trpc/feature.approve")).toBe(false);
+  it("exempts primary tRPC transport from global IP bucket", () => {
+    expect(isGlobalRateLimitExempt("/trpc/github.connectionStatus")).toBe(true);
+    expect(isGlobalRateLimitExempt("/trpc/feature.list")).toBe(true);
+  });
+
+  it("rate-limits mutating REST and agent surfaces", () => {
     expect(isGlobalRateLimitExempt("/api/feature/requests")).toBe(false);
     expect(isGlobalRateLimitExempt("/mcp")).toBe(false);
   });
