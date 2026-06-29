@@ -1,15 +1,15 @@
 .qship-page {
   --qship-bg: #000000;
-  --qship-surface: #050508;
-  --qship-surface-2: rgba(255, 255, 255, 0.05);
-  --qship-surface-raised: #0a0a10;
-  --qship-line: rgba(100, 140, 200, 0.22);
-  --qship-border: rgba(100, 140, 200, 0.22);
-  --qship-line-strong: rgba(120, 160, 220, 0.32);
-  --qship-line-soft: rgba(80, 120, 180, 0.12);
-  --qship-text: #f5f7ff;
-  --qship-muted: #94a3b8;
-  --qship-dim: #64748b;
+  --qship-surface: #050505;
+  --qship-surface-2: rgba(255, 255, 255, 0.06);
+  --qship-surface-raised: #0f0f10;
+  --qship-line: rgba(168, 174, 186, 0.32);
+  --qship-border: rgba(168, 174, 186, 0.32);
+  --qship-line-strong: rgba(192, 198, 210, 0.45);
+  --qship-line-soft: rgba(148, 156, 170, 0.16);
+  --qship-text: #f5f5f7;
+  --qship-muted: #9ca3af;
+  --qship-dim: #6b7280;
   --qship-accent: #0066ff;
   --qship-accent-bright: #4d94ff;
   --qship-accent-soft: rgba(0, 102, 255, 0.12);
@@ -114,10 +114,17 @@
 
 .qship-grid-bg {
   background-image:
-    linear-gradient(rgba(0, 102, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 102, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(var(--qship-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--qship-line-soft) 1px, transparent 1px);
   background-size: 72px 72px;
   mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 88%);
+}
+
+.qship-grid-floor {
+  background-image:
+    linear-gradient(var(--qship-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--qship-line-soft) 1px, transparent 1px);
+  background-size: 72px 72px;
 }
 
 .qship-btn-primary {
@@ -210,10 +217,9 @@
   inset: 0 0 auto;
   z-index: 50;
   height: 56px;
-  background: rgba(0, 0, 0, 0.82);
+  background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(0, 102, 255, 0.16);
-  box-shadow: 0 1px 0 rgba(0, 102, 255, 0.06);
+  border-bottom: 1px solid var(--qship-line-strong);
 }
 
 .qship-nav-inner {
@@ -427,22 +433,10 @@
   overflow: hidden;
 }
 
-.qship-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 90% 55% at 50% -15%, rgba(0, 102, 255, 0.2), transparent 62%),
-    radial-gradient(ellipse 45% 35% at 85% 15%, rgba(0, 102, 255, 0.08), transparent 55%),
-    radial-gradient(ellipse 40% 30% at 10% 25%, rgba(0, 102, 255, 0.06), transparent 50%);
-}
-
 .qship-hero-body {
   padding: 88px 32px 72px;
   text-align: center;
   position: relative;
-  z-index: 1;
 }
 
 .qship-headline {
@@ -458,13 +452,19 @@
 /* Landing hero — local hero.ttf in public/fonts/ (gitignored) */
 .qship-headline[data-hero-font="minecraft"] {
   font-weight: 400;
-  font-size: clamp(2.2rem, 5.5vw, 3.75rem);
-  letter-spacing: 0.04em;
+  /* Integer px sizes keep pixel glyphs crisp (o vs c stay readable) */
+  font-size: clamp(40px, 6vw, 56px);
+  letter-spacing: 0.05em;
   line-height: 1.15;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  text-rendering: geometricPrecision;
 }
 
 .qship-headline-accent {
   color: var(--qship-accent-bright);
+  letter-spacing: 0.07em;
+  font-size: 1.125em;
 }
 
 .qship-cta-wrap {

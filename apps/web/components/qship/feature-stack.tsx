@@ -160,8 +160,6 @@ export function FeatureStack() {
 
   return (
     <section className="qship-stack-section qship-section">
-      <div className="qship-grid-bg" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
-      
       <div className="qship-frame" style={{ position: "relative", padding: "80px 0" }}>
         <div style={{ textAlign: "center", padding: "0 32px 52px" }}>
           <span className="qship-eyebrow">The pipeline</span>

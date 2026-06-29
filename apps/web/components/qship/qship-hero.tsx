@@ -339,10 +339,7 @@ export function QshipHero() {
   return (
 
     <section className="qship-hero">
-
       <div className="qship-grid-bg" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
-
-
 
       <div className="qship-shell qship-section">
 
