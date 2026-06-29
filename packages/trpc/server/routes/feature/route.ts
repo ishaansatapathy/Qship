@@ -47,7 +47,7 @@ import {
   intakeSummaryOutput,
   cancelWorkflowOutput,
 } from "../../openapi-outputs";
-import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
+import { mapServiceError, protectedProcedure, mutationProcedure, publicProcedure, router } from "../../trpc";
 
 export const featureRouter = router({
   listStatuses: publicProcedure
@@ -222,7 +222,7 @@ export const featureRouter = router({
     }
   }),
 
-  create: protectedProcedure
+  create: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -274,7 +274,7 @@ export const featureRouter = router({
       }
     }),
 
-  intakeFromChannel: protectedProcedure
+  intakeFromChannel: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -324,7 +324,7 @@ export const featureRouter = router({
       }
     }),
 
-  generatePrd: protectedProcedure
+  generatePrd: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -356,7 +356,7 @@ export const featureRouter = router({
       }
     }),
 
-  cancelWorkflow: protectedProcedure
+  cancelWorkflow: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -386,7 +386,7 @@ export const featureRouter = router({
       }
     }),
 
-  updateStatus: protectedProcedure
+  updateStatus: mutationProcedure
     .meta({
       openapi: {
         method: "PATCH",
@@ -415,7 +415,7 @@ export const featureRouter = router({
       }
     }),
 
-  generateTasks: protectedProcedure
+  generateTasks: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -435,7 +435,7 @@ export const featureRouter = router({
       }
     }),
 
-  implementCode: protectedProcedure
+  implementCode: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -507,7 +507,7 @@ export const featureRouter = router({
       }
     }),
 
-  runAiReview: protectedProcedure
+  runAiReview: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -527,7 +527,7 @@ export const featureRouter = router({
       }
     }),
 
-  createPullRequest: protectedProcedure
+  createPullRequest: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -556,7 +556,7 @@ export const featureRouter = router({
       }
     }),
 
-  approve: protectedProcedure
+  approve: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -582,7 +582,7 @@ export const featureRouter = router({
       }
     }),
 
-  reject: protectedProcedure
+  reject: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -633,7 +633,7 @@ export const featureRouter = router({
       }
     }),
 
-  ship: protectedProcedure
+  ship: mutationProcedure
     .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -664,7 +664,7 @@ export const featureRouter = router({
       }
     }),
 
-  addClarification: protectedProcedure
+  addClarification: mutationProcedure
     .meta({
       openapi: {
         method: "POST",
@@ -728,7 +728,7 @@ export const featureRouter = router({
       }
     }),
 
-  updateTaskStatus: protectedProcedure
+  updateTaskStatus: mutationProcedure
     .meta({
       openapi: {
         method: "PATCH",
@@ -890,7 +890,7 @@ export const featureRouter = router({
       }
     }),
 
-  resolveIssue: protectedProcedure
+  resolveIssue: mutationProcedure
     .meta({
       openapi: {
         method: "PATCH",
@@ -954,7 +954,7 @@ export const featureRouter = router({
       }
     }),
 
-  analyzeChangeRequest: protectedProcedure
+  analyzeChangeRequest: mutationProcedure
     .meta({
       openapi: {
         method: "POST",

@@ -50,7 +50,7 @@ async function ensureDemoUser() {
   if (existing) {
     await db
       .update(users)
-      .set({ autoApproveAgentEmail: true, updatedAt: new Date() })
+      .set({ autoApproveAgentEmail: true, emailVerified: true, updatedAt: new Date() })
       .where(eq(users.id, existing.id));
     console.log(`[seed] Demo user exists: ${DEMO_EMAIL}`);
     return existing;
@@ -70,7 +70,7 @@ async function ensureDemoUser() {
 
   await db
     .update(users)
-    .set({ autoApproveAgentEmail: true, updatedAt: new Date() })
+    .set({ autoApproveAgentEmail: true, emailVerified: true, updatedAt: new Date() })
     .where(eq(users.id, result.user.id));
 
   console.log(`[seed] Demo user created: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);

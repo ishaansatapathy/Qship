@@ -15,6 +15,7 @@ import {
 import type * as FeatureRequestModule from "./feature-request";
 import { transitionFeatureStatus } from "./feature-request";
 import { persistAiReview, recordHumanApproval, markFeatureShipped } from "./review";
+import { buildPassingAiReview } from "./test-fixtures/ai-review";
 import type { FeatureStatus } from "./workflow";
 
 vi.mock("./feature-request", async (importOriginal) => {
@@ -50,13 +51,13 @@ vi.mock("./feature-request", async (importOriginal) => {
 
     return {
       ...row,
-      prd: null,
+      prd: undefined,
       tasks: [],
       clarifications: [],
       pullRequests: prs,
       aiReviews: reviews,
       humanApprovals: approvals,
-    } as Awaited<ReturnType<typeof actual.getFeatureRequest>>;
+    } as unknown as Awaited<ReturnType<typeof actual.getFeatureRequest>>;
   }
 
   async function updateFeatureMetadataLite(
@@ -285,12 +286,9 @@ describe("core workflow db e2e", () => {
     const review = await persistAiReview({
       featureRequestId: featureId,
       pullRequestId: prId,
-      review: {
-        pass: true,
+      review: buildPassingAiReview({
         summary: "All acceptance criteria met in E2E test.",
-        findings: [],
-        issues: [],
-      },
+      }),
     });
     expect(review.nextStatus).toBe("human_review");
 

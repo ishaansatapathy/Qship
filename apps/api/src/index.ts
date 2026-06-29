@@ -45,9 +45,14 @@ async function bootstrap() {
   logger.info(`http server is running on 0.0.0.0:${PORT}`);
 
   try {
-    const { runMigrations } = await import("./migrate");
-    await runMigrations();
-    logger.info("Database schema patches applied");
+    const { shouldRunMigrationsOnBoot } = await import("@repo/services/runtime-env");
+    if (shouldRunMigrationsOnBoot()) {
+      const { runMigrations } = await import("./migrate");
+      await runMigrations();
+      logger.info("Database schema patches applied");
+    } else {
+      logger.info("Skipping boot migrations (RUN_MIGRATIONS_ON_BOOT=false)");
+    }
   } catch (err) {
     logger.error("Database migration failed", { err });
     const nodeEnv = process.env.NODE_ENV ?? "development";
@@ -69,10 +74,13 @@ async function bootstrap() {
 
     if (process.env.DEMO_LOGIN_ENABLED === "true") {
       try {
-        const { ensureDemoWorkflowReady } = await import("@repo/services/demo-bootstrap");
-        const { backfilled } = await ensureDemoWorkflowReady();
-        if (backfilled > 0) {
-          logger.info("Demo workflow bootstrap applied", { backfilled });
+        const { isDemoModeEnabled } = await import("@repo/services/runtime-env");
+        if (isDemoModeEnabled()) {
+          const { ensureDemoWorkflowReady } = await import("@repo/services/demo-bootstrap");
+          const { backfilled } = await ensureDemoWorkflowReady();
+          if (backfilled > 0) {
+            logger.info("Demo workflow bootstrap applied", { backfilled });
+          }
         }
       } catch (err) {
         logger.warn("Demo workflow bootstrap skipped", {
@@ -80,6 +88,17 @@ async function bootstrap() {
         });
       }
     }
+
+    const outboxInterval = setInterval(() => {
+      void import("@repo/services/github/webhook-outbox")
+        .then(({ processGithubWebhookOutbox }) => processGithubWebhookOutbox(20))
+        .catch((err) => {
+          logger.warn("webhook.outbox.processor_error", {
+            message: err instanceof Error ? err.message : String(err),
+          });
+        });
+    }, 60_000);
+    outboxInterval.unref();
   } catch (err) {
     logger.error("Failed to load Express application", {
       err,

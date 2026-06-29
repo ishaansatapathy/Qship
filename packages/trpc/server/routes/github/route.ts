@@ -13,7 +13,7 @@ import {
   githubConnectionOutput,
   githubRepoListOutput,
 } from "../../openapi-outputs";
-import { mapServiceError, protectedProcedure, router } from "../../trpc";
+import { mapServiceError, protectedProcedure, mutationProcedure, router } from "../../trpc";
 
 export const githubRouter = router({
   connectionStatus: protectedProcedure
@@ -97,7 +97,7 @@ export const githubRouter = router({
     }
   }),
 
-  disconnect: protectedProcedure.input(zodUndefinedModel).mutation(async ({ ctx }) => {
+  disconnect: mutationProcedure.input(zodUndefinedModel).mutation(async ({ ctx }) => {
     try {
       return await disconnectGithubForUser(ctx.user.id);
     } catch (error) {
@@ -105,7 +105,7 @@ export const githubRouter = router({
     }
   }),
 
-  syncInstallation: protectedProcedure.input(zodUndefinedModel).mutation(async ({ ctx }) => {
+  syncInstallation: mutationProcedure.input(zodUndefinedModel).mutation(async ({ ctx }) => {
     try {
       return await syncGithubInstallationForUser(ctx.user.id);
     } catch (error) {

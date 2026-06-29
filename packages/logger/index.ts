@@ -4,7 +4,7 @@ import { env } from "./env";
 type LoggerLevel = "error" | "info" | "debug";
 
 const level: LoggerLevel =
-  env.LOGGER_LEVEL ?? (env.NODE_ENV === "development" ? "debug" : "error");
+  env.LOGGER_LEVEL ?? (env.NODE_ENV === "development" ? "debug" : "info");
 
 const isDevelopment = env.NODE_ENV === "development";
 

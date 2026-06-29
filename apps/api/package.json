@@ -7,7 +7,8 @@
     "dev": "dotenv -e ../../.env -- tsx watch --include ../../packages/trpc/** ./src/index.ts",
     "build": "tsup && node scripts/vercel-postbuild.mjs",
     "lint": "eslint src --max-warnings 0",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
@@ -20,7 +21,8 @@
     "dotenv-cli": "^11.0.0",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "@repo/database": "workspace:*",

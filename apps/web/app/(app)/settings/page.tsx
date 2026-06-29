@@ -153,14 +153,6 @@ export default function SettingsPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const toggle2FA = trpc.auth.toggle2FA.useMutation({
-    onSuccess: async (res) => {
-      await utils.auth.me.invalidate();
-      toast.success(res.message);
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
   const updateApproval = trpc.settings.updateApprovalDefaults.useMutation({
     onSuccess: async () => {
       await utils.settings.getApprovalDefaults.invalidate();
@@ -371,16 +363,16 @@ export default function SettingsPage() {
           </span>
           <div className="qship-set-row-meta">
             <h4>Two-factor authentication</h4>
-            <p>{user.twoFactorEnabled ? "Enabled — a code is required at sign-in." : "Off — enable for an extra layer."}</p>
+            <p>{user.twoFactorEnabled ? "Enabled — a code is required at sign-in." : "Off — coming in a future release."}</p>
           </div>
           <button
             type="button"
-            className={user.twoFactorEnabled ? "qship-btn-ghost" : "qship-btn-accent"}
-            disabled={toggle2FA.isPending}
-            onClick={() => toggle2FA.mutate({ enabled: !user.twoFactorEnabled })}
-            style={{ fontSize: 13, padding: "8px 16px" }}
+            className="qship-btn-ghost"
+            disabled
+            title="Two-factor authentication is not available yet"
+            style={{ fontSize: 13, padding: "8px 16px", opacity: 0.6 }}
           >
-            {toggle2FA.isPending ? "Updating…" : user.twoFactorEnabled ? "Disable" : "Enable"}
+            Coming soon
           </button>
         </div>
       </section>

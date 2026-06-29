@@ -10,7 +10,8 @@ import {
 } from "@repo/services/ai/agent-sessions";
 import { isOpenAiConfigured } from "@repo/services/ai/openai";
 import { agentStatusOutput } from "../../openapi-outputs";
-import { mapServiceError, protectedProcedure, router } from "../../trpc";
+
+import { mapServiceError, protectedProcedure, mutationProcedure, router } from "../../trpc";
 
 export const agentRouter = router({
   status: protectedProcedure
@@ -30,7 +31,7 @@ export const agentRouter = router({
     ready: isAgentConfigured(),
   })),
 
-  chat: protectedProcedure
+  chat: mutationProcedure
     .input(
       z.object({
         message: z.string().min(1).max(4000),
@@ -151,7 +152,7 @@ export const agentRouter = router({
       }
     }),
 
-  createSession: protectedProcedure
+  createSession: mutationProcedure
     .input(
       z
         .object({
@@ -185,7 +186,7 @@ export const agentRouter = router({
       }
     }),
 
-  updateSession: protectedProcedure
+  updateSession: mutationProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -223,7 +224,7 @@ export const agentRouter = router({
       }
     }),
 
-  deleteSession: protectedProcedure
+  deleteSession: mutationProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       try {

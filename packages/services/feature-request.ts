@@ -8,6 +8,7 @@ import {
   type PrdContent,
 } from "@repo/database/schema";
 
+import type { DbTransaction } from "./db/transaction";
 import { ServiceError } from "./errors";
 import type { FeatureTriage } from "./feature-ai";
 import { getMembershipForUser } from "./organization";
@@ -79,6 +80,29 @@ export async function transitionFeatureStatus(
     return row;
   }
   return guardedUpdateFeatureStatus(featureRequestId, from, to);
+}
+
+/** Atomic FSM transition inside an existing transaction. */
+export async function guardedUpdateFeatureStatusInTx(
+  tx: DbTransaction,
+  featureRequestId: string,
+  from: FeatureStatus,
+  to: FeatureStatus,
+) {
+  const allowed = ALLOWED_TRANSITIONS[from] ?? [];
+  if (!allowed.includes(to)) {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Cannot transition feature from "${from}" to "${to}". Allowed: ${allowed.join(", ") || "none"}.`,
+    );
+  }
+  const [row] = await tx
+    .update(featureRequests)
+    .set({ status: to, updatedAt: new Date() })
+    .where(eq(featureRequests.id, featureRequestId))
+    .returning();
+  if (!row) throw new ServiceError("NOT_FOUND", "Feature request not found");
+  return row;
 }
 
 export async function getWorkspaceProjectForUser(userId: string) {

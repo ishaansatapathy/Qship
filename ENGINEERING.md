@@ -43,7 +43,7 @@ auth → database
 | Layer | Location | Responsibility |
 |-------|----------|----------------|
 | Routers | `packages/trpc/server/routes/*/route.ts` | Input validation (Zod), auth guards, OpenAPI meta |
-| Procedures | `packages/trpc/server/trpc.ts` | `publicProcedure`, `protectedProcedure`, `verifiedProcedure` |
+| Procedures | `packages/trpc/server/trpc.ts` | `publicProcedure`, `protectedProcedure`, `verifiedProcedure`, `mutationProcedure` (alias — required on all state-changing routes) |
 | Context | `packages/trpc/server/context.ts` | Session resolution, `x-request-id` propagation |
 | Errors | `packages/trpc/server/error-handler.ts` | Sanitized errors — no stack traces to clients |
 | OpenAPI | `trpc-to-openapi` + `apps/api/src/openapi-*.ts` | REST bridge at `/api/*`, Scalar docs at `/docs` |
