@@ -1,5 +1,6 @@
 import type { ApprovalDefaults } from "../settings";
 import { getSettingsService } from "../settings";
+import { applyHistoryCompaction } from "./agent-compaction";
 import { buildFocusSystemAppendix, type AgentFocus } from "./agent-focus";
 import type { AgentHistoryMessage } from "./agent";
 import { buildSystemPromptFor } from "./agent-internals";
@@ -7,19 +8,26 @@ import { detectTopicShift } from "./agent-topic-shift";
 import { formatRetrievedMemoryForPrompt } from "./agent-memory-retrieval";
 import { formatToolMemoryForPrompt, type AgentToolMemoryEntry } from "./agent-tool-memory";
 
-const DEFAULT_HISTORY_LIMIT = 12;
-const FOCUS_HISTORY_LIMIT = 4;
+export function isFocusedAgentContext(focus: AgentFocus | undefined): boolean {
+  return (
+    Boolean(focus?.contextId?.trim()) ||
+    Boolean(focus?.eventId?.trim()) ||
+    Boolean(focus?.walkthroughTaskId?.trim())
+  );
+}
+
+export function prepareHistoryForAgent(
+  history: AgentHistoryMessage[] | undefined,
+  focus: AgentFocus | undefined,
+): { history: AgentHistoryMessage[]; compactionAppendix: string } {
+  return applyHistoryCompaction(history, isFocusedAgentContext(focus));
+}
 
 export function trimAgentHistory(
   history: AgentHistoryMessage[] | undefined,
   focus: AgentFocus | undefined,
 ): AgentHistoryMessage[] {
-  const items = history ?? [];
-  const focused =
-    Boolean(focus?.contextId?.trim()) ||
-    Boolean(focus?.eventId?.trim()) ||
-    Boolean(focus?.walkthroughTaskId?.trim());
-  return items.slice(focused ? -FOCUS_HISTORY_LIMIT : -DEFAULT_HISTORY_LIMIT);
+  return prepareHistoryForAgent(history, focus).history;
 }
 
 export async function loadAgentApprovalDefaults(userId: string): Promise<ApprovalDefaults> {
@@ -47,6 +55,7 @@ export type PreparedAgentRun = {
   focusCleared: boolean;
   topicShiftReason?: string;
   history: AgentHistoryMessage[];
+  compactionAppendix: string;
   systemPrompt: string;
   newToolMemoryEntries: AgentToolMemoryEntry[];
 };
@@ -58,19 +67,23 @@ export async function prepareAgentRun(
 ): Promise<PreparedAgentRun> {
   const topicShift = detectTopicShift(input.message, input.focus, input.toolMemory ?? []);
   const effectiveFocus = topicShift.shouldClearFocus ? undefined : input.focus;
-  const history = trimAgentHistory(input.history, effectiveFocus);
+  const { history, compactionAppendix } = prepareHistoryForAgent(input.history, effectiveFocus);
 
   const focusAppendix = await buildFocusSystemAppendix(tenantId, effectiveFocus, input.userEmail);
   const retrievedMemory = formatRetrievedMemoryForPrompt(input.message, input.toolMemory ?? []);
   const toolMemoryAppendix = formatToolMemoryForPrompt(retrievedMemory);
   const systemPrompt =
-    buildSystemPromptFor(input.userEmail, approvalDefaults) + toolMemoryAppendix + focusAppendix;
+    buildSystemPromptFor(input.userEmail, approvalDefaults) +
+    compactionAppendix +
+    toolMemoryAppendix +
+    focusAppendix;
 
   return {
     effectiveFocus,
     focusCleared: topicShift.shouldClearFocus,
     topicShiftReason: topicShift.reason,
     history,
+    compactionAppendix,
     systemPrompt,
     newToolMemoryEntries: [],
   };

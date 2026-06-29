@@ -1,5 +1,14 @@
 import type { ApprovalDefaults } from "../settings";
 
+import {
+  createPendingConfirmation,
+  isPendingExpired,
+  pendingMatchesTool,
+  type AgentPendingConfirmation,
+} from "./agent-pending-confirm";
+
+export type { AgentPendingConfirmation };
+
 /** Tools that mutate delivery state or trigger async workflows — require explicit user intent. */
 export const AGENT_CONFIRMATION_TOOLS = new Set([
   "generate_feature_prd",
@@ -42,8 +51,16 @@ const TOOL_INTENT_PATTERNS: Record<string, RegExp[]> = {
 };
 
 export type AgentToolConfirmationResult =
-  | { allowed: true; reason?: "auto_approve" | "explicit_intent" | "affirmative" | "not_required" }
-  | { allowed: false; reason: string };
+  | {
+      allowed: true;
+      reason?: "auto_approve" | "explicit_intent" | "affirmative" | "not_required";
+      clearPending?: boolean;
+    }
+  | {
+      allowed: false;
+      reason: string;
+      setPending?: AgentPendingConfirmation;
+    };
 
 function hasExplicitToolIntent(toolName: string, message: string): boolean {
   const patterns = TOOL_INTENT_PATTERNS[toolName];
@@ -59,24 +76,43 @@ function isAffirmativeConfirmation(message: string): boolean {
 
 export function checkAgentToolConfirmation(input: {
   toolName: string;
+  toolArgs?: Record<string, unknown>;
   userMessage: string;
   approvalDefaults: ApprovalDefaults;
+  pendingConfirmation?: AgentPendingConfirmation | null;
 }): AgentToolConfirmationResult {
   if (!AGENT_CONFIRMATION_TOOLS.has(input.toolName)) {
     return { allowed: true, reason: "not_required" };
   }
 
   if (input.approvalDefaults.autoApproveAgentEmail) {
-    return { allowed: true, reason: "auto_approve" };
+    return { allowed: true, reason: "auto_approve", clearPending: true };
   }
 
   const message = input.userMessage.trim();
+  const args = input.toolArgs ?? {};
+
   if (hasExplicitToolIntent(input.toolName, message)) {
-    return { allowed: true, reason: "explicit_intent" };
+    return { allowed: true, reason: "explicit_intent", clearPending: true };
   }
 
   if (isAffirmativeConfirmation(message)) {
-    return { allowed: true, reason: "affirmative" };
+    const pending = input.pendingConfirmation;
+    if (!pendingMatchesTool(pending, input.toolName)) {
+      return {
+        allowed: false,
+        reason: pending
+          ? `Say yes to confirm the pending action only: ${pending.label}.`
+          : "No pending action to confirm. Ask me to propose a specific step first.",
+      };
+    }
+    if (pending && isPendingExpired(pending)) {
+      return {
+        allowed: false,
+        reason: "Confirmation expired. Ask me to propose the action again.",
+      };
+    }
+    return { allowed: true, reason: "affirmative", clearPending: true };
   }
 
   return {
@@ -84,5 +120,6 @@ export function checkAgentToolConfirmation(input: {
     reason:
       `Human confirmation required before ${input.toolName}. ` +
       "Explain the action and ask the user to confirm (yes / go ahead), or they can enable auto-approve in Settings.",
+    setPending: createPendingConfirmation(input.toolName, args),
   };
 }

@@ -16,6 +16,14 @@ export type AgentSessionToolMemoryEntry = {
   query?: string;
 };
 
+export type AgentPendingConfirmation = {
+  id: string;
+  tool: string;
+  args: Record<string, unknown>;
+  label: string;
+  proposedAt: string;
+};
+
 export const agentChatSessionsTable = pgTable("agent_chat_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
@@ -24,6 +32,7 @@ export const agentChatSessionsTable = pgTable("agent_chat_sessions", {
   title: varchar("title", { length: 120 }),
   messages: jsonb("messages").$type<AgentSessionMessage[]>().notNull().default([]),
   toolMemory: jsonb("tool_memory").$type<AgentSessionToolMemoryEntry[]>().notNull().default([]),
+  pendingConfirmation: jsonb("pending_confirmation").$type<AgentPendingConfirmation | null>(),
   focusContextId: varchar("focus_context_id", { length: 128 }),
   focusEventId: varchar("focus_event_id", { length: 256 }),
   focusContextLabel: varchar("focus_context_label", { length: 200 }),
