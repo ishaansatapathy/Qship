@@ -10,6 +10,7 @@ export const INNGEST_EVENTS = {
   tasksGenerate: "shipflow/tasks.generate",
   aiReview: "shipflow/ai.review",
   codeImplement: "shipflow/code.implement",
+  githubWebhookOutbox: "shipflow/github.webhook_outbox.process",
 } as const;
 
 /**

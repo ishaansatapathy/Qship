@@ -89,16 +89,10 @@ async function bootstrap() {
       }
     }
 
-    const outboxInterval = setInterval(() => {
-      void import("@repo/services/github/webhook-outbox")
-        .then(({ processGithubWebhookOutbox }) => processGithubWebhookOutbox(20))
-        .catch((err) => {
-          logger.warn("webhook.outbox.processor_error", {
-            message: err instanceof Error ? err.message : String(err),
-          });
-        });
-    }, 60_000);
-    outboxInterval.unref();
+    const { startGithubWebhookOutboxProcessor } = await import(
+      "@repo/services/github/webhook-outbox-scheduler"
+    );
+    startGithubWebhookOutboxProcessor();
   } catch (err) {
     logger.error("Failed to load Express application", {
       err,

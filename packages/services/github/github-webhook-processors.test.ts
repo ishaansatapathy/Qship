@@ -3,8 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockIsDuplicate = vi.fn();
 const mockTransition = vi.fn();
 const mockAppend = vi.fn();
-const mockAiReview = vi.fn();
 const mockInvalidate = vi.fn();
+
+const installMocks = vi.hoisted(() => ({
+  syncInstallationRepositoriesForOrg: vi.fn(async () => undefined),
+  dispatchWebhookPullRequestAiReview: vi.fn(async () => ({
+    queued: true,
+    workflowRunId: "wf-test",
+  })),
+}));
 
 const dbMocks = vi.hoisted(() => {
   const orgFindFirst = vi.fn();
@@ -33,9 +40,7 @@ vi.mock("./webhook-dedup", () => ({
   isGithubDeliveryDuplicate: (...args: unknown[]) => mockIsDuplicate(...args),
 }));
 
-vi.mock("./pr-review", () => ({
-  runPullRequestAiReview: (...args: unknown[]) => mockAiReview(...args),
-}));
+vi.mock("./pr-review", () => ({}));
 
 vi.mock("./client", () => ({
   invalidateInstallationCache: (...args: unknown[]) => mockInvalidate(...args),
@@ -47,11 +52,11 @@ vi.mock("../feature-request", () => ({
 }));
 
 vi.mock("./installation", () => ({
-  syncInstallationRepositoriesForOrg: vi.fn(async () => undefined),
+  syncInstallationRepositoriesForOrg: installMocks.syncInstallationRepositoriesForOrg,
 }));
 
 vi.mock("./webhook-pr-review-dispatch", () => ({
-  dispatchWebhookPullRequestAiReview: vi.fn(async () => ({ queued: true, workflowRunId: "wf-test" })),
+  dispatchWebhookPullRequestAiReview: installMocks.dispatchWebhookPullRequestAiReview,
 }));
 
 vi.mock("@repo/database", async (importOriginal) => {
@@ -105,7 +110,11 @@ describe("processGithubPullRequestWebhook (production)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsDuplicate.mockResolvedValue(false);
-    mockAiReview.mockResolvedValue(undefined);
+    installMocks.syncInstallationRepositoriesForOrg.mockResolvedValue(undefined);
+    installMocks.dispatchWebhookPullRequestAiReview.mockResolvedValue({
+      queued: true,
+      workflowRunId: "wf-test",
+    });
     dbMocks.orgFindFirst.mockResolvedValue({ id: ORG_ID });
     dbMocks.repoFindFirst.mockResolvedValue({ id: REPO_ROW_ID });
     dbMocks.featureFindFirst.mockResolvedValue({
@@ -131,6 +140,52 @@ describe("processGithubPullRequestWebhook (production)", () => {
     dbMocks.orgFindFirst.mockResolvedValueOnce(null);
     const result = await processGithubPullRequestWebhook(basePullRequestPayload(), "del-3");
     expect(result).toMatchObject({ handled: false, reason: "unknown_installation" });
+  });
+
+  it("auto-syncs repositories when repo row is missing then links PR", async () => {
+    dbMocks.repoFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: REPO_ROW_ID });
+
+    const result = await processGithubPullRequestWebhook(basePullRequestPayload(), "del-sync");
+
+    expect(installMocks.syncInstallationRepositoriesForOrg).toHaveBeenCalledWith(ORG_ID, "999");
+    expect(result).toMatchObject({
+      handled: true,
+      linked: true,
+      autoSynced: true,
+      featureId: FEATURE_ID,
+    });
+    expect(installMocks.dispatchWebhookPullRequestAiReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        featureId: FEATURE_ID,
+        headSha: "abc",
+      }),
+    );
+  });
+
+  it("returns operator guidance when repo remains unsynced after auto-sync", async () => {
+    dbMocks.repoFindFirst.mockResolvedValue(null);
+
+    const result = await processGithubPullRequestWebhook(basePullRequestPayload(), "del-unsynced");
+
+    expect(installMocks.syncInstallationRepositoriesForOrg).toHaveBeenCalledWith(ORG_ID, "999");
+    expect(result).toMatchObject({
+      handled: false,
+      reason: "repo_not_synced",
+      autoSynced: true,
+      operatorAction: "sync_repositories",
+    });
+    expect(result).toHaveProperty("message");
+  });
+
+  it("queues async AI review for opened PRs", async () => {
+    await processGithubPullRequestWebhook(basePullRequestPayload(), "del-review");
+    expect(installMocks.dispatchWebhookPullRequestAiReview).toHaveBeenCalledWith({
+      pullRequestId: `${ORG_ID}-pr-777`,
+      featureId: FEATURE_ID,
+      headSha: "abc",
+    });
   });
 
   it("links opened PR and transitions feature to pr_open", async () => {
