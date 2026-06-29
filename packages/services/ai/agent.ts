@@ -14,6 +14,7 @@ import { createToolMemoryTracker, loadAgentApprovalDefaults, prepareAgentRun, tr
 import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
 import { AgentTrace } from "./agent-trace";
+import { exportAgentTrace } from "./agent-trace-export";
 
 export type AgentHistoryMessage = {
   role: "user" | "assistant";
@@ -145,6 +146,7 @@ export async function runAgentChat(
     toolCalls: memoryTracker.getNewEntries().length,
     focusCleared: prepared.focusCleared,
   });
+  await exportAgentTrace(trace, { tenantId, channel: "run" });
 
   return {
     reply: content,

@@ -5,7 +5,7 @@ import { getOpenAiModel, isOpenAiConfigured } from "./openai";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 /** Hard ceiling on tool-call rounds. Must match the maxRounds passed by runAgentChat. */
-export const MAX_TOOL_ROUNDS = 8;
+export const MAX_TOOL_ROUNDS = 10;
 
 export type OpenAiToolDefinition = {
   type: "function";

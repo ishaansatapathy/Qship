@@ -1,4 +1,9 @@
 import type { AgentToolMemoryEntry } from "./agent-tool-memory";
+import {
+  embedQueryForMemoryRetrieval,
+  ensureEntryEmbedding,
+  scoreSemanticMemoryEntry,
+} from "./agent-memory-embeddings";
 
 const STOP_WORDS = new Set([
   "the",
@@ -49,8 +54,12 @@ function memoryEntryBlob(entry: AgentToolMemoryEntry): string {
     .toLowerCase();
 }
 
-export function scoreToolMemoryEntry(entry: AgentToolMemoryEntry, queryTokens: string[]): number {
-  if (queryTokens.length === 0) return 0;
+export function scoreToolMemoryEntry(
+  entry: AgentToolMemoryEntry,
+  queryTokens: string[],
+  queryEmbedding?: number[],
+): number {
+  if (queryTokens.length === 0 && !queryEmbedding?.length) return 0;
   const blob = memoryEntryBlob(entry);
   let score = 0;
   for (const token of queryTokens) {
@@ -58,16 +67,17 @@ export function scoreToolMemoryEntry(entry: AgentToolMemoryEntry, queryTokens: s
       score += token.length >= 6 ? 2 : 1;
     }
   }
-  // Boost when feature id or context id appears in user query
   if (entry.contextId && queryTokens.some((t) => entry.contextId!.toLowerCase().includes(t))) {
     score += 3;
+  }
+  if (queryEmbedding?.length) {
+    score += scoreSemanticMemoryEntry(entry, queryEmbedding);
   }
   return score;
 }
 
 /**
- * Structured tool memory retrieval: keyword overlap + stemming + recency bias.
- * Avoids re-calling tools when the user asks follow-ups about prior results.
+ * Structured tool memory retrieval: keyword overlap + stemming + semantic similarity + recency bias.
  */
 export function retrieveRelevantToolMemory(
   userMessage: string,
@@ -77,17 +87,20 @@ export function retrieveRelevantToolMemory(
   const maxEntries = opts?.maxEntries ?? 12;
   if (entries.length === 0) return [];
 
-  const recent = entries.slice(-4);
+  const enriched = entries.map(ensureEntryEmbedding);
+  const recent = enriched.slice(-4);
   const queryTokens = tokenizeForMemoryRetrieval(userMessage);
-  if (queryTokens.length === 0) {
-    return entries.slice(-maxEntries);
+  const queryEmbedding = embedQueryForMemoryRetrieval(userMessage);
+
+  if (queryTokens.length === 0 && queryEmbedding.every((v) => v === 0)) {
+    return enriched.slice(-maxEntries);
   }
 
   const minScore = opts?.minScore ?? 1;
-  const ranked = entries
+  const ranked = enriched
     .map((entry, index) => ({
       entry,
-      score: scoreToolMemoryEntry(entry, queryTokens) + index / entries.length,
+      score: scoreToolMemoryEntry(entry, queryTokens, queryEmbedding) + index / enriched.length,
     }))
     .filter((row) => row.score >= minScore)
     .sort((a, b) => b.score - a.score || b.entry.at.localeCompare(a.entry.at));

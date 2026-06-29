@@ -26,7 +26,7 @@ const MOCK_TOOLS = new Set([
 
 vi.mock("./openai-tools", () => ({
   runOpenAiToolLoop: vi.fn(),
-  MAX_TOOL_ROUNDS: 8,
+  MAX_TOOL_ROUNDS: 10,
 }));
 
 vi.mock("../shipflow-agent-tools", async (importOriginal) => {

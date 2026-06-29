@@ -3,12 +3,9 @@ import db from "@repo/database";
 import { users } from "@repo/database/schema";
 
 import type { ApprovalDefaults, SettingsService } from "./index";
+import { fallbackApprovalDefaults } from "./demo-mode";
 
-const FALLBACK: ApprovalDefaults = {
-  autoApproveEmail: false,
-  autoApproveAgentEmail: true,
-  autoApproveCalendar: false,
-};
+const FALLBACK: ApprovalDefaults = fallbackApprovalDefaults();
 
 export function createDbSettingsService(): SettingsService {
   return {

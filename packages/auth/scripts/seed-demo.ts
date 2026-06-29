@@ -48,6 +48,10 @@ async function ensureDemoUser() {
   });
 
   if (existing) {
+    await db
+      .update(users)
+      .set({ autoApproveAgentEmail: true, updatedAt: new Date() })
+      .where(eq(users.id, existing.id));
     console.log(`[seed] Demo user exists: ${DEMO_EMAIL}`);
     return existing;
   }
@@ -63,6 +67,11 @@ async function ensureDemoUser() {
   if (!result?.user) {
     throw new Error("Failed to create demo user via BetterAuth");
   }
+
+  await db
+    .update(users)
+    .set({ autoApproveAgentEmail: true, updatedAt: new Date() })
+    .where(eq(users.id, result.user.id));
 
   console.log(`[seed] Demo user created: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   return result.user;

@@ -1,63 +1,12 @@
-import type { OpenAiToolDefinition } from "../../ai/openai-tools";
-import type { AgentActionCard } from "../../ai/agent";
-import { ServiceError } from "../../errors";
 import {
-  addClarificationMessage,
-  appendFeatureActivity,
-  assertFeatureInUserWorkspace,
-  assertTaskInUserWorkspace,
-  getFeatureDeliveryView,
-  getFeatureRequest,
-  getPipelineSummary,
-  getWorkspaceProjectForUser,
-  listFeatureRequests,
-  updateEngineeringTaskStatus,
-  updateFeatureMetadata,
-  updateFeatureStatus,
-  transitionFeatureStatus,
-} from "../../feature-request";
-import {
-  generateApprovalBriefing,
-  analyzeChangeRequest,
-  generateDeveloperOnboardingGuide,
-  triageFeatureRequest,
-} from "../../feature-ai";
-import {
-  predictDeliveryTimeline,
-  checkPipelineDuplicates,
-  getPipelineHealthSummary,
-} from "../../feature-analytics";
-import { checkExistingCapability } from "../../feature-education";
-import { ingestFeatureRequest, type FeatureSource } from "../../feature-intake";
-import {
-  dispatchAiReview,
   dispatchCodeImplementation,
   dispatchPrdGeneration,
   dispatchTaskGeneration,
 } from "../../inngest/dispatch";
-import {
-  listAiReviewsForFeature,
-  getLatestAiReview,
-  getReviewDelta,
-  getReviewStats,
-  getReviewLoopHealth,
-  listHumanApprovals,
-  markFeatureShipped,
-  recordHumanApproval,
-  resolveReviewIssue,
-  validateHumanApprovalEligibility,
-} from "../../review";
-import { assertReleaseReviewer } from "../../workflow-guards";
-import {
-  getGithubConnectionForUser,
-  listGithubRepositoriesForUser,
-  syncGithubInstallationForUser,
-} from "../../github/installation";
-import { explainEngineeringTaskForUser, advanceTaskWalkthroughForUser } from "../../task-walkthrough";
-import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "../../workflow";
+import { getGithubConnectionForUser } from "../../github/installation";
 
 import type { ShipflowToolContext } from "../definitions";
-import { featureSummary, loadAuthorizedFeature } from "../helpers";
+import { loadAuthorizedFeature } from "../helpers";
 
 export async function handle_generate_feature_prd(
   ctx: ShipflowToolContext,

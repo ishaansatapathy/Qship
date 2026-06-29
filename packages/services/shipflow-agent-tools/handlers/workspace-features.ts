@@ -1,60 +1,19 @@
-import type { OpenAiToolDefinition } from "../../ai/openai-tools";
-import type { AgentActionCard } from "../../ai/agent";
-import { ServiceError } from "../../errors";
 import {
   addClarificationMessage,
   appendFeatureActivity,
-  assertFeatureInUserWorkspace,
   assertTaskInUserWorkspace,
   getFeatureDeliveryView,
-  getFeatureRequest,
   getPipelineSummary,
   getWorkspaceProjectForUser,
   listFeatureRequests,
+  transitionFeatureStatus,
   updateEngineeringTaskStatus,
   updateFeatureMetadata,
-  updateFeatureStatus,
-  transitionFeatureStatus,
 } from "../../feature-request";
-import {
-  generateApprovalBriefing,
-  analyzeChangeRequest,
-  generateDeveloperOnboardingGuide,
-  triageFeatureRequest,
-} from "../../feature-ai";
-import {
-  predictDeliveryTimeline,
-  checkPipelineDuplicates,
-  getPipelineHealthSummary,
-} from "../../feature-analytics";
+import { triageFeatureRequest } from "../../feature-ai";
 import { checkExistingCapability } from "../../feature-education";
 import { ingestFeatureRequest, type FeatureSource } from "../../feature-intake";
-import {
-  dispatchAiReview,
-  dispatchCodeImplementation,
-  dispatchPrdGeneration,
-  dispatchTaskGeneration,
-} from "../../inngest/dispatch";
-import {
-  listAiReviewsForFeature,
-  getLatestAiReview,
-  getReviewDelta,
-  getReviewStats,
-  getReviewLoopHealth,
-  listHumanApprovals,
-  markFeatureShipped,
-  recordHumanApproval,
-  resolveReviewIssue,
-  validateHumanApprovalEligibility,
-} from "../../review";
-import { assertReleaseReviewer } from "../../workflow-guards";
-import {
-  getGithubConnectionForUser,
-  listGithubRepositoriesForUser,
-  syncGithubInstallationForUser,
-} from "../../github/installation";
-import { explainEngineeringTaskForUser, advanceTaskWalkthroughForUser } from "../../task-walkthrough";
-import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES } from "../../workflow";
+import { ENGINEERING_TASK_STATUSES } from "../../workflow";
 
 import type { ShipflowToolContext } from "../definitions";
 import { featureSummary, loadAuthorizedFeature } from "../helpers";
@@ -63,7 +22,7 @@ export async function handle_get_workspace(
   ctx: ShipflowToolContext,
   args: Record<string, unknown>,
 ): Promise<string> {
-  const { userId, actions } = ctx;
+  const { userId } = ctx;
   const ws = await getWorkspaceProjectForUser(userId);
         if (!ws) {
           return JSON.stringify({ error: "No workspace — join or create one first" });
@@ -167,7 +126,7 @@ export async function handle_triage_feature_request(
   ctx: ShipflowToolContext,
   args: Record<string, unknown>,
 ): Promise<string> {
-  const { userId, actions } = ctx;
+  const { userId } = ctx;
   const id = String(args.id ?? "").trim();
         const { feature } = await loadAuthorizedFeature(userId, id);
         const triage = await triageFeatureRequest({
@@ -188,7 +147,7 @@ export async function handle_add_clarification(
   ctx: ShipflowToolContext,
   args: Record<string, unknown>,
 ): Promise<string> {
-  const { userId, actions } = ctx;
+  const { userId } = ctx;
   const id = String(args.id ?? "").trim();
         const content = String(args.content ?? "").trim();
         if (!content) return JSON.stringify({ error: "content is required" });
@@ -203,9 +162,8 @@ export async function handle_add_clarification(
 
 export async function handle_update_feature_status(
   ctx: ShipflowToolContext,
-  args: Record<string, unknown>,
+  _args: Record<string, unknown>,
 ): Promise<string> {
-  const { userId, actions } = ctx;
   return JSON.stringify({
           error:
             "Direct status updates are disabled. Use generate_feature_prd, generate_feature_tasks, run_ai_review, approve_feature, or ship_feature.",

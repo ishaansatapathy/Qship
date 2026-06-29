@@ -330,6 +330,20 @@
       "when": 1782100006000,
       "tag": "0046_agent_pending_confirmation",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1782100007000,
+      "tag": "0047_agent_auto_approve_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1782100008000,
+      "tag": "0048_agent_hygiene",
+      "breakpoints": true
     }
   ]
 }
