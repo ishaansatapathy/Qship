@@ -1,5 +1,6 @@
 import { zodUndefinedModel } from "../../schema";
 import { getWorkspaceForUser } from "@repo/services/organization";
+import { openApiResponse } from "../../openapi-outputs";
 import { mapServiceError, protectedProcedure, router } from "../../trpc";
 
 export const workspaceRouter = router({
@@ -14,7 +15,7 @@ export const workspaceRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(openApiResponse).query(async ({ ctx }) => {
     try {
       return await getWorkspaceForUser(ctx.user.id);
     } catch (error) {

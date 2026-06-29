@@ -9,6 +9,7 @@ import {
   updateAgentSession,
 } from "@repo/services/ai/agent-sessions";
 import { isOpenAiConfigured } from "@repo/services/ai/openai";
+import { agentStatusOutput } from "../../openapi-outputs";
 import { mapServiceError, protectedProcedure, router } from "../../trpc";
 
 export const agentRouter = router({
@@ -23,7 +24,7 @@ export const agentRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(() => ({
+    .output(agentStatusOutput).query(() => ({
     configured: isOpenAiConfigured(),
     model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
     ready: isAgentConfigured(),

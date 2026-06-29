@@ -39,6 +39,13 @@ import {
 } from "@repo/services/feature-analytics";
 import { ServiceError } from "@repo/services/errors";
 import { FEATURE_STATUSES, ENGINEERING_TASK_STATUSES, type EngineeringTaskStatus } from "@repo/services/workflow";
+import {
+  openApiResponse,
+  workspaceOutput,
+  pipelineSummaryOutput,
+  intakeSummaryOutput,
+  cancelWorkflowOutput,
+} from "../../openapi-outputs";
 import { mapServiceError, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 export const featureRouter = router({
@@ -75,7 +82,7 @@ export const featureRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(workspaceOutput).query(async ({ ctx }) => {
     try {
       const ws = await getWorkspaceProjectForUser(ctx.user.id);
       if (!ws) return null;
@@ -102,7 +109,7 @@ export const featureRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(pipelineSummaryOutput).query(async ({ ctx }) => {
     try {
       const ws = await getWorkspaceProjectForUser(ctx.user.id);
       if (!ws) {
@@ -132,7 +139,7 @@ export const featureRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(intakeSummaryOutput).query(async ({ ctx }) => {
       try {
         const ws = await getWorkspaceProjectForUser(ctx.user.id);
         if (!ws) {
@@ -162,7 +169,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ projectId: z.string().min(1).optional() }).optional())
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         const ws = await getWorkspaceProjectForUser(ctx.user.id);
         const projectId = input?.projectId ?? ws?.project.id;
@@ -186,7 +193,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return feature;
@@ -206,7 +213,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
     try {
       return await getFeatureDeliveryView(input.id, ctx.user.id);
     } catch (error) {
@@ -236,7 +243,7 @@ export const featureRouter = router({
         runTriage: z.boolean().optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const ws = await getWorkspaceProjectForUser(ctx.user.id);
         if (!ws) {
@@ -286,7 +293,7 @@ export const featureRouter = router({
         runTriage: z.boolean().optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const ws = await getWorkspaceProjectForUser(ctx.user.id);
         if (!ws) {
@@ -327,7 +334,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return dispatchPrdGeneration(input.id, ctx.user.id);
@@ -364,7 +371,7 @@ export const featureRouter = router({
         workflowRunId: z.string().optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.featureId);
         if (input.workflowRunId) {
@@ -394,7 +401,7 @@ export const featureRouter = router({
         status: z.enum(FEATURE_STATUSES as unknown as [string, ...string[]]),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return guardedUpdateFeatureStatus(
@@ -418,7 +425,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return dispatchTaskGeneration(input.id, ctx.user.id);
@@ -444,7 +451,7 @@ export const featureRouter = router({
         analyzeRepo: z.boolean().default(false),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         await assertTaskInUserWorkspace(ctx.user.id, input.taskId);
         return explainEngineeringTaskForUser(ctx.user.id, input);
@@ -479,7 +486,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return dispatchAiReview(input.id, ctx.user.id);
@@ -499,7 +506,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1), repositoryId: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const { ws } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         const gh = await getGithubConnectionForUser(ctx.user.id);
@@ -528,7 +535,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1), notes: z.string().optional() }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         await validateHumanApprovalEligibility(input.id);
@@ -560,7 +567,7 @@ export const featureRouter = router({
         analyzeWithAi: z.boolean().default(true),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         const result = await recordHumanApproval({
@@ -615,7 +622,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return listAiReviewsForFeature(input.id);
@@ -635,7 +642,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1), content: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return appendFeatureActivity(feature.id, {
@@ -747,7 +754,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return getReviewDelta(input.id);
@@ -767,7 +774,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return getReviewStats(input.id);
@@ -787,7 +794,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return getReviewLoopHealth(input.id);
@@ -807,7 +814,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         const [latestReview, delta, priorDecisions] = await Promise.all([
@@ -867,7 +874,7 @@ export const featureRouter = router({
         notes: z.string().optional(),
       }),
     )
-    .mutation(async ({ ctx: _ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx: _ctx, input }) => {
       try {
         return resolveReviewIssue(input.issueId, input.resolved, input.notes);
       } catch (error) {
@@ -886,7 +893,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ reviewId: z.string().min(1) }))
-    .query(async ({ ctx: _ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx: _ctx, input }) => {
       try {
         return getIssueResolutionSummary(input.reviewId);
       } catch (error) {
@@ -905,7 +912,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return listHumanApprovals(input.id);
@@ -925,7 +932,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1), notes: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         const { feature } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         const latestReview = await getLatestAiReview(input.id);
@@ -959,7 +966,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         const { ws } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return predictDeliveryTimeline(input.id, ws.project.id);
@@ -979,7 +986,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ id: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         const { ws } = await assertFeatureInUserWorkspace(ctx.user.id, input.id);
         return checkPipelineDuplicates(input.id, ws.project.id);
@@ -999,7 +1006,7 @@ export const featureRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(openApiResponse).query(async ({ ctx }) => {
       try {
         const ws = await getWorkspaceProjectForUser(ctx.user.id);
         if (!ws) throw new ServiceError("PRECONDITION_FAILED", "Join a workspace first");
@@ -1020,7 +1027,7 @@ export const featureRouter = router({
       },
     })
     .input(z.object({ taskId: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
+    .output(openApiResponse).query(async ({ ctx, input }) => {
       try {
         const { task, feature } = await assertTaskInUserWorkspace(ctx.user.id, input.taskId);
         const featureDetail = await getFeatureRequest(feature.id);

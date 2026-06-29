@@ -8,6 +8,11 @@ import {
   syncGithubInstallationForUser,
 } from "@repo/services/github";
 import { getMembershipForUser, ensurePersonalWorkspace } from "@repo/services/organization";
+import {
+  githubInstallUrlOutput,
+  githubConnectionOutput,
+  githubRepoListOutput,
+} from "../../openapi-outputs";
 import { mapServiceError, protectedProcedure, router } from "../../trpc";
 
 export const githubRouter = router({
@@ -22,7 +27,7 @@ export const githubRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(githubConnectionOutput).query(async ({ ctx }) => {
     try {
       return await getGithubConnectionForUser(ctx.user.id);
     } catch (error) {
@@ -41,7 +46,7 @@ export const githubRouter = router({
       },
     })
     .input(z.object({ returnTo: z.string().optional() }).optional())
-    .query(async ({ ctx, input }) => {
+    .output(githubInstallUrlOutput).query(async ({ ctx, input }) => {
       try {
         const configured = isGithubAppConfigured();
         const membership =
@@ -77,7 +82,7 @@ export const githubRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(githubRepoListOutput).query(async ({ ctx }) => {
     try {
       const repos = await listGithubRepositoriesForUser(ctx.user.id);
       return repos.map((repo) => ({

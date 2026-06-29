@@ -7,6 +7,7 @@ import {
   upgradeOrganizationPlan,
   type PlanTier,
 } from "@repo/services/billing";
+import { billingStatusOutput, openApiResponse } from "../../openapi-outputs";
 import { mapServiceError, protectedProcedure, router } from "../../trpc";
 
 export const billingRouter = router({
@@ -21,7 +22,7 @@ export const billingRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(() => ({
+    .output(billingStatusOutput).query(() => ({
       razorpayConfigured: isRazorpayConfigured(),
       ready: true,
     })),
@@ -37,7 +38,7 @@ export const billingRouter = router({
       },
     })
     .input(zodUndefinedModel)
-    .query(async ({ ctx }) => {
+    .output(openApiResponse).query(async ({ ctx }) => {
       try {
         return await getBillingSummary(ctx.user.id, ctx.user.displayName);
       } catch (error) {
@@ -56,7 +57,7 @@ export const billingRouter = router({
       },
     })
     .input(z.object({ planTier: z.enum(["free", "pro", "enterprise"]) }))
-    .mutation(async ({ ctx, input }) => {
+    .output(openApiResponse).mutation(async ({ ctx, input }) => {
       try {
         return await upgradeOrganizationPlan(ctx.user.id, input.planTier as PlanTier, ctx.user.displayName);
       } catch (error) {

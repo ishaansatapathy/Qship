@@ -137,6 +137,7 @@ jobs:
           curl -fsS http://127.0.0.1:8000/health
           curl -fsS http://127.0.0.1:8000/ready
           curl -fsS http://127.0.0.1:8000/openapi.json >/dev/null
+          curl -fsS http://127.0.0.1:8000/docs >/dev/null
           echo "✓ All smoke tests passed"
 
   # ── End-to-end tests (Playwright) ──────────────────────────────────────────
