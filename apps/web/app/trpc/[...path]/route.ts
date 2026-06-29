@@ -19,6 +19,10 @@ function buildUpstreamHeaders(request: NextRequest): Headers {
   if (origin) headers.set("origin", origin);
   const referer = request.headers.get("referer");
   if (referer) headers.set("referer", referer);
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) headers.set("x-forwarded-for", forwardedFor);
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) headers.set("x-real-ip", realIp);
   if (cookie && request.method !== "GET" && request.method !== "HEAD") {
     headers.set("x-app-csrf", "1");
   }
