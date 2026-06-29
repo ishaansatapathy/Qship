@@ -7,7 +7,7 @@ import { logger } from "@repo/logger";
 import { ServiceError } from "../errors";
 import { ensurePersonalWorkspace, getMembershipForUser } from "../organization";
 import { getAppOctokit, getInstallationOctokit } from "./client";
-import { getGithubAppConfig, isGithubAppConfigured } from "./config";
+import { getGithubAppConfig, isGithubAppConfigured, isGithubWebhookConfigured } from "./config";
 import { isProductionEnv } from "../runtime-env";
 
 const INSTALL_STATE_TTL_MS = 15 * 60 * 1000;
@@ -92,6 +92,12 @@ export function buildGithubInstallUrl(params: { organizationId: string; returnTo
   const { appSlug } = getGithubAppConfig();
   if (!isGithubAppConfigured() || !appSlug) {
     throw new ServiceError("PRECONDITION_FAILED", "GitHub App is not configured");
+  }
+  if (isProductionEnv() && !isGithubWebhookConfigured()) {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      "GITHUB_WEBHOOK_SECRET is required to sign GitHub install state in production",
+    );
   }
 
   const state = encodeGithubInstallState({
