@@ -10,6 +10,19 @@ test.describe("ShipFlow demo journey", () => {
   test("demo login lands on pipeline overview", async ({ page }) => {
     await demoLogin(page, "/brief");
     await expect(page.getByRole("heading", { name: /pipeline overview/i })).toBeVisible();
+    await expect(page.getByText(/^Total$/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/^In delivery$/i)).toBeVisible();
+  });
+
+  test("billing page shows plans and supports demo upgrade", async ({ page }) => {
+    await demoLogin(page, "/billing");
+    await expect(page.getByRole("heading", { name: /billing & plans/i })).toBeVisible();
+    await expect(page.getByText(/free/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/pro/i).first()).toBeVisible();
+    const upgradeButton = page.getByRole("button", { name: /pay with razorpay/i }).first();
+    await expect(upgradeButton).toBeEnabled({ timeout: 15_000 });
+    await upgradeButton.click();
+    await expect(page.getByText(/demo mode|upgraded to/i)).toBeVisible({ timeout: 15_000 });
   });
 
   test("requests hub shows seeded feature samples", async ({ page }) => {

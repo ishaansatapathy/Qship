@@ -27,6 +27,11 @@ async function check(name, url, validate) {
 let pass = true;
 
 pass &&= await check("Web app", WEB, (r) => r.ok);
+pass &&= await check(
+  "Demo login redirect",
+  `${WEB}/api-auth/demo?next=/brief`,
+  (r) => r.status === 307 || r.status === 302 || (r.ok && r.url.includes("/brief")),
+);
 pass &&= await check("API /health", `${API}/health`, (r, b) => r.ok && b.healthy === true);
 pass &&= await check("API /ready", `${API}/ready`, (r, b) => r.ok && b.ready === true);
 pass &&= await check("OpenAPI JSON", `${API}/openapi.json`, (r, b) => r.ok && b.openapi?.startsWith("3."));

@@ -170,6 +170,12 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 | Billing (Razorpay) | `/billing` |
 | GitHub settings | `/settings` |
 
+**App shell:** sidebar nav + command palette (`⌘K`) cover all surfaces — `apps/web/components/app/qship-app-shell.tsx`, `qship-command.tsx`
+
+**CI merge gate:** `pnpm --filter @repo/services test:saas-eval` in `ci.yml`
+
+**E2E:** `apps/web/e2e/shipflow-demo.spec.ts` — demo login, brief stats, billing demo upgrade, kanban, agent walkthrough, settings GitHub, Slack approve path
+
 ---
 
 ### 7. Demo & Documentation · /5
