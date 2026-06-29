@@ -10,6 +10,7 @@ export const SAAS_EVAL_INVARIANTS = [
   "agent_walkthrough_panel",
   "kanban_tasks_board",
   "billing_razorpay_checkout",
+  "billing_order_server_verification",
   "github_settings_connect",
   "app_shell_nav_all_surfaces",
   "trpc_proxy_csrf_session",
@@ -26,7 +27,7 @@ function readRepo(relativePath: string): string {
 
 describe("SaaS product experience eval harness", () => {
   it(`documents ${SAAS_EVAL_INVARIANT_COUNT} SaaS invariants`, () => {
-    expect(SAAS_EVAL_INVARIANT_COUNT).toBe(10);
+    expect(SAAS_EVAL_INVARIANT_COUNT).toBe(11);
   });
 
   it("exposes one-click demo login with next-path redirect", () => {
@@ -69,11 +70,16 @@ describe("SaaS product experience eval harness", () => {
   it("implements billing page with Razorpay checkout and demo fallback", () => {
     const page = readRepo("apps/web/app/(app)/billing/page.tsx");
     const billingRoute = readRepo("packages/trpc/server/routes/billing/route.ts");
+    const billingService = readRepo("packages/services/billing/index.ts");
+    const orderVerify = readRepo("packages/services/billing/order-verify.ts");
     expect(page).toContain("Billing & plans");
     expect(page).toContain("useRazorpayCheckout");
     expect(page).toContain('result.mode === "demo"');
+    expect(page).toContain("One-time purchase");
     expect(billingRoute).toContain("createCheckout");
     expect(billingRoute).toContain("confirmPayment");
+    expect(billingService).toContain("resolveVerifiedPlanTierFromOrder");
+    expect(orderVerify).toContain("assertRazorpayOrderMatchesPlan");
   });
 
   it("implements GitHub settings with install and sync controls", () => {

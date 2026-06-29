@@ -170,9 +170,11 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 | Billing (Razorpay) | `/billing` |
 | GitHub settings | `/settings` |
 
+**Billing integrity:** paid upgrades verify Razorpay order amount + workspace notes server-side (`resolveVerifiedPlanTierFromOrder`); webhooks validate payment amount; demo paid upgrades blocked in production; Test plan hidden unless `BILLING_ENABLE_TEST_PLAN=true`.
+
 **App shell:** sidebar nav + command palette (`⌘K`) cover all surfaces — `apps/web/components/app/qship-app-shell.tsx`, `qship-command.tsx`
 
-**CI merge gate:** `pnpm --filter @repo/services test:saas-eval` in `ci.yml`
+**CI merge gate:** `pnpm --filter @repo/services test:saas-eval` in `ci.yml` (11 invariants + order verification unit tests)
 
 **E2E:** `apps/web/e2e/shipflow-demo.spec.ts` — demo login, brief stats, billing demo upgrade, kanban, agent walkthrough, settings GitHub, Slack approve path
 

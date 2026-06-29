@@ -1,10 +1,8 @@
 import type { Request, Response } from "express";
-import { eq } from "@repo/database";
-import db from "@repo/database";
-import { organizations } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
-import { BILLING_PLANS, type PlanTier } from "./plans";
+import { applyPlanUpgrade } from "./apply-upgrade";
+import { assertWebhookPaymentMatchesPlan } from "./order-verify";
 import {
   logRazorpayWebhook,
   parseRazorpayWebhook,
@@ -36,23 +34,23 @@ export async function handleRazorpayWebhook(req: Request, res: Response) {
   const payment = event?.payload?.payment?.entity;
   logRazorpayWebhook(eventName, payment?.id);
 
-  if (eventName === "payment.captured" && payment?.order_id) {
-    const orgId = payment.notes?.organizationId;
-    const planTier = payment.notes?.planTier as PlanTier | undefined;
-    if (orgId && planTier && BILLING_PLANS[planTier]) {
-      const plan = BILLING_PLANS[planTier];
-      await db
-        .update(organizations)
-        .set({
-          planTier,
-          aiReviewCredits: plan.aiReviewCredits,
-          repositoryLimit: plan.repositoryLimit,
-          billingStatus: "active",
-          razorpayCustomerId: payment.id,
-          updatedAt: new Date(),
-        })
-        .where(eq(organizations.id, orgId));
-      logger.info("Razorpay payment applied plan upgrade", { orgId, planTier });
+  if (eventName === "payment.captured" && payment?.order_id && payment.id) {
+    const orgId = payment.notes?.organizationId?.trim();
+    if (!orgId) {
+      logger.warn("razorpay.webhook.missing_org", { paymentId: payment.id });
+      return res.json({ received: true });
+    }
+
+    try {
+      const planTier = assertWebhookPaymentMatchesPlan(payment, orgId);
+      await applyPlanUpgrade(orgId, planTier, payment.id);
+      logger.info("Razorpay payment applied plan upgrade", { orgId, planTier, paymentId: payment.id });
+    } catch (error) {
+      logger.warn("razorpay.webhook.plan_apply_rejected", {
+        orgId,
+        paymentId: payment.id,
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

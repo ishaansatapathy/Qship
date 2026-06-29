@@ -5,16 +5,30 @@ import { organizations } from "@repo/database/schema";
 import { ServiceError } from "../errors";
 import { ensurePersonalWorkspace, getMembershipForUser } from "../organization";
 
-import { BILLING_PLANS, BILLING_PLAN_LIST, type PlanTier } from "./plans";
-import { verifyRazorpayPaymentSignature } from "./razorpay";
+import { applyPlanUpgrade } from "./apply-upgrade";
+import { resolveVerifiedPlanTierFromOrder } from "./order-verify";
+import {
+  BILLING_PLANS,
+  BILLING_PLAN_LIST,
+  getVisibleBillingPlans,
+  type PlanTier,
+} from "./plans";
+import { getRazorpayAuthHeader, verifyRazorpayPaymentSignature } from "./razorpay";
 
 export { verifyRazorpayPaymentSignature } from "./razorpay";
 export { handleRazorpayWebhook } from "./webhook";
+export { assertRazorpayOrderMatchesPlan } from "./order-verify";
 
-export { BILLING_PLANS, BILLING_PLAN_LIST, type PlanTier };
+export { BILLING_PLANS, BILLING_PLAN_LIST, getVisibleBillingPlans, type PlanTier };
 
 export function isRazorpayConfigured(): boolean {
   return Boolean(process.env.RAZORPAY_KEY_ID?.trim() && process.env.RAZORPAY_KEY_SECRET?.trim());
+}
+
+function assertBillingAdmin(role: string) {
+  if (role !== "owner" && role !== "admin") {
+    throw new ServiceError("FORBIDDEN", "Only workspace admins can change billing");
+  }
 }
 
 export async function getBillingSummary(userId: string, displayName?: string | null) {
@@ -34,7 +48,7 @@ export async function getBillingSummary(userId: string, displayName?: string | n
     repositoryLimit: org.repositoryLimit,
     billingStatus: org.billingStatus,
     razorpayConfigured: isRazorpayConfigured(),
-    plans: BILLING_PLAN_LIST,
+    plans: getVisibleBillingPlans(),
   };
 }
 
@@ -45,9 +59,7 @@ export async function upgradeOrganizationPlan(
 ) {
   const membership =
     (await getMembershipForUser(userId)) ?? (await ensurePersonalWorkspace(userId, displayName));
-  if (membership.role !== "owner" && membership.role !== "admin") {
-    throw new ServiceError("FORBIDDEN", "Only workspace admins can change billing");
-  }
+  assertBillingAdmin(membership.role);
 
   const plan = BILLING_PLANS[planTier];
   if (!plan) {
@@ -58,12 +70,12 @@ export async function upgradeOrganizationPlan(
   const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
   if (planTier !== "free" && keyId && keySecret) {
-    const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+    getRazorpayAuthHeader();
     const amountPaise = plan.priceInr * 100;
     const response = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       headers: {
-        Authorization: `Basic ${auth}`,
+        Authorization: getRazorpayAuthHeader(),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -93,16 +105,14 @@ export async function upgradeOrganizationPlan(
     };
   }
 
-  await db
-    .update(organizations)
-    .set({
-      planTier,
-      aiReviewCredits: plan.aiReviewCredits,
-      repositoryLimit: plan.repositoryLimit,
-      billingStatus: "active",
-      updatedAt: new Date(),
-    })
-    .where(eq(organizations.id, membership.organization.id));
+  if (planTier !== "free" && process.env.NODE_ENV === "production") {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      "Razorpay checkout is required for paid plans in production",
+    );
+  }
+
+  await applyPlanUpgrade(membership.organization.id, planTier);
 
   return {
     mode: "demo" as const,
@@ -115,37 +125,29 @@ export async function upgradeOrganizationPlan(
 
 export async function confirmRazorpayUpgrade(
   userId: string,
-  planTier: PlanTier,
+  _planTier: PlanTier,
   input: { orderId: string; paymentId: string; signature: string },
 ) {
   const membership = await getMembershipForUser(userId);
   if (!membership) {
     throw new ServiceError("FORBIDDEN", "Join a workspace before managing billing");
   }
+  assertBillingAdmin(membership.role);
 
   if (!verifyRazorpayPaymentSignature(input.orderId, input.paymentId, input.signature)) {
     throw new ServiceError("BAD_REQUEST", "Invalid Razorpay payment signature");
   }
 
-  const plan = BILLING_PLANS[planTier];
   const org = membership.organization;
+  const verifiedPlanTier = await resolveVerifiedPlanTierFromOrder(input.orderId, org.id);
+  const plan = BILLING_PLANS[verifiedPlanTier];
 
-  if (org.razorpayCustomerId === input.paymentId && org.planTier === planTier) {
-    return { planTier, planName: plan.name };
+  if (org.razorpayCustomerId === input.paymentId && org.planTier === verifiedPlanTier) {
+    return { planTier: verifiedPlanTier, planName: plan.name };
   }
 
   try {
-    await db
-      .update(organizations)
-      .set({
-        planTier,
-        aiReviewCredits: plan.aiReviewCredits,
-        repositoryLimit: plan.repositoryLimit,
-        billingStatus: "active",
-        razorpayCustomerId: input.paymentId,
-        updatedAt: new Date(),
-      })
-      .where(eq(organizations.id, org.id));
+    await applyPlanUpgrade(org.id, verifiedPlanTier, input.paymentId);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("plan_tier") || message.includes("invalid input value for enum")) {
@@ -157,5 +159,5 @@ export async function confirmRazorpayUpgrade(
     throw error;
   }
 
-  return { planTier, planName: plan.name };
+  return { planTier: verifiedPlanTier, planName: plan.name };
 }
