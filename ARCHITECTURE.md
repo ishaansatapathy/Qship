@@ -238,7 +238,7 @@ Cache is invalidated immediately on `installation.deleted` webhook.
 
 ### Webhook processing (`webhook.ts`)
 
-**Idempotency:** `X-GitHub-Delivery` ID tracked in a fixed-size LRU set (2,000 entries). Duplicate deliveries return immediately.
+**Idempotency:** `X-GitHub-Delivery` ID stored in Postgres (`github_webhook_deliveries`). Duplicate deliveries return immediately; rows expire after 7 days.
 
 **Event routing (`github-webhook.ts`):**
 

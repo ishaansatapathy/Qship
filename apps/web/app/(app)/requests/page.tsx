@@ -189,6 +189,7 @@ function FeatureDetailPanel({
     loading?: boolean;
   } | null>(null);
   const [clarificationText, setClarificationText] = useState("");
+  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const detail = trpc.feature.get.useQuery({ id: featureId });
   const githubStatus = trpc.github.connectionStatus.useQuery({});
   const repos = trpc.github.listRepositories.useQuery({});
@@ -210,6 +211,16 @@ function FeatureDetailPanel({
   );
 
   const githubConnected = githubStatus.data?.connected === true;
+
+  useEffect(() => {
+    if (!repos.data?.length) {
+      setSelectedRepoId(null);
+      return;
+    }
+    setSelectedRepoId((current) =>
+      current && repos.data.some((repo) => repo.id === current) ? current : repos.data[0]!.id,
+    );
+  }, [repos.data]);
 
   const invalidate = async () => {
     await utils.feature.get.invalidate({ id: featureId });
@@ -341,7 +352,8 @@ function FeatureDetailPanel({
   const linkedPr = feature.pullRequests?.[0];
   const reviews = allReviews.data ?? [];
   const _latestReview = reviews[0];
-  const firstRepo = repos.data?.[0];
+  const selectedRepo =
+    repos.data?.find((repo) => repo.id === selectedRepoId) ?? repos.data?.[0] ?? null;
   const education = feature.metadata?.education as
     | {
         educationMessage?: string;
@@ -489,8 +501,23 @@ function FeatureDetailPanel({
           </button>
         ) : null}
 
-        {prd && tasks.length > 0 && githubConnected && firstRepo && !linkedPr ? (
+        {prd && tasks.length > 0 && githubConnected && selectedRepo && !linkedPr ? (
           <>
+            {(repos.data?.length ?? 0) > 1 ? (
+              <label className="qship-req-field" style={{ marginBottom: 4 }}>
+                <span>Target repository</span>
+                <select
+                  value={selectedRepo.id}
+                  onChange={(event) => setSelectedRepoId(event.target.value)}
+                >
+                  {repos.data!.map((repo) => (
+                    <option key={repo.id} value={repo.id}>
+                      {repo.fullName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <button
               type="button"
               className="qship-btn-accent"
@@ -504,7 +531,7 @@ function FeatureDetailPanel({
                   onConfirm: () => {
                     setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
                     implementCode.mutate(
-                      { id: feature.id, repositoryId: firstRepo.id },
+                      { id: feature.id, repositoryId: selectedRepo.id },
                       { onSettled: () => setConfirm(null) },
                     );
                   },
@@ -525,7 +552,7 @@ function FeatureDetailPanel({
               type="button"
               className="qship-btn-ghost"
               disabled={createPr.isPending}
-              onClick={() => createPr.mutate({ id: feature.id, repositoryId: firstRepo.id })}
+              onClick={() => createPr.mutate({ id: feature.id, repositoryId: selectedRepo.id })}
             >
               {createPr.isPending ? (
                 <>
@@ -540,23 +567,10 @@ function FeatureDetailPanel({
           </>
         ) : null}
 
-        {prd && tasks.length > 0 && !linkedPr && firstRepo && !githubConnected ? (
-          <button
-            type="button"
-            className="qship-btn-ghost"
-            disabled={createPr.isPending}
-            onClick={() => createPr.mutate({ id: feature.id, repositoryId: firstRepo.id })}
-          >
-            {createPr.isPending ? (
-              <>
-                <Loader2 size={14} className="qship-spin" /> Opening PR…
-              </>
-            ) : (
-              <>
-                <GitBranch size={14} /> Open GitHub PR
-              </>
-            )}
-          </button>
+        {prd && tasks.length > 0 && !linkedPr && !githubConnected ? (
+          <Link href="/settings" className="qship-btn-ghost">
+            <GitBranch size={14} /> Connect GitHub to implement
+          </Link>
         ) : null}
 
         {(linkedPr || prd) &&

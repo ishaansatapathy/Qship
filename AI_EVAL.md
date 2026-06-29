@@ -97,13 +97,15 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 |---|---|
 | Octokit + 55-min token cache | `packages/services/github/client.ts` |
 | HMAC-SHA256 webhooks | `packages/services/github/installation.ts` |
-| Delivery idempotency (LRU) | `packages/services/github/webhook.ts` |
+| Delivery idempotency (Postgres) | `packages/services/github/webhook-dedup.ts` |
+| Signed install state + nonce | `packages/services/github/installation.ts` |
 | Paginated PR diff | `packages/services/github/diff.ts` |
 | PR body with PRD checklist | `packages/services/github/pr.ts` |
 | Update-in-place review comment | `packages/services/github/pr-review.ts` |
 | Branch naming `shipflow/<uuid>` | `packages/services/github/pr.ts` |
 
 **Webhook URL:** `POST https://repoapi-production-adfe.up.railway.app/webhooks/github`  
+**CI merge gate:** `pnpm test:github-eval` in `ci.yml`  
 **Merge behavior:** PR merged → `human_review` (human sign-off required). Pre-approved features → `approved`. See `github/webhook.ts` lines ~170–195.
 
 ---

@@ -113,6 +113,9 @@ jobs:
       - name: Agent golden eval gate
         run: pnpm --filter @repo/services test:agent-eval
 
+      - name: GitHub integration eval gate
+        run: pnpm --filter @repo/services test:github-eval
+
       - name: Build all packages and apps
         run: pnpm build
 

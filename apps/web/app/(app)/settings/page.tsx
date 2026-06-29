@@ -20,6 +20,8 @@ function ConnectionRow({
   connectDisabled,
   onConnectClick,
   connectLabel = "Connect",
+  onSync,
+  syncing,
 }: {
   connected: boolean;
   connectHref: string;
@@ -31,6 +33,8 @@ function ConnectionRow({
   connectDisabled?: boolean;
   onConnectClick?: () => void;
   connectLabel?: string;
+  onSync?: () => void;
+  syncing?: boolean;
 }) {
   if (connected) {
     return (
@@ -38,6 +42,11 @@ function ConnectionRow({
         <span className="qship-set-status" data-on={true}>
           {connectedLabel}
         </span>
+        {onSync ? (
+          <button type="button" className="qship-btn-ghost" disabled={syncing} onClick={onSync}>
+            {syncing ? "Syncing…" : "Sync repos"}
+          </button>
+        ) : null}
         <button
           type="button"
           className="qship-btn-ghost qship-set-disconnect"
@@ -185,6 +194,19 @@ export default function SettingsPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  const syncGithub = trpc.github.syncInstallation.useMutation({
+    onSuccess: async (result) => {
+      await utils.github.connectionStatus.invalidate();
+      await utils.github.listRepositories.invalidate();
+      if (result.connected) {
+        toast.success("GitHub repositories synced");
+        return;
+      }
+      toast.message(result.reason ?? "No GitHub installation found");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   if (!user) return null;
 
   const nameChanged = name.trim().length > 0 && name.trim() !== (user.displayName || user.fullName || "");
@@ -297,6 +319,8 @@ export default function SettingsPage() {
             }
             onDisconnect={() => disconnectGithub.mutate({})}
             disconnecting={disconnectGithub.isPending}
+            onSync={() => syncGithub.mutate({})}
+            syncing={syncGithub.isPending}
             demoBlocked={isDemoUser && githubStatus.data?.connected !== true}
             demoBlockedHint="Connecting a live GitHub org replaces demo sample data."
           />
