@@ -20,7 +20,7 @@ import {
   Inbox,
 } from "lucide-react";
 
-import { QshipWordmark, QshipLogoMark } from "~/components/qship/qship-logo";
+import { QshipWordmark } from "~/components/qship/qship-logo";
 import { QshipCommand } from "./qship-command";
 import { ShortcutsHelp } from "./shortcuts-help";
 import { useQshipUser, initials } from "./use-qship-user";
@@ -140,7 +140,6 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
         <aside className="qship-app-side">
           <div className="qship-app-side-head">
             <Link href="/requests" className="qship-app-side-brand">
-              <QshipLogoMark size={24} />
               <QshipWordmark size="sm" />
             </Link>
           </div>
@@ -190,7 +189,6 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
       <aside className="qship-app-side" data-open={mobileNavOpen ? "true" : undefined}>
         <div className="qship-app-side-head">
           <Link href="/requests" className="qship-app-side-brand" onClick={() => setMobileNavOpen(false)}>
-            <QshipLogoMark size={24} />
             <QshipWordmark size="sm" />
           </Link>
           <button
