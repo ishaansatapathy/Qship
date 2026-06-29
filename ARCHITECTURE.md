@@ -245,7 +245,7 @@ Cache is invalidated immediately on `installation.deleted` webhook.
 | Event | Handler |
 |---|---|
 | `pull_request.opened/reopened/synchronize` | Link to feature, update DB, trigger AI review |
-| `pull_request.closed` + `merged=true` | Feature → `approved` |
+| `pull_request.closed` + `merged=true` | Feature → `human_review` (or `approved` if pre-approved) |
 | `pull_request.closed` + `merged=false` | Activity log only |
 | `installation.deleted` | Clear org link, evict token cache |
 | `installation_repositories.removed` | Delete revoked repos from DB |

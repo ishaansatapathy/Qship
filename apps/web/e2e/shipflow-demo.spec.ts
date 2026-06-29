@@ -47,4 +47,15 @@ test.describe("ShipFlow demo journey", () => {
     await expect(page).toHaveURL(/\/agent\?.*walkthrough=1/);
     await expect(page.getByText(/explain more/i)).toBeVisible({ timeout: 10_000 });
   });
+
+  test("bulk export approve records Slack notification on timeline", async ({ page }) => {
+    await demoLogin(page, "/requests");
+    await page.getByText(/bulk export for compliance/i).click();
+    await expect(page.getByRole("button", { name: /approve for ship/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole("button", { name: /approve for ship/i }).click();
+    await page.getByRole("button", { name: /^approve$/i }).click();
+    await expect(page.getByText(/slack notification sent/i)).toBeVisible({ timeout: 20_000 });
+  });
 });

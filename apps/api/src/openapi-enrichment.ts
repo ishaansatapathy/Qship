@@ -94,6 +94,22 @@ export function enrichShipflowOpenApi(
 
   addCodeSample(document, "/ready", "get", "curl", `curl -fsS ${baseUrl}/ready`);
 
+  addReferencePath(document, "/integrations/slack", "get", {
+    summary: "Slack notification integration status",
+    description:
+      "Reports whether `SLACK_WEBHOOK_URL` is configured (live vs simulated). Approve a `human_review` feature to verify delivery on the delivery timeline.",
+    tags: ["Integrations"],
+    responses: { "200": { description: "Slack integration status" } },
+  });
+
+  addCodeSample(
+    document,
+    "/integrations/slack",
+    "get",
+    "curl",
+    `curl -fsS ${baseUrl}/integrations/slack`,
+  );
+
   addReferencePath(document, "/mcp", "post", {
     summary: "MCP JSON-RPC server (35 tools)",
     description: [

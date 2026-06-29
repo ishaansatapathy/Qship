@@ -258,9 +258,21 @@ function FeatureDetailPanel({
   });
 
   const approve = trpc.feature.approve.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await invalidate();
-      toast.success("Approved for release");
+      const slack = result?.slack;
+      if (slack?.sent) {
+        toast.success(
+          slack.simulated
+            ? `Approved — Slack notification recorded for ${slack.channel ?? "#product-shipping"}`
+            : `Approved — Slack notification delivered to ${slack.channel ?? "webhook"}`,
+        );
+      } else if (slack?.error) {
+        toast.success("Approved for release");
+        toast.error(`Slack delivery failed: ${slack.error}`);
+      } else {
+        toast.success("Approved for release");
+      }
     },
     onError: (e) => toast.error(e.message),
   });
@@ -274,9 +286,18 @@ function FeatureDetailPanel({
   });
 
   const ship = trpc.feature.ship.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await invalidate();
-      toast.success("Feature marked as shipped");
+      const slack = result?.slack;
+      if (slack?.sent) {
+        toast.success(
+          slack.simulated
+            ? "Shipped — Slack shipped alert recorded on timeline"
+            : "Shipped — Slack alert delivered",
+        );
+      } else {
+        toast.success("Feature marked as shipped");
+      }
     },
     onError: (e) => toast.error(e.message),
   });

@@ -9,7 +9,14 @@ import {
 import { logger } from "@repo/logger";
 
 import { ServiceError } from "./errors";
-import { appendFeatureActivity, updateFeatureStatus } from "./feature-request";
+import {
+  appendFeatureActivity,
+  getFeatureRequest,
+  guardedUpdateFeatureStatus,
+  updateFeatureStatus,
+} from "./feature-request";
+import type { FeatureStatus } from "./workflow";
+import { notifySlackFeatureApproved, notifySlackFeatureShipped } from "./slack";
 import type { PrAiReviewResult } from "./feature-ai";
 import {
   buildReviewHealthSummary,
@@ -264,6 +271,14 @@ export async function getPreviousBlockingIssues(featureRequestId: string) {
  * Throws a ServiceError if the feature cannot be approved/rejected right now.
  */
 export async function validateHumanApprovalEligibility(featureRequestId: string) {
+  const feature = await getFeatureRequest(featureRequestId);
+  if (feature.status !== "human_review") {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Cannot approve: feature is "${feature.status}", expected "human_review".`,
+    );
+  }
+
   const latestReview = await getLatestAiReview(featureRequestId);
   if (!latestReview) {
     throw new ServiceError(
@@ -292,14 +307,31 @@ export async function recordHumanApproval(input: {
   decision: "approved" | "rejected" | "changes_requested";
   notes?: string;
 }) {
-  const id = crypto.randomUUID();
-  await db.insert(humanApprovals).values({
-    id,
-    featureRequestId: input.featureRequestId,
-    reviewerUserId: input.reviewerUserId,
-    decision: input.decision,
-    notes: input.notes ?? null,
-  });
+  if (input.decision === "approved") {
+    await validateHumanApprovalEligibility(input.featureRequestId);
+  }
+
+  const feature = await getFeatureRequest(input.featureRequestId);
+  const fromStatus = feature.status as FeatureStatus;
+
+  if (input.decision === "approved" && fromStatus !== "human_review") {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Cannot approve: feature is "${fromStatus}", expected "human_review".`,
+    );
+  }
+  if (input.decision === "rejected" && fromStatus !== "human_review") {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Cannot reject: feature is "${fromStatus}", expected "human_review".`,
+    );
+  }
+  if (input.decision === "changes_requested" && fromStatus !== "human_review") {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Cannot request changes: feature is "${fromStatus}", expected "human_review".`,
+    );
+  }
 
   const activityMap = {
     approved: {
@@ -320,7 +352,17 @@ export async function recordHumanApproval(input: {
   };
 
   const { nextStatus, title, kind } = activityMap[input.decision];
-  await updateFeatureStatus(input.featureRequestId, nextStatus);
+  const id = crypto.randomUUID();
+
+  await db.insert(humanApprovals).values({
+    id,
+    featureRequestId: input.featureRequestId,
+    reviewerUserId: input.reviewerUserId,
+    decision: input.decision,
+    notes: input.notes ?? null,
+  });
+
+  await guardedUpdateFeatureStatus(input.featureRequestId, fromStatus, nextStatus);
   await appendFeatureActivity(input.featureRequestId, {
     kind,
     title,
@@ -328,13 +370,33 @@ export async function recordHumanApproval(input: {
     actor: "user",
   });
 
+  let slack;
+  if (input.decision === "approved") {
+    const pr = feature.pullRequests?.[0];
+    const prUrl =
+      pr?.url ??
+      (pr?.repository?.fullName && pr?.githubPrNumber
+        ? `https://github.com/${pr.repository.fullName}/pull/${pr.githubPrNumber}`
+        : null);
+
+    slack = await notifySlackFeatureApproved({
+      featureId: feature.id,
+      featureTitle: feature.title,
+      rawRequest: feature.rawRequest,
+      approverNotes: input.notes,
+      prUrl,
+    });
+  }
+
   logger.info("review.human_approval_recorded", {
     featureRequestId: input.featureRequestId,
     decision: input.decision,
     reviewerUserId: input.reviewerUserId,
+    slackSent: slack?.sent,
+    slackMode: slack?.simulated ? "simulated" : slack?.sent ? "live" : "failed",
   });
 
-  return { id, decision: input.decision, nextStatus };
+  return { id, decision: input.decision, nextStatus, slack };
 }
 
 /**
@@ -348,26 +410,37 @@ export async function listHumanApprovals(featureRequestId: string) {
   });
 }
 
-/**
- * Marks a feature as shipped. Creates a final human approval record and
- * transitions the feature to the terminal `shipped` status.
- */
+/** Marks a feature shipped (`approved` → `shipped`) and sends the Slack shipped alert. */
 export async function markFeatureShipped(featureRequestId: string, userId: string) {
-  await updateFeatureStatus(featureRequestId, "shipped");
+  const feature = await getFeatureRequest(featureRequestId);
+  if (feature.status !== "approved") {
+    throw new ServiceError(
+      "PRECONDITION_FAILED",
+      `Cannot ship: feature is "${feature.status}", expected "approved". Approve the feature first.`,
+    );
+  }
+
+  await guardedUpdateFeatureStatus(featureRequestId, "approved", "shipped");
   await appendFeatureActivity(featureRequestId, {
     kind: "status",
     title: "Feature shipped to production 🚀",
     actor: "user",
   });
-  await db.insert(humanApprovals).values({
-    id: crypto.randomUUID(),
-    featureRequestId,
-    reviewerUserId: userId,
-    decision: "approved",
-    notes: "Shipped to production",
+
+  const slack = await notifySlackFeatureShipped({
+    featureId: feature.id,
+    featureTitle: feature.title,
+    rawRequest: feature.rawRequest,
   });
 
-  logger.info("review.feature_shipped", { featureRequestId, userId });
+  logger.info("review.feature_shipped", {
+    featureRequestId,
+    userId,
+    slackSent: slack.sent,
+    slackMode: slack.simulated ? "simulated" : slack.sent ? "live" : "failed",
+  });
+
+  return { status: "shipped" as const, slack };
 }
 
 // ── Individual issue resolution ────────────────────────────────────────────────

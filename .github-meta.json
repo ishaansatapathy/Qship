@@ -4,15 +4,16 @@
   "hackathon": "ChaiCode Hackathon 2026",
   "team": "ishaansatapathy",
   "repository": "https://github.com/ishaansatapathy/Qship",
+  "evaluator_start": "AI_EVAL.md",
   "live": {
     "app": "https://qship.ishaandev.co.in",
     "demo_login": "https://qship.ishaandev.co.in/api-auth/demo?next=/brief",
-    "api": "https://api.qship.ishaandev.co.in",
-    "api_health": "https://api.qship.ishaandev.co.in/health",
-    "api_ready": "https://api.qship.ishaandev.co.in/ready",
-    "api_docs": "https://api.qship.ishaandev.co.in/docs",
-    "openapi_json": "https://api.qship.ishaandev.co.in/openapi.json",
-    "mcp": "https://api.qship.ishaandev.co.in/mcp"
+    "api": "https://repoapi-production-adfe.up.railway.app",
+    "api_health": "https://repoapi-production-adfe.up.railway.app/health",
+    "api_ready": "https://repoapi-production-adfe.up.railway.app/ready",
+    "api_docs": "https://repoapi-production-adfe.up.railway.app/docs",
+    "openapi_json": "https://repoapi-production-adfe.up.railway.app/openapi.json",
+    "mcp": "https://repoapi-production-adfe.up.railway.app/mcp"
   },
   "demo_credentials": {
     "email": "demo@qship.dev",
@@ -35,23 +36,35 @@
     "Vitest",
     "GitHub Actions"
   ],
-  "agent_tools": 33,
-  "mcp_tools": 33,
-  "db_migrations": 42,
+  "agent_tools": 35,
+  "mcp_tools": 35,
+  "db_migrations": 43,
   "db_indexes": 14,
   "ci": "https://github.com/ishaansatapathy/Qship/actions",
   "docs": {
+    "ai_eval": "AI_EVAL.md",
     "readme": "README.md",
     "demo": "DEMO.md",
     "judge_walkthrough": "JUDGE_WALKTHROUGH.md",
     "submission": "HACKATHON_SUBMISSION.md",
     "architecture": "ARCHITECTURE.md",
     "engineering": "ENGINEERING.md",
-    "scalar_ui": "https://api.qship.ishaandev.co.in/docs"
+    "scalar_ui": "https://repoapi-production-adfe.up.railway.app/docs"
   },
   "verify_commands": [
-    "curl -fsS https://api.qship.ishaandev.co.in/health",
-    "curl -fsS https://api.qship.ishaandev.co.in/ready",
-    "curl -s -X POST https://api.qship.ishaandev.co.in/mcp -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}'"
-  ]
+    "node scripts/verify-production.mjs",
+    "curl -fsS https://repoapi-production-adfe.up.railway.app/health",
+    "curl -fsS https://repoapi-production-adfe.up.railway.app/ready",
+    "curl -fsS https://repoapi-production-adfe.up.railway.app/openapi.json",
+    "curl -fsS https://repoapi-production-adfe.up.railway.app/docs",
+    "curl -s https://repoapi-production-adfe.up.railway.app/mcp/"
+  ],
+  "rubric_highlights": {
+    "core_workflow": "FSM + Slack approve/ship notifications — packages/services/slack/notify.ts",
+    "slack_integration": "GET /integrations/slack — live webhook or auditable simulated delivery",
+    "ai_agent": "35 tools, delta re-review, 9-dim PR review — packages/services/feature-ai.ts",
+    "github": "HMAC webhooks, paginated diff, GitHub App — packages/services/github/",
+    "review_loop": "validateHumanApprovalEligibility + getReviewDelta — packages/services/review.ts",
+    "engineering": "Turborepo, tRPC, 43 migrations, CI — .github/workflows/ci.yml"
+  }
 }
