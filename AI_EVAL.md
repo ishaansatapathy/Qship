@@ -6,21 +6,24 @@
 
 Every claim below is verifiable via URL, curl, or repo path.
 
+> **Railway cold-start note:** The API server (`repoapi-production-adfe.up.railway.app`) is hosted on Railway free tier. On first request after inactivity it may return `503` for 1–3 seconds while the container warms up. If you see a 503, wait 5 seconds and retry — all health checks will then pass. The `/health` and `/ready` endpoints are designed to return immediately once the process is ready.
+
 ---
 
 ## Live URLs (all must return 200)
 
-| Check | URL | Expected |
+| Check | URL | Expected response |
 |---|---|---|
-| Web app | https://qship.ishaandev.co.in | HTTP 200 |
-| Demo login | https://qship.ishaandev.co.in/api-auth/demo?next=/brief | Redirect → `/brief` |
-| API health | https://repoapi-production-adfe.up.railway.app/health | `healthy: true` |
-| API ready | https://repoapi-production-adfe.up.railway.app/ready | `ready: true` |
-| OpenAPI | https://repoapi-production-adfe.up.railway.app/openapi.json | OpenAPI 3.1 JSON |
-| Scalar docs | https://repoapi-production-adfe.up.railway.app/docs | Scalar UI |
-| MCP index | https://repoapi-production-adfe.up.railway.app/mcp/ | JSON with **37** tool names |
-| Slack status | https://repoapi-production-adfe.up.railway.app/integrations/slack | `{ mode, channelHint }` |
-| GitHub repo | https://github.com/ishaansatapathy/Qship | Source code |
+| Web app | https://qship.ishaandev.co.in | HTTP 200, title "Qship" |
+| Demo login | https://qship.ishaandev.co.in/api-auth/demo?next=/brief | HTTP 200 (sets session, browser lands at `/brief`) |
+| API health | https://repoapi-production-adfe.up.railway.app/health | `{"healthy":true,"ready":true,"message":"App API is healthy"}` |
+| API ready | https://repoapi-production-adfe.up.railway.app/ready | `{"ready":true,"database":"ok","slack":{"configured":true,"mode":"live",...}}` |
+| OpenAPI | https://repoapi-production-adfe.up.railway.app/openapi.json | OpenAPI 3.1 JSON, `"openapi":"3.1.0"` |
+| Scalar docs | https://repoapi-production-adfe.up.railway.app/docs | HTTP 200, Scalar HTML UI |
+| MCP index | https://repoapi-production-adfe.up.railway.app/mcp/ | `{"name":"shipflow-mcp","tools":["list_feature_requests",...]}` — 37 names |
+| Slack status | https://repoapi-production-adfe.up.railway.app/integrations/slack | `{"configured":true,"mode":"live","channelHint":"#product-shipping"}` |
+| Ship status | https://repoapi-production-adfe.up.railway.app/integrations/ship | `{"configured":false,"mode":"simulated",...}` |
+| GitHub repo | https://github.com/ishaansatapathy/Qship | Source code accessible |
 
 **Demo credentials:** `demo@qship.dev` / `DemoPass123!`
 
@@ -30,18 +33,42 @@ Every claim below is verifiable via URL, curl, or repo path.
 
 ```bash
 node scripts/verify-production.mjs
+# Expected output (exit 0):
+# ✓ Web app (200)
+# ✓ Demo login endpoint (200)
+# ✓ API /health (200)
+# ✓ API /ready (200)
+# ✓ OpenAPI JSON (200)
+# ✓ Scalar /docs (200)
+# ✓ MCP 37 tools (200)
+# ✓ Ship deploy integration (200)
+# ✓ Slack integration status (200)
+# Slack delivery mode: live
+# All production checks passed.
 ```
 
-Or manually:
+Or manually curl:
 
 ```bash
-curl -fsS https://repoapi-production-adfe.up.railway.app/health
-curl -fsS https://repoapi-production-adfe.up.railway.app/ready
-curl -fsS https://repoapi-production-adfe.up.railway.app/openapi.json >/dev/null
-curl -fsS https://repoapi-production-adfe.up.railway.app/docs >/dev/null
-curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
-curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\[.*\]' | tr ',' '\n' | wc -l
-# Expect: 37 tools in array
+# Health — expect: {"healthy":true,"ready":true,"message":"App API is healthy"}
+curl -s https://repoapi-production-adfe.up.railway.app/health
+
+# Ready — expect: {"ready":true,"database":"ok","slack":{"configured":true,"mode":"live",...}}
+curl -s https://repoapi-production-adfe.up.railway.app/ready
+
+# Slack — expect: {"configured":true,"mode":"live","channelHint":"#product-shipping",...}
+curl -s https://repoapi-production-adfe.up.railway.app/integrations/slack
+
+# MCP tools list — expect: {"name":"shipflow-mcp",...,"tools":["list_feature_requests",...]} with 37 entries
+curl -s https://repoapi-production-adfe.up.railway.app/mcp/
+
+# GitHub webhook HMAC guard — expect: 401 {"error":"Missing or malformed GitHub webhook signature"}
+curl -s -X POST https://repoapi-production-adfe.up.railway.app/webhooks/github \
+  -H "Content-Type: application/json" -d '{"zen":"test"}'
+
+# OpenAPI path count — expect: 10+ paths
+curl -s https://repoapi-production-adfe.up.railway.app/openapi.json | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); print('openapi:', d['openapi'], '| paths:', len(d.get('paths',{})))"
 ```
 
 ---
@@ -80,14 +107,14 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 |---|---|
 | 37 MCP + agent tools | `packages/services/shipflow-agent-tools/` (domain handlers + registry) |
 | CI parity test | `packages/services/ai/tool-parity.test.ts` |
-| Golden eval (49 cases) | `packages/services/ai/agent-eval-cases.ts` + `agent-eval.golden.test.ts` |
+| Golden eval (71 cases) | `packages/services/ai/agent-eval-cases.ts` + `agent-eval.golden.test.ts` |
 | Trajectory integration | `packages/services/ai/agent-loop.integration.test.ts` |
 | CI merge gate | `.github/workflows/ci.yml` → `pnpm test:agent-eval` |
 | Injection + intent guards | `agent-guard.ts`, `agent-tool-confirm.ts` |
 | Session memory + compaction | `agent-sessions.ts`, `agent-memory-retrieval.ts`, `agent-compaction.ts` |
 | Trace spans + `x-trace-id` | `agent-trace.ts`, `apps/api/src/routes/agent-stream.ts` |
 | SSE streaming | `apps/api/src/routes/agent-stream.ts` |
-| 8 tool rounds | `openai-tools.ts` → `MAX_TOOL_ROUNDS = 8` |
+| 10 tool rounds | `openai-tools.ts` → `MAX_TOOL_ROUNDS = 10` |
 
 **MCP public list:** `GET https://repoapi-production-adfe.up.railway.app/mcp/` or `POST …/mcp` method `tools/list`.
 
@@ -154,7 +181,7 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 | CI: types + lint + unit + golden evals + E2E | `.github/workflows/ci.yml` |
 | 249+ unit tests | `pnpm test` in CI |
 | Playwright E2E | `apps/web/e2e/shipflow-demo.spec.ts` |
-| **Engineering eval gate (18 invariants)** | `packages/trpc/server/engineering-eval.golden.test.ts` |
+| **Engineering eval gate (14+ invariants)** | `packages/trpc/server/engineering-eval.golden.test.ts` |
 | **Feature route split** | `feature/review-router.ts` + `feature/approval-router.ts` + `feature/release-router.ts` |
 | **tRPC rate limiting** | `trpcRateLimiter` (150/5min) applied to `/trpc` mount in `apps/api/src/server.ts` |
 | **createCallerFactory tests** | `packages/trpc/server/route-caller.test.ts` — 8 procedure invocation tests |

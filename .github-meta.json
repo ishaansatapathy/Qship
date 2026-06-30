@@ -27,7 +27,7 @@
     "tRPC v11",
     "BetterAuth",
     "PostgreSQL 16 + Drizzle ORM",
-    "OpenAI gpt-4o-mini",
+    "OpenAI API",
     "MCP 2024-11-05",
     "GitHub App (Octokit)",
     "Inngest",
@@ -40,7 +40,7 @@
   ],
   "agent_tools": 37,
   "mcp_tools": 37,
-  "db_migrations": 52,
+  "db_migrations": 53,
   "db_indexes": 14,
   "ci": "https://github.com/ishaansatapathy/Qship/actions",
   "docs": {
