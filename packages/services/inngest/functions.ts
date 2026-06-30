@@ -1,15 +1,7 @@
 import { inngest, INNGEST_EVENTS } from "./client";
-import {
-  runPrdGenerationWorkflow,
-  runPrdAiStep,
-  runPrdPersistStep,
-} from "../workflows/prd-generation";
-import {
-  runTaskGenerationWorkflow,
-  runTaskAiStep,
-  runTaskPersistStep,
-} from "../workflows/task-generation";
-import { runAiReviewWorkflow, runAiReviewStep, runAiReviewPersistStep } from "../workflows/ai-review-workflow";
+import { runPrdAiStep, runPrdPersistStep } from "../workflows/prd-generation";
+import { runTaskAiStep, runTaskPersistStep } from "../workflows/task-generation";
+import { runAiReviewStep, runAiReviewPersistStep } from "../workflows/ai-review-workflow";
 import { runCodeImplementationWorkflow } from "../workflows/code-implementation";
 import { processGithubWebhookOutbox } from "../github/webhook-outbox";
 
