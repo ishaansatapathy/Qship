@@ -294,15 +294,37 @@ Be specific to this request. Avoid generic advice.`,
   return parseJsonAs(content, FeatureTriageSchema);
 }
 
+export type PrdRepoContext = {
+  repoFullName: string;
+  relevantFiles: Array<{ path: string; excerpt: string }>;
+};
+
 /**
  * Generates a production-grade PRD with technical requirements, security
  * considerations, testing strategy, and rollback plan.
+ *
+ * When `repoContext` is provided the PRD is codebase-aware: acceptance criteria
+ * and technical requirements reference actual file paths and patterns found in
+ * the repository, making them immediately actionable for the engineering team.
  */
-export async function generateFeaturePrd(input: { title: string; rawRequest: string; clarifications?: string[] }) {
+export async function generateFeaturePrd(input: {
+  title: string;
+  rawRequest: string;
+  clarifications?: string[];
+  repoContext?: PrdRepoContext;
+}) {
   requireOpenAi();
 
   const clarificationBlock = input.clarifications?.length
     ? `\n\nClarifications answered:\n${input.clarifications.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+    : "";
+
+  const repoBlock = input.repoContext?.relevantFiles.length
+    ? `\n\nCodebase context (${input.repoContext.repoFullName}):\n${input.repoContext.relevantFiles
+        .slice(0, 6)
+        .map((f) => `--- ${f.path} ---\n${f.excerpt.slice(0, 1200)}`)
+        .join("\n\n")}
+\nUse this context to make technical requirements and acceptance criteria specific to the actual codebase — reference real file paths, existing patterns, and naming conventions. Do not hallucinate file names not shown above.`
     : "";
 
   const content = await createChatCompletion(
@@ -329,7 +351,7 @@ Be specific to this feature — reference the actual request and user context. N
       },
       {
         role: "user",
-        content: `Feature title: ${input.title}\n\nOriginal request:\n${input.rawRequest}${clarificationBlock}`,
+        content: `Feature title: ${input.title}\n\nOriginal request:\n${input.rawRequest}${clarificationBlock}${repoBlock}`,
       },
     ],
     { jsonObject: true, temperature: 0.2 },

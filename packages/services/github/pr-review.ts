@@ -153,6 +153,78 @@ async function upsertReviewComment(
   }
 }
 
+// ── Inline PR review annotations ─────────────────────────────────────────────
+
+/**
+ * Posts GitHub pull request review annotations for issues that have a filePath.
+ * Uses the pull_request_review API (one review, multiple inline comments) rather
+ * than individual issue comments, so they appear inline in the diff view.
+ *
+ * Uses "COMMENT" event type so Qship never blocks/approves — that stays with humans.
+ * Best-effort: failures here never block the pipeline.
+ */
+async function postInlineAnnotations(
+  octokit: ReturnType<typeof getInstallationOctokit>,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  headSha: string,
+  issues: PrAiReviewIssue[],
+): Promise<void> {
+  const annotatable = issues.filter(
+    (i) => typeof i.filePath === "string" && i.filePath.length > 0,
+  );
+
+  if (annotatable.length === 0) return;
+
+  // Only annotate issues where we have both a file path and a parseable line number
+  const lineAnnotatable = annotatable.filter((i) => {
+    const n = parseInt(i.lineNumber ?? "", 10);
+    return !isNaN(n) && n > 0;
+  });
+
+  if (lineAnnotatable.length === 0) return;
+
+  const comments = lineAnnotatable.map((issue) => {
+    const lineNum = parseInt(issue.lineNumber as string, 10);
+    const severity = issue.severity === "blocking" ? "🔴 **Blocking**" : "🟡 Advisory";
+    const body = [
+      `${severity} · **${issue.category}**: ${issue.title}`,
+      "",
+      issue.description,
+      issue.suggestion ? `\n**Suggested fix:** ${issue.suggestion}` : "",
+      issue.requirementRef ? `\n> Requirement: _${issue.requirementRef}_` : "",
+      "",
+      `_Qship AI Review_`,
+    ].join("\n");
+
+    return {
+      path: issue.filePath as string,
+      line: lineNum,
+      side: "RIGHT" as const,
+      body,
+    };
+  });
+
+  // GitHub review API expects all comments in one call
+  await octokit.rest.pulls.createReview({
+    owner,
+    repo,
+    pull_number: prNumber,
+    commit_id: headSha,
+    event: "COMMENT",
+    body: `Qship AI found ${annotatable.length} issue${annotatable.length === 1 ? "" : "s"} with specific file locations. See inline annotations below.`,
+    comments,
+  });
+
+  logger.info("github.review_annotations.posted", {
+    owner,
+    repo,
+    prNumber,
+    count: annotatable.length,
+  });
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -245,11 +317,28 @@ export async function runPullRequestAiReview(pullRequestId: string) {
     },
   });
 
-  // ── Post GitHub comment ───────────────────────────────────────────────────────
+  // ── Post GitHub comment + inline annotations ─────────────────────────────────
   try {
     const prdCriteria = feature.prd?.content?.acceptanceCriteria;
     const commentBody = buildReviewComment(review, iteration, prdCriteria);
     await upsertReviewComment(octokit, owner, repo, prRow.githubPrNumber, commentBody);
+
+    // Post inline diff annotations for issues with a file location (best-effort)
+    if (review.issues.length > 0 && prRow.headSha) {
+      await postInlineAnnotations(
+        octokit,
+        owner,
+        repo,
+        prRow.githubPrNumber,
+        prRow.headSha,
+        review.issues,
+      ).catch((annotationError) => {
+        logger.warn("pr_review.inline_annotations_failed", {
+          pullRequestId,
+          error: annotationError instanceof Error ? annotationError.message : String(annotationError),
+        });
+      });
+    }
   } catch (error) {
     // Comment failure must not block the review pipeline; it's best-effort.
     logger.warn("pr_review.github_comment_failed", {

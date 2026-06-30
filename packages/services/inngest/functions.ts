@@ -4,6 +4,7 @@ import { runTaskAiStep, runTaskPersistStep } from "../workflows/task-generation"
 import { runAiReviewStep, runAiReviewPersistStep } from "../workflows/ai-review-workflow";
 import { runCodeImplementationWorkflow } from "../workflows/code-implementation";
 import { processGithubWebhookOutbox } from "../github/webhook-outbox";
+import { runAutonomousPipelineSweep } from "../workflows/autonomous-sweep";
 
 /**
  * PRD generation — split into two checkpoints so a DB failure on persist
@@ -99,10 +100,33 @@ export const githubWebhookOutboxFunction = inngest.createFunction(
   },
 );
 
+/**
+ * Autonomous pipeline sweep — runs every hour to:
+ * 1. Auto-triage submitted features that haven't been triaged
+ * 2. Run semantic duplicate detection on new features
+ * 3. Flag stale features with no activity in 3+ days
+ *
+ * Intentionally conservative: never triggers expensive AI workflows or
+ * overrides human decisions. Surfaces findings in feature metadata / activity log.
+ */
+export const autonomousPipelineSweepFunction = inngest.createFunction(
+  {
+    id: "shipflow-autonomous-pipeline-sweep",
+    name: "Autonomous pipeline sweep",
+    concurrency: { limit: 1 },
+  },
+  { cron: "0 * * * *" },
+  async ({ step }) => {
+    const result = await step.run("autonomous-sweep", () => runAutonomousPipelineSweep());
+    return result;
+  },
+);
+
 export const inngestFunctions = [
   generatePrdFunction,
   generateTasksFunction,
   aiReviewFunction,
   codeImplementFunction,
   githubWebhookOutboxFunction,
+  autonomousPipelineSweepFunction,
 ];

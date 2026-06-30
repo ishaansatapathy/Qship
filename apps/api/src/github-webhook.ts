@@ -13,6 +13,7 @@ import {
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
 } from "@repo/services/github";
+import { processGithubIssueWebhook } from "@repo/services/github/issue-intake";
 
 /**
  * Express handler for `POST /webhooks/github`.
@@ -87,6 +88,11 @@ export async function handleGithubWebhook(req: Request, res: Response) {
         deliveryId,
       );
       result = { ...result, ...prResult };
+    } else if (event === "issues") {
+      const issueResult = await processGithubIssueWebhook(
+        body as Parameters<typeof processGithubIssueWebhook>[0],
+      );
+      result = { ...result, ...issueResult };
     } else if (event === "installation" || event === "installation_repositories") {
       const installResult = await processGithubInstallationWebhook(
         body as Parameters<typeof processGithubInstallationWebhook>[0],
@@ -106,7 +112,7 @@ export async function handleGithubWebhook(req: Request, res: Response) {
       error: message,
     });
 
-    if (event === "pull_request" || event === "installation" || event === "installation_repositories") {
+    if (event === "pull_request" || event === "issues" || event === "installation" || event === "installation_repositories") {
       await enqueueGithubWebhookRetry({
         deliveryId,
         eventType: event,
