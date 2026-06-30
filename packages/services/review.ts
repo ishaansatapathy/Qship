@@ -173,6 +173,72 @@ export async function listAiReviewsForFeature(featureRequestId: string) {
 
 export { getLatestAiReview };
 
+// ── Pure delta computation ────────────────────────────────────────────────────
+
+type IssueForDelta = { severity: string; title: string; filePath?: string | null };
+
+type ReviewSnapshotForDelta = {
+  iteration: number;
+  issues: IssueForDelta[];
+};
+
+export type ReviewDeltaResult = {
+  fromIteration: number;
+  toIteration: number;
+  resolved: string[];
+  persisting: string[];
+  newIssues: string[];
+  overallProgress: "improved" | "regressed" | "same";
+  iterationSummary: string;
+};
+
+/**
+ * Pure function — computes delta between two review snapshots.
+ * Uses null-byte separator to avoid false matches on titles containing "|".
+ * Exported for unit testing without a database.
+ */
+export function computeReviewDelta(
+  latest: ReviewSnapshotForDelta,
+  previous: ReviewSnapshotForDelta,
+): ReviewDeltaResult {
+  const blockingKey = (i: IssueForDelta) => `${i.title}\x00${i.filePath ?? ""}`;
+
+  const latestKeys = new Set(
+    latest.issues.filter((i) => i.severity === "blocking").map(blockingKey),
+  );
+  const previousKeys = new Set(
+    previous.issues.filter((i) => i.severity === "blocking").map(blockingKey),
+  );
+
+  const resolved = [...previousKeys].filter((k) => !latestKeys.has(k));
+  const persisting = [...previousKeys].filter((k) => latestKeys.has(k));
+  const newIssues = [...latestKeys].filter((k) => !previousKeys.has(k));
+
+  const overallProgress: ReviewDeltaResult["overallProgress"] =
+    resolved.length > 0 && persisting.length === 0 && newIssues.length === 0
+      ? "improved"
+      : newIssues.length > resolved.length
+        ? "regressed"
+        : "same";
+
+  const iterationSummary =
+    overallProgress === "improved"
+      ? `All ${resolved.length} blocking issue(s) from iteration ${previous.iteration} resolved.`
+      : overallProgress === "regressed"
+        ? `${newIssues.length} new blocking issue(s) introduced; ${persisting.length} persist from prior review.`
+        : `${persisting.length} issue(s) unchanged; ${resolved.length} resolved; ${newIssues.length} new.`;
+
+  return {
+    fromIteration: previous.iteration,
+    toIteration: latest.iteration,
+    resolved,
+    persisting,
+    newIssues,
+    overallProgress,
+    iterationSummary,
+  };
+}
+
 /**
  * Returns a human-readable delta summary comparing the latest two review
  * iterations: which issues were resolved, which persisted, and overall progress.
@@ -185,49 +251,9 @@ export async function getReviewDelta(featureRequestId: string) {
     with: { issues: true },
   });
 
-  if (all.length < 2) {
-    return null;
-  }
+  if (all.length < 2) return null;
 
-  const latest = all[0]!;
-  const previous = all[1]!;
-
-  const latestBlockingKeys = new Set(
-    latest.issues
-      .filter((i) => i.severity === "blocking")
-      .map((i) => `${i.title}|${i.filePath ?? ""}`),
-  );
-  const previousBlockingKeys = new Set(
-    previous.issues
-      .filter((i) => i.severity === "blocking")
-      .map((i) => `${i.title}|${i.filePath ?? ""}`),
-  );
-
-  const resolved = [...previousBlockingKeys].filter((k) => !latestBlockingKeys.has(k));
-  const persisting = [...previousBlockingKeys].filter((k) => latestBlockingKeys.has(k));
-  const newIssues = [...latestBlockingKeys].filter((k) => !previousBlockingKeys.has(k));
-
-  const overallProgress =
-    resolved.length > 0 && persisting.length === 0 && newIssues.length === 0
-      ? "improved"
-      : newIssues.length > resolved.length
-        ? "regressed"
-        : "same";
-
-  return {
-    fromIteration: previous.iteration,
-    toIteration: latest.iteration,
-    resolved,
-    persisting,
-    newIssues,
-    overallProgress,
-    iterationSummary:
-      overallProgress === "improved"
-        ? `All ${resolved.length} blocking issue(s) from iteration ${previous.iteration} resolved.`
-        : overallProgress === "regressed"
-          ? `${newIssues.length} new blocking issue(s) introduced; ${persisting.length} persist from prior review.`
-          : `${persisting.length} issue(s) unchanged; ${resolved.length} resolved; ${newIssues.length} new.`,
-  };
+  return computeReviewDelta(all[0]!, all[1]!);
 }
 
 /**
