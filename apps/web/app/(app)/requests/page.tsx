@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   ArrowRight,
   Bot,
   CheckCircle2,
@@ -97,7 +98,17 @@ function NewRequestModal({
 }) {
   const [title, setTitle] = useState("");
   const [rawRequest, setRawRequest] = useState("");
+  const [dupWarning, setDupWarning] = useState<{
+    hasSimilar: boolean;
+    topMatch?: { title: string; status: string; similarityScore: number; reason?: string };
+    dismissed: boolean;
+  } | null>(null);
+  const [isDupChecking, setIsDupChecking] = useState(false);
+  const dupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const utils = trpc.useUtils();
+
+  const preflight = trpc.feature.preflightDuplicateCheck.useMutation();
 
   const create = trpc.feature.create.useMutation({
     onSuccess: async (row) => {
@@ -107,12 +118,51 @@ function NewRequestModal({
       onCreated(row.id);
       setTitle("");
       setRawRequest("");
+      setDupWarning(null);
       onClose();
     },
     onError: (e) => toast.error(e.message),
   });
 
+  // Debounced semantic duplicate check — fires 800ms after typing stops
+  const triggerDupCheck = useCallback(
+    (t: string, r: string) => {
+      if (dupTimerRef.current) clearTimeout(dupTimerRef.current);
+      if (t.trim().length < 5 || r.trim().length < 20) {
+        setDupWarning(null);
+        return;
+      }
+      dupTimerRef.current = setTimeout(async () => {
+        setIsDupChecking(true);
+        try {
+          const result = await preflight.mutateAsync({ title: t.trim(), rawRequest: r.trim() });
+          const top = result.topCandidates?.[0];
+          setDupWarning({
+            hasSimilar: result.hasSimilar,
+            topMatch: top
+              ? { title: top.title, status: top.status, similarityScore: top.similarityScore, reason: top.reason }
+              : undefined,
+            dismissed: false,
+          });
+        } catch {
+          // Duplicate check failure is non-blocking — let user submit
+        } finally {
+          setIsDupChecking(false);
+        }
+      }, 800);
+    },
+    [preflight],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (dupTimerRef.current) clearTimeout(dupTimerRef.current);
+    };
+  }, []);
+
   if (!open) return null;
+
+  const showDupBanner = dupWarning?.hasSimilar && !dupWarning.dismissed;
 
   return (
     <div className="qship-req-modal-backdrop" onClick={onClose} role="presentation">
@@ -131,7 +181,10 @@ function NewRequestModal({
           <span>Title</span>
           <input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              triggerDupCheck(e.target.value, rawRequest);
+            }}
             placeholder="e.g. SSO for enterprise customers"
           />
         </label>
@@ -140,11 +193,59 @@ function NewRequestModal({
           <span>What & why</span>
           <textarea
             value={rawRequest}
-            onChange={(e) => setRawRequest(e.target.value)}
+            onChange={(e) => {
+              setRawRequest(e.target.value);
+              triggerDupCheck(title, e.target.value);
+            }}
             rows={5}
             placeholder="Who needs this, what problem it solves, and any constraints…"
           />
         </label>
+
+        {/* Duplicate check indicator */}
+        {isDupChecking && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--qship-dim)", marginBottom: 8 }}>
+            <Loader2 size={11} className="qship-spin" />
+            Checking for similar features…
+          </div>
+        )}
+
+        {/* Duplicate warning banner */}
+        {showDupBanner && dupWarning.topMatch && (
+          <div
+            style={{
+              border: "1px solid rgba(234,179,8,0.4)",
+              borderRadius: 8,
+              padding: "12px 14px",
+              background: "rgba(234,179,8,0.06)",
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <AlertTriangle size={14} color="#eab308" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, margin: "0 0 4px", color: "#eab308" }}>
+                  Potential duplicate detected ({dupWarning.topMatch.similarityScore}% similar)
+                </p>
+                <p style={{ fontSize: 12, margin: "0 0 4px", color: "var(--qship-text)" }}>
+                  Similar to: <strong>&quot;{dupWarning.topMatch.title}&quot;</strong> ({dupWarning.topMatch.status.replace(/_/g, " ")})
+                </p>
+                {dupWarning.topMatch.reason && (
+                  <p style={{ fontSize: 11, color: "var(--qship-dim)", margin: "0 0 8px" }}>
+                    {dupWarning.topMatch.reason}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDupWarning((w) => w ? { ...w, dismissed: true } : null)}
+                  style={{ fontSize: 11, color: "var(--qship-dim)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                >
+                  Dismiss and continue anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <button
           type="button"
@@ -161,6 +262,10 @@ function NewRequestModal({
           {create.isPending ? (
             <>
               <Loader2 size={15} className="qship-spin" /> Analyzing with AI…
+            </>
+          ) : showDupBanner ? (
+            <>
+              <AlertTriangle size={15} /> Submit anyway (possible duplicate)
             </>
           ) : (
             <>

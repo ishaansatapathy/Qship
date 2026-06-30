@@ -37,7 +37,8 @@ import {
   checkPipelineDuplicates,
   getPipelineHealthSummary,
 } from "@repo/services/feature-analytics";
-import { generateDeveloperOnboardingGuide } from "@repo/services/feature-ai";
+import { generateDeveloperOnboardingGuide, detectSimilarFeatureRequests } from "@repo/services/feature-ai";
+import { getPipelineOverview } from "@repo/services/pipeline-overview";
 import { ServiceError } from "@repo/services/errors";
 import {
   FEATURE_STATUSES,
@@ -682,6 +683,75 @@ export const featureRouter = router({
           featureTitle: feature.title,
           prd: featureDetail.prd?.content ?? null,
         });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  // ── Pre-create duplicate check ────────────────────────────────────────────
+
+  preflightDuplicateCheck: protectedProcedure
+    .meta({
+      openapi: {
+        method: "POST",
+        path: "/feature/requests/duplicate-check",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Semantic duplicate detection before creating a feature request",
+      },
+    })
+    .input(
+      z.object({
+        title: z.string().min(3).max(200),
+        rawRequest: z.string().min(10),
+      }),
+    )
+    .output(openApiResponse)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const ws = await getWorkspaceProjectForUser(ctx.user.id);
+        if (!ws) return { hasSimilar: false, topCandidates: [], consolidationRecommendation: "" };
+
+        const pipeline = await listFeatureRequests(ws.project.id);
+        const activePipeline = pipeline
+          .filter((f) => !["shipped", "rejected", "archived", "duplicate_education"].includes(f.status))
+          .map((f) => ({
+            id: f.id,
+            title: f.title,
+            rawRequest: f.rawRequest,
+            status: f.status,
+          }));
+
+        if (activePipeline.length === 0) {
+          return { hasSimilar: false, topCandidates: [], consolidationRecommendation: "No active pipeline to compare against." };
+        }
+
+        return detectSimilarFeatureRequests({
+          title: input.title,
+          rawRequest: input.rawRequest,
+          existingFeatures: activePipeline,
+        });
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  // ── Pipeline overview (AI morning brief) ─────────────────────────────────
+  pipelineOverview: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/pipeline-overview",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "AI-generated pipeline brief with actionable items requiring human decision",
+      },
+    })
+    .input(zodUndefinedModel)
+    .output(openApiResponse)
+    .query(async ({ ctx }) => {
+      try {
+        return await getPipelineOverview(ctx.user.id);
       } catch (error) {
         mapServiceError(error);
       }

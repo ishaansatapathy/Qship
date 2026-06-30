@@ -29,7 +29,7 @@ import { DemoBar } from "./demo-bar";
 import { signOutShipflow } from "~/lib/sign-out";
 
 const NAV = [
-  { label: "Overview", href: "/brief", icon: Sun },
+  { label: "Overview", href: "/overview", icon: Sun },
   { label: "Intake", href: "/inbox", icon: Inbox },
   { label: "Requests", href: "/requests", icon: Rocket },
   { label: "Tasks", href: "/tasks", icon: Kanban },
@@ -39,6 +39,7 @@ const NAV = [
 ];
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {
+  "/overview": { title: "Morning brief", sub: "AI-generated pipeline summary and action items" },
   "/brief": { title: "Pipeline overview", sub: "Status, focus, and what needs you next" },
   "/inbox": { title: "Intake hub", sub: "Email, support, calls, and in-app feature requests" },
   "/requests": { title: "Feature Requests", sub: "Submit, triage, and ship product work" },
