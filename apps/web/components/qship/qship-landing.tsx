@@ -21,22 +21,24 @@ export function QshipLanding() {
   return (
     <div className="qship-page">
       <QshipNav />
-      <main>
-        <QshipHero />
-        <QshipMarquee />
-        <QshipProcess />
-        <QshipIntegrations />
-        <QshipShowcase />
-        <QshipPrHighlight />
-        <QshipWorkflows />
-        <QshipRotator />
-        <QshipCapabilities />
-        <QshipAgent />
-        <QshipPricing />
-        <QshipFaq />
-        <QshipCta />
-      </main>
-      <QshipFooter />
+      <div className="qship-page-column">
+        <main>
+          <QshipHero />
+          <QshipMarquee />
+          <QshipProcess />
+          <QshipIntegrations />
+          <QshipShowcase />
+          <QshipPrHighlight />
+          <QshipWorkflows />
+          <QshipRotator />
+          <QshipCapabilities />
+          <QshipAgent />
+          <QshipPricing />
+          <QshipFaq />
+          <QshipCta />
+        </main>
+        <QshipFooter />
+      </div>
     </div>
   );
 }
