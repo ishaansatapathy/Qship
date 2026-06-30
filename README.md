@@ -138,16 +138,19 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 
 | Feature | Where to see it | tRPC / MCP / API |
 |---|---|---|
+| **AI Morning Brief** | `/overview` — GPT-generated pipeline brief + urgency-ranked action items | `feature.pipelineOverview` |
 | **Pipeline overview** | `/brief` — counts by stage, next actions | `get_pipeline_summary` |
 | **Feature requests** | `/requests` — submit, triage, timeline | `feature.*`, `list_feature_requests` |
 | **AI triage** | Click "Run Triage" on any request | `triage_feature_request` |
 | **Clarifying questions** | Auto-generated after triage | `add_clarification` |
-| **PRD generation** | "Generate PRD" button | `generate_feature_prd` |
+| **Codebase-aware PRD** | PRD generation scans linked GitHub repo before writing | `generate_feature_prd` + `repo-context.ts` |
 | **Task breakdown** | "Generate Tasks" after PRD | `generate_feature_tasks` |
 | **Task walkthrough (Agent)** | "Explain in Agent" on any task | `explain_engineering_task`, `advance_task_walkthrough` |
 | **Engineering Kanban** | `/tasks` — backlog → done | `update_engineering_task_status` |
 | **Delivery timeline** | Right panel on any request | `get_feature_delivery` |
 | **AI pre-ship review** | "Run AI Review" button | `run_ai_review` |
+| **PRD vs PR acceptance criteria** | Every review validates each PRD criterion against the diff | `runPrAiReview` — `requirementRef` per issue |
+| **GitHub PR inline annotations** | Review issues posted as diff-level comments via `pulls.createReview` | `pr-review.ts` → `postInlineAnnotations` |
 | **Delta re-review** | Automatic on iteration ≥ 2 | `get_review_delta`, `get_review_stats` |
 | **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
 | **Slack approve/ship alerts** | Timeline after Approve or Ship | `notifySlackFeatureApproved`, `GET /integrations/slack` |
@@ -156,8 +159,11 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 | **MCP server** | Cursor / Claude integration | `POST /mcp` — 37 tools |
 | **GitHub App connect** | `/settings` — install + repo sync | `github.*` tRPC |
 | **GitHub PR webhook** | Auto-links PRs to features | `POST /webhooks/github` |
-| **Duplicate detection** | Before every new feature | `check_existing_capability` |
-| **Multi-channel intake** | Email / support / API ingestion | `intake_from_channel` |
+| **GitHub Issues intake** | `issues.opened` → Qship feature + AI triage + labels issue | `github/issue-intake.ts` |
+| **Semantic duplicate check** | Real-time warning in create form (debounced, pre-submit) | `feature.preflightDuplicateCheck` |
+| **Duplicate education** | Before every new feature | `check_existing_capability` |
+| **Autonomous background agent** | Hourly Inngest cron: auto-triage, duplicate scan, stale alerts | `autonomous-sweep.ts` (Inngest cron) |
+| **Multi-channel intake** | Email / support / call / GitHub Issues | `intake_from_channel` |
 | **Analytics** | `/analytics` — delivery metrics | `shipflow-observability` |
 | **Billing** | `/billing` — one-time Razorpay checkout + AI credit limits | billing tRPC |
 | **Scalar API docs** | Production OpenAPI reference | `GET /docs` |
@@ -275,16 +281,57 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 | Layer | Technology |
 |---|---|
 | **Monorepo** | Turborepo + pnpm workspaces |
-| **Frontend** | Next.js 16, React 19, custom Qship design system |
+| **Frontend** | Next.js 16, React 19, Radix UI / Shadcn-style component system |
 | **API** | Express, tRPC v11, trpc-to-openapi, Scalar |
 | **Auth** | BetterAuth — Google OAuth, email/password, demo login |
 | **Database** | PostgreSQL 16 + Drizzle ORM — 53 migrations, 14 perf indexes |
-| **AI** | OpenAI `gpt-4o-mini` — triage, PRD, tasks, 9-dim PR review, delta re-review |
+| **AI** | OpenAI API (`gpt-4o-mini`) — triage, PRD, tasks, 9-dim PR review, delta re-review, codebase-aware PRD, AI morning brief, semantic duplicate detection |
 | **MCP** | MCP 2024-11-05 — 37 tools, JSON-RPC 2.0, CI parity test |
-| **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |
-| **Background jobs** | In-process workflows on Railway (PRD gen, task gen, AI review); Inngest optional |
+| **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments + inline diff annotations, issues intake |
+| **Background jobs** | Inngest — PRD gen, task gen, AI review, autonomous pipeline sweep (hourly cron), GitHub webhook outbox (2-min cron) |
 | **Billing** | Razorpay — one-time checkout, server order verify, webhook, AI credit limits |
 | **CI** | GitHub Actions — parallel type-check + test + E2E + Playwright artifacts |
+
+---
+
+## AI features implemented
+
+| Feature | What the AI does | Code location |
+|---|---|---|
+| **Requirement clarification** | GPT analyses the feature request and generates targeted follow-up questions to fill gaps before PRD | `packages/services/feature-ai.ts` → `triageFeatureRequest` |
+| **PRD generation** | Structured PRD (problem statement, goals, non-goals, user stories, acceptance criteria, edge cases, success metrics, security + rollback) | `generateFeaturePrd` in `feature-ai.ts` |
+| **Codebase-aware PRD** | Before generating the PRD, scans the linked GitHub repo for relevant source files and injects real file paths + patterns into the prompt | `packages/services/workflows/prd-generation.ts` → `runPrdAiStep` + `fetchRepoSnippetsForTask` |
+| **Engineering task generation** | Converts the PRD into 5–9 ordered, typed tasks with per-task acceptance criteria | `generateFeatureTasks` in `feature-ai.ts` |
+| **Repository analysis** | Keyword extraction + scored tree walk + `search.code` API to surface relevant repo files | `packages/services/github/repo-context.ts` |
+| **9-dimension code review** | PRD requirements fit, security, performance, error handling, type safety, tests, edge cases, compatibility, code quality | `runPrAiReview` in `feature-ai.ts` |
+| **PRD vs PR acceptance criteria** | Every review validates each PRD acceptance criterion against the diff; `pass:true` only when all criteria are satisfied in code | `runPrAiReview` — `requirementRef` on every issue |
+| **Delta re-review** | On iteration ≥ 2, GPT explicitly checks which prior blocking issues were RESOLVED / PARTIALLY_RESOLVED / UNRESOLVED | `runDeltaAiReview` in `feature-ai.ts` |
+| **Release readiness check** | AI approval briefing synthesises PRD, review history, and open issues into a human-readable decision-support document | `generateApprovalBriefing` in `feature-ai.ts` |
+| **QA validation (blocking gates)** | `validateHumanApprovalEligibility` prevents approval if blocking issues exist — server-enforced, not just UI | `packages/services/review.ts` |
+| **Semantic duplicate detection** | Pre-submit: debounced real-time check while user types. Post-create: autonomous sweep also runs per feature | `detectSimilarFeatureRequests` + `feature.preflightDuplicateCheck` |
+| **Autonomous pipeline sweep** | Hourly Inngest cron: auto-triages submitted features, semantic duplicate detection, stale-pipeline alerts | `packages/services/workflows/autonomous-sweep.ts` |
+| **AI Morning Brief** | GPT generates a 3–5 sentence natural language pipeline summary with urgency-ranked action items on every load | `packages/services/pipeline-overview.ts` |
+| **GitHub Issues auto-intake** | `issues.opened` webhook converts GitHub issues into Qship features, runs AI triage, labels the issue, posts link-back comment | `packages/services/github/issue-intake.ts` |
+| **GitHub PR inline annotations** | After main review comment, posts per-issue diff-level review comments via `pulls.createReview` (file + line) | `packages/services/github/pr-review.ts` → `postInlineAnnotations` |
+
+---
+
+## Inngest workflow explanation
+
+Inngest powers all long-running, retry-safe asynchronous workflows. The API serves the Inngest endpoint at `POST /api/inngest`.
+
+| Function | Trigger | Steps |
+|---|---|---|
+| `shipflow-generate-prd` | `shipflow/prd.generate` event | Step 1: fetch repo context + OpenAI call (memoised on retry) → Step 2: DB persist + FSM transition |
+| `shipflow-generate-tasks` | `shipflow/tasks.generate` event | Step 1: OpenAI call → Step 2: DB persist |
+| `shipflow-ai-review` | `shipflow/ai.review` event | Step 1: fetch PR diff + OpenAI call → Step 2: DB persist + GitHub comment |
+| `shipflow-code-implement` | `shipflow/code.implement` event | Single step: generate code → commit to GitHub branch → open PR |
+| `shipflow-github-webhook-outbox` | Cron `*/2 * * * *` | Drain failed webhook deliveries from Postgres outbox (idempotent retry) |
+| `shipflow-autonomous-pipeline-sweep` | Cron `0 * * * *` | Auto-triage submitted features + semantic duplicate scan + stale alerts (concurrency: 1) |
+
+**Idempotency design:** Every multi-step function splits the expensive OpenAI call from the DB write. If the DB write fails and Inngest retries, the AI call is not re-run (result is memoised in Inngest state). This prevents double-billing and duplicate data.
+
+**In-process fallback:** When `INNGEST_USE_CLOUD=true` is not set, workflows run in-process synchronously — identical code path, no Inngest cloud dependency for local development.
 
 ---
 
