@@ -240,6 +240,9 @@ curl -s https://repoapi-production-adfe.up.railway.app/openapi.json | python3 -c
 6. **Iteration concurrency** — `SELECT … FOR UPDATE` + `UNIQUE (feature_request_id, iteration)` prevents duplicate iterations.
 7. **tRPC transport rate-limited** — dedicated `trpcRateLimiter` closes the mutation abuse gap.
 8. **Modular route architecture** — 1081-line monolith split into focused sub-routers; `createCallerFactory` route tests.
+9. **AI response Zod validation** — `parseJsonAs` + 4 critical Zod schemas (`FeatureTriageSchema`, `PrAiReviewResultSchema`, etc.) prevent hallucinated field names from corrupting the DB (`feature-ai.ts`).
+10. **Inngest multi-step checkpoints** — PRD, task, and AI review functions split into separate `step.run` calls so a DB failure on persist does not re-run the OpenAI call or re-consume AI credits on retry (`inngest/functions.ts`).
+11. **HMAC verification wired at HTTP layer** — `verifyGithubWebhookSignature` called in `apps/api/src/github-webhook.ts:52` *before* JSON parsing, with timing-safe compare (`crypto.timingSafeEqual`).
 
 ---
 
