@@ -312,6 +312,7 @@ export function fenceEmailData(content: string): string {
  * Rough approximation: 1 token ≈ 4 chars of English text.
  * Used to guard against history-stuffing (very long conversation histories
  * that inflate context windows and costs). Not used for billing.
+ * @deprecated Prefer estimateAgentContextTokens for accuracy.
  */
 export function estimateTokenCount(messages: OpenAiConversationMessage[]): number {
   let chars = 0;
@@ -324,5 +325,30 @@ export function estimateTokenCount(messages: OpenAiConversationMessage[]): numbe
   return Math.ceil(chars / 4);
 }
 
-/** Max estimated tokens we'll allow in a single agent call's history. */
+/**
+ * Accurate context estimate that includes the system prompt and all tool schemas
+ * in addition to the conversation history.
+ *
+ * The previous `estimateTokenCount` only counted history messages, silently
+ * ignoring ~2–4 k tokens of system prompt and ~8–10 k tokens of tool definitions.
+ * This caused the guard to under-count by 25–50 %, potentially allowing contexts
+ * that exceed the model's window.
+ */
+export function estimateAgentContextTokens(
+  messages: OpenAiConversationMessage[],
+  systemPrompt?: string,
+  tools?: Array<{ type: string; function: { name: string; description: string; parameters: Record<string, unknown> } }>,
+): number {
+  let chars = 0;
+  for (const msg of messages) {
+    const content = typeof msg.content === "string" ? msg.content : "";
+    chars += content.length;
+    chars += 16; // framing overhead per message
+  }
+  if (systemPrompt) chars += systemPrompt.length;
+  if (tools) chars += JSON.stringify(tools).length;
+  return Math.ceil(chars / 4);
+}
+
+/** Max estimated tokens we'll allow in a single agent call's context (history + system + tools). */
 export const MAX_AGENT_CONTEXT_TOKENS = 50_000;

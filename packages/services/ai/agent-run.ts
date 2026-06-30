@@ -6,7 +6,42 @@ import type { AgentHistoryMessage } from "./agent";
 import { buildSystemPromptFor } from "./agent-internals";
 import { detectTopicShift } from "./agent-topic-shift";
 import { formatRetrievedMemoryForPrompt } from "./agent-memory-retrieval";
-import { formatToolMemoryForPrompt, type AgentToolMemoryEntry } from "./agent-tool-memory";
+import { formatToolMemoryForPrompt, MAX_TOOL_MEMORY_ENTRIES, type AgentToolMemoryEntry } from "./agent-tool-memory";
+
+// ── Client-payload sanitisation ───────────────────────────────────────────────
+
+const MAX_HISTORY_MESSAGE_CHARS = 8_000;
+const VALID_HISTORY_ROLES = new Set<string>(["user", "assistant"]);
+
+/**
+ * Sanitises the conversation history sent from the browser before it enters
+ * the agent runtime.  Strips entries with invalid roles, trims oversized
+ * messages, and removes blank content — preventing history-stuffing and
+ * trust-boundary violations.
+ */
+export function sanitizeClientHistory(
+  history: AgentHistoryMessage[] | undefined,
+): AgentHistoryMessage[] {
+  if (!history) return [];
+  return history
+    .filter((m) => VALID_HISTORY_ROLES.has(m.role) && typeof m.content === "string")
+    .map((m) => ({
+      role: m.role,
+      content: m.content.slice(0, MAX_HISTORY_MESSAGE_CHARS),
+    }))
+    .filter((m) => m.content.trim().length > 0);
+}
+
+/**
+ * Sanitises tool-memory entries sent from the browser.
+ * Caps count to the server-side maximum to prevent prompt-stuffing.
+ */
+export function sanitizeClientToolMemory(
+  toolMemory: AgentToolMemoryEntry[] | undefined,
+): AgentToolMemoryEntry[] {
+  if (!toolMemory) return [];
+  return toolMemory.slice(-MAX_TOOL_MEMORY_ENTRIES);
+}
 
 export function isFocusedAgentContext(focus: AgentFocus | undefined): boolean {
   return (

@@ -2,18 +2,35 @@ import type { ApprovalDefaults } from "../settings";
 
 /** Tools that mutate delivery state or trigger async workflows — need clear user intent in the same turn. */
 export const AGENT_CONFIRMATION_TOOLS = new Set([
+  // Creation
+  "create_feature_request",
+  // PRD + planning
   "generate_feature_prd",
   "generate_feature_tasks",
   "implement_feature_code",
+  // Review + approval
   "run_ai_review",
   "request_human_review",
   "approve_feature",
   "reject_feature",
   "request_changes",
+  // Release
   "ship_feature",
+  // Explicit status advancement
+  "update_feature_status",
 ]);
 
 const TOOL_INTENT_PATTERNS: Record<string, RegExp[]> = {
+  create_feature_request: [
+    /\b(create|submit|add|log|file)\b.*\b(feature|request|idea)\b/i,
+    /\bnew\s+(feature|request)\b/i,
+    /\bfeature\s+(request|submission)\b/i,
+  ],
+  update_feature_status: [
+    /\b(update|change|move|set)\b.*\bstatus\b/i,
+    /\bmove\b.*\b(to|stage)\b/i,
+    /\bmark\b.*\b(as|status)\b/i,
+  ],
   generate_feature_prd: [
     /\bgenerate\b.*\bprd\b/i,
     /\bcreate\b.*\bprd\b/i,
