@@ -47,6 +47,8 @@ export function buildFeatureRequestsUrl(featureId: string) {
   return `${clientBaseUrl()}/requests?id=${encodeURIComponent(featureId)}`;
 }
 
+// ── Block builders ─────────────────────────────────────────────────────────────
+
 function buildApprovedBlocks(input: {
   featureTitle: string;
   featureId: string;
@@ -64,12 +66,7 @@ function buildApprovedBlocks(input: {
 
   return {
     text: `✅ Feature approved: ${input.featureTitle}`,
-    blocks: [
-      {
-        type: "section",
-        text: { type: "mrkdwn", text: lines.join("\n") },
-      },
-    ],
+    blocks: [{ type: "section", text: { type: "mrkdwn", text: lines.join("\n") } }],
   };
 }
 
@@ -86,20 +83,15 @@ function buildShippedBlocks(input: {
 
   return {
     text: `🚀 Feature shipped: ${input.featureTitle}`,
-    blocks: [
-      {
-        type: "section",
-        text: { type: "mrkdwn", text: lines.join("\n") },
-      },
-    ],
+    blocks: [{ type: "section", text: { type: "mrkdwn", text: lines.join("\n") } }],
   };
 }
 
+// ── Core delivery ──────────────────────────────────────────────────────────────
+
 async function postSlackWebhook(payload: Record<string, unknown>): Promise<void> {
   const url = process.env.SLACK_WEBHOOK_URL?.trim();
-  if (!url) {
-    throw new Error("SLACK_WEBHOOK_URL is not configured");
-  }
+  if (!url) throw new Error("SLACK_WEBHOOK_URL is not configured");
 
   const res = await fetch(url, {
     method: "POST",
@@ -113,11 +105,39 @@ async function postSlackWebhook(payload: Record<string, unknown>): Promise<void>
   }
 }
 
-async function persistSlackDelivery(
+/**
+ * Shared delivery executor — send or simulate, persist result, append timeline.
+ * Both approved and shipped notifications use this so the behavior is identical.
+ */
+async function runSlackNotify(
   featureId: string,
   event: "approved" | "shipped",
-  result: SlackNotifyResult,
-) {
+  payload: Record<string, unknown>,
+  channel: string | null,
+  successTitle: string,
+  failureTitle: string,
+  successDetail: (simulated: boolean) => string,
+): Promise<SlackNotifyResult> {
+  let result: SlackNotifyResult = { sent: false, simulated: false, channel };
+
+  try {
+    if (isSlackNotifyConfigured()) {
+      await postSlackWebhook(payload);
+      result = { sent: true, simulated: false, channel };
+    } else {
+      result = { sent: true, simulated: true, channel };
+      logger.info("slack.notify.simulated", { featureId, event, channel });
+    }
+  } catch (error) {
+    result = {
+      sent: false,
+      simulated: false,
+      channel,
+      error: error instanceof Error ? error.message : String(error),
+    };
+    logger.error("slack.notify.failed", { featureId, event, message: result.error });
+  }
+
   await updateFeatureMetadata(featureId, {
     lastSlackNotification: {
       event,
@@ -128,11 +148,24 @@ async function persistSlackDelivery(
       error: result.error ?? null,
     },
   });
+
+  await appendFeatureActivity(featureId, {
+    kind: "status",
+    title: result.sent ? successTitle : failureTitle,
+    detail: result.sent
+      ? successDetail(result.simulated)
+      : `Delivery failed: ${result.error ?? "unknown error"}`,
+    actor: "system",
+  });
+
+  return result;
 }
 
+// ── Public API ─────────────────────────────────────────────────────────────────
+
 /**
- * Notify Slack when a feature passes human approval (closes the demo Slack feature loop).
- * Uses SLACK_WEBHOOK_URL when set; otherwise records a simulated delivery on the timeline.
+ * Notify Slack when a feature passes human approval.
+ * Uses SLACK_WEBHOOK_URL when set; otherwise records an auditable simulated delivery.
  */
 export async function notifySlackFeatureApproved(input: {
   featureId: string;
@@ -150,54 +183,18 @@ export async function notifySlackFeatureApproved(input: {
     prUrl: input.prUrl,
   });
 
-  let result: SlackNotifyResult = {
-    sent: false,
-    simulated: false,
+  return runSlackNotify(
+    input.featureId,
+    "approved",
+    payload,
     channel,
-  };
-
-  try {
-    if (isSlackNotifyConfigured()) {
-      await postSlackWebhook(payload);
-      result = { sent: true, simulated: false, channel };
-    } else {
-      result = { sent: true, simulated: true, channel };
-      logger.info("slack.notify.simulated", {
-        featureId: input.featureId,
-        event: "approved",
-        channel,
-      });
-    }
-  } catch (error) {
-    result = {
-      sent: false,
-      simulated: false,
-      channel,
-      error: error instanceof Error ? error.message : String(error),
-    };
-    logger.error("slack.notify.failed", {
-      featureId: input.featureId,
-      event: "approved",
-      message: result.error,
-    });
-  }
-
-  await persistSlackDelivery(input.featureId, "approved", result);
-
-  const detail = result.sent
-    ? result.simulated
-      ? `Simulated post to ${channel ?? "#product-shipping"} (set SLACK_WEBHOOK_URL for live delivery)`
-      : `Delivered to Slack${channel ? ` (${channel})` : ""}`
-    : `Delivery failed: ${result.error ?? "unknown error"}`;
-
-  await appendFeatureActivity(input.featureId, {
-    kind: "status",
-    title: result.sent ? "Slack notification sent ✓" : "Slack notification failed",
-    detail,
-    actor: "system",
-  });
-
-  return result;
+    "Slack notification sent ✓",
+    "Slack notification failed",
+    (simulated) =>
+      simulated
+        ? `Simulated post to ${channel ?? "#product-shipping"} (set SLACK_WEBHOOK_URL for live delivery)`
+        : `Delivered to Slack${channel ? ` (${channel})` : ""}`,
+  );
 }
 
 /** Optional second ping when PM marks the feature shipped. */
@@ -213,50 +210,16 @@ export async function notifySlackFeatureShipped(input: {
     channel,
   });
 
-  let result: SlackNotifyResult = {
-    sent: false,
-    simulated: false,
+  return runSlackNotify(
+    input.featureId,
+    "shipped",
+    payload,
     channel,
-  };
-
-  try {
-    if (isSlackNotifyConfigured()) {
-      await postSlackWebhook(payload);
-      result = { sent: true, simulated: false, channel };
-    } else {
-      result = { sent: true, simulated: true, channel };
-      logger.info("slack.notify.simulated", {
-        featureId: input.featureId,
-        event: "shipped",
-        channel,
-      });
-    }
-  } catch (error) {
-    result = {
-      sent: false,
-      simulated: false,
-      channel,
-      error: error instanceof Error ? error.message : String(error),
-    };
-    logger.error("slack.notify.failed", {
-      featureId: input.featureId,
-      event: "shipped",
-      message: result.error,
-    });
-  }
-
-  await persistSlackDelivery(input.featureId, "shipped", result);
-
-  await appendFeatureActivity(input.featureId, {
-    kind: "status",
-    title: result.sent ? "Slack shipped alert sent 🚀" : "Slack shipped alert failed",
-    detail: result.sent
-      ? result.simulated
+    "Slack shipped alert sent 🚀",
+    "Slack shipped alert failed",
+    (simulated) =>
+      simulated
         ? `Simulated shipped alert${channel ? ` to ${channel}` : ""}`
-        : `Shipped alert delivered${channel ? ` to ${channel}` : ""}`
-      : result.error,
-    actor: "system",
-  });
-
-  return result;
+        : `Shipped alert delivered${channel ? ` to ${channel}` : ""}`,
+  );
 }

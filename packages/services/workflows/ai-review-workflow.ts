@@ -75,8 +75,10 @@ export async function runAiReviewWorkflow(input: {
     const completionMessage = buildCompletionMessage(result, delta, stats.iterationCount + 1);
 
     // ── Stage 6: complete ─────────────────────────────────────────────────────
+    // ok:false means no PR/GitHub linked — a graceful skip, not a crash.
+    // Only mark failed when an exception is thrown (caught below).
     await updateWorkflowRun(workflowRunId, {
-      status: result.ok ? "completed" : "failed",
+      status: "completed",
       progress: 100,
       message: completionMessage,
       result: {
