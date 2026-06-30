@@ -15,7 +15,9 @@ function isProduction() {
 
 function requiresDistributedRateLimit() {
   if (process.env.RATE_LIMIT_ALLOW_IN_MEMORY === "true") return false;
-  return isProduction();
+  // Only fail-closed when Redis is actually configured — if REDIS_URL is absent
+  // in production we fall back to in-memory rather than denying every request.
+  return isProduction() && Boolean(process.env.REDIS_URL?.trim());
 }
 
 export async function checkDistributedRateLimit(
