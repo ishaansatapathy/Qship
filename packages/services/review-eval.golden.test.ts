@@ -88,13 +88,15 @@ describe("review loop eval harness", () => {
   });
 
   it("exposes requestChanges tRPC route distinct from deprecated reject alias", () => {
-    const route = readFileSync(
-      path.resolve(__dirname, "../trpc/server/routes/feature/route.ts"),
+    // requestChanges lives in the approval sub-router (approval-router.ts).
+    // The main route.ts spreads approvalFeatureProcedures into featureRouter.
+    const approvalSrc = readFileSync(
+      path.resolve(__dirname, "../trpc/server/routes/feature/approval-router.ts"),
       "utf8",
     );
-    expect(route).toContain("requestChanges:");
-    expect(route).toContain("/feature/requests/{id}/request-changes");
-    expect(route).toContain("runRequestChangesMutation");
+    expect(approvalSrc).toContain("requestChanges:");
+    expect(approvalSrc).toContain("/feature/requests/{id}/request-changes");
+    expect(approvalSrc).toContain("runRequestChangesMutation");
   });
 
   it("uses single-load gate context in validateHumanApprovalEligibility", () => {

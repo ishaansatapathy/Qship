@@ -1,4 +1,4 @@
-export { globalRateLimiter, authRateLimiter, agentRateLimiter } from "./rate-limiters";
+export { globalRateLimiter, authRateLimiter, agentRateLimiter, trpcRateLimiter } from "./rate-limiters";
 export { trustedOriginMiddleware } from "./trusted-origin";
 export {
   requestIdMiddleware,
