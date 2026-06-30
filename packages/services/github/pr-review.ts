@@ -4,7 +4,7 @@ import { organizations, pullRequests } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
 import type { PrReviewIssue as PrAiReviewIssue } from "../feature-ai";
-import { runDeltaAiReview, runFeatureAiReview, runPrAiReview } from "../feature-ai";
+import { runDeltaAiReview, runFeatureAiReview, runPrAiReview, generateBlockingIssueFixes } from "../feature-ai";
 import { getFeatureRequest, transitionFeatureStatus, updateFeatureMetadata } from "../feature-request";
 import { consumeAiReviewCredit, getPreviousBlockingIssues, persistAiReview } from "../review";
 import { getInstallationOctokit } from "./client";
@@ -150,6 +150,63 @@ async function upsertReviewComment(
       owner, repo, issue_number: prNumber, body,
     });
     logger.info("github.review_comment.created", { owner, repo, prNumber });
+  }
+}
+
+// ── AI auto-fix patches comment ───────────────────────────────────────────────
+
+const FIX_SENTINEL = "<!-- shipflow-ai-fixes -->";
+
+function buildFixesComment(fixes: Array<{ issueTitle: string; filePath: string; explanation: string; patch: string; framework?: string }>, detectedFramework: string, summary: string): string {
+  const lines: string[] = [
+    FIX_SENTINEL,
+    "",
+    "## 🔧 Qship AI — Suggested Code Fixes",
+    "",
+    `> ${summary}`,
+    ...(detectedFramework && detectedFramework !== "unknown" ? [`> Detected framework: **${detectedFramework}**`] : []),
+    "",
+    "Copy-paste each patch to resolve the blocking issues. Review before applying.",
+    "",
+  ];
+
+  for (const fix of fixes) {
+    lines.push(
+      `### ${fix.issueTitle}`,
+      `**File:** \`${fix.filePath}\``,
+      "",
+      fix.explanation,
+      "",
+      "```diff",
+      fix.patch,
+      "```",
+      "",
+    );
+  }
+
+  lines.push("---", "", `_Qship AI Auto-Fix · ${new Date().toUTCString()}_`);
+  return lines.join("\n");
+}
+
+async function upsertFixesComment(
+  octokit: ReturnType<typeof getInstallationOctokit>,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  body: string,
+): Promise<void> {
+  const allComments = await octokit.paginate(octokit.rest.issues.listComments, {
+    owner,
+    repo,
+    issue_number: prNumber,
+    per_page: 100,
+  });
+
+  const existing = allComments.find((c) => c.body?.includes(FIX_SENTINEL));
+  if (existing) {
+    await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+  } else {
+    await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
   }
 }
 
@@ -338,6 +395,30 @@ export async function runPullRequestAiReview(pullRequestId: string) {
           error: annotationError instanceof Error ? annotationError.message : String(annotationError),
         });
       });
+    }
+
+    // Generate and post AI fix patches for blocking issues (best-effort)
+    const blockingWithLocation = review.issues.filter(
+      (i) => i.severity === "blocking" && i.filePath,
+    );
+    if (blockingWithLocation.length > 0) {
+      generateBlockingIssueFixes({
+        featureTitle: feature.title,
+        diffText: diff.diffText,
+        issues: blockingWithLocation,
+        acceptanceCriteria: feature.prd?.content?.acceptanceCriteria,
+      })
+        .then((fixes) => {
+          if (fixes.fixes.length === 0) return;
+          const commentBody = buildFixesComment(fixes.fixes, fixes.detectedFramework, fixes.summary);
+          return upsertFixesComment(octokit, owner, repo, prRow.githubPrNumber, commentBody);
+        })
+        .catch((fixError) => {
+          logger.warn("pr_review.auto_fix_failed", {
+            pullRequestId,
+            error: fixError instanceof Error ? fixError.message : String(fixError),
+          });
+        });
     }
   } catch (error) {
     // Comment failure must not block the review pipeline; it's best-effort.

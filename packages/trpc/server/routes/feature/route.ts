@@ -39,6 +39,7 @@ import {
 } from "@repo/services/feature-analytics";
 import { generateDeveloperOnboardingGuide, detectSimilarFeatureRequests } from "@repo/services/feature-ai";
 import { getPipelineOverview } from "@repo/services/pipeline-overview";
+import { getShipReadiness } from "@repo/services/ship-readiness";
 import { ServiceError } from "@repo/services/errors";
 import {
   FEATURE_STATUSES,
@@ -752,6 +753,27 @@ export const featureRouter = router({
     .query(async ({ ctx }) => {
       try {
         return await getPipelineOverview(ctx.user.id);
+      } catch (error) {
+        mapServiceError(error);
+      }
+    }),
+
+  // ── Ship Readiness Dashboard ───────────────────────────────────────────────
+  shipReadiness: protectedProcedure
+    .meta({
+      openapi: {
+        method: "GET",
+        path: "/feature/requests/{featureId}/ship-readiness",
+        tags: ["Feature Requests"],
+        protect: true,
+        summary: "Deterministic pre-approval checklist: AI review, security, tests, PR, rollback",
+      },
+    })
+    .input(z.object({ featureId: z.string().uuid() }))
+    .output(openApiResponse)
+    .query(async ({ ctx, input }) => {
+      try {
+        return await getShipReadiness(input.featureId, ctx.user.id);
       } catch (error) {
         mapServiceError(error);
       }

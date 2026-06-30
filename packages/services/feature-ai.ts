@@ -1143,6 +1143,205 @@ export function parseValidatedAiJson<T>(raw: string, schema: z.ZodSchema<T>): T 
   return parseJsonAs(raw, schema);
 }
 
+// ── AI Auto-Fix Code Patches ──────────────────────────────────────────────────
+
+export type IssueFix = {
+  issueTitle: string;
+  filePath: string;
+  explanation: string;
+  patch: string;
+  framework?: string;
+};
+
+export type BlockingIssueFixes = {
+  fixes: IssueFix[];
+  detectedFramework: string;
+  summary: string;
+};
+
+const IssueFix_Schema = z.object({
+  issueTitle: z.string(),
+  filePath: z.string(),
+  explanation: z.string().max(300),
+  patch: z.string(),
+  framework: z.string().optional(),
+});
+
+const BlockingIssueFixesSchema = z.object({
+  fixes: z.array(IssueFix_Schema),
+  detectedFramework: z.string(),
+  summary: z.string(),
+});
+
+/**
+ * Given blocking review issues and the PR diff, generates concrete code patches
+ * (unified diff format) to fix each issue. Detects the test framework from the
+ * diff automatically so generated test cases match the project's conventions.
+ *
+ * Only runs for issues with a filePath — issues without location context are skipped.
+ * Best-effort: if generation fails for an issue it is silently excluded.
+ */
+export async function generateBlockingIssueFixes(input: {
+  featureTitle: string;
+  diffText: string;
+  issues: Array<{
+    title: string;
+    description: string;
+    suggestion?: string;
+    filePath?: string;
+    lineNumber?: string;
+    category: string;
+  }>;
+  acceptanceCriteria?: string[];
+}): Promise<BlockingIssueFixes> {
+  requireOpenAi();
+
+  const locatableIssues = input.issues.filter((i) => i.filePath);
+  if (locatableIssues.length === 0) {
+    return { fixes: [], detectedFramework: "unknown", summary: "No issues with file locations to fix." };
+  }
+
+  const issueList = locatableIssues
+    .map(
+      (i, n) =>
+        `[${n + 1}] ${i.title}\n  File: ${i.filePath}${i.lineNumber ? `:${i.lineNumber}` : ""}\n  Problem: ${i.description}\n  Hint: ${i.suggestion ?? "none"}`,
+    )
+    .join("\n\n");
+
+  const criteriaBlock = input.acceptanceCriteria?.length
+    ? `\nAcceptance criteria from PRD:\n${input.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+    : "";
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a senior engineer generating minimal, correct code patches to fix blocking code review issues.
+
+For each issue, produce a unified diff patch (--- a/file / +++ b/file format) that applies the minimal fix.
+- Detect the test framework from file extensions and imports in the diff (jest, vitest, pytest, mocha, etc.)
+- For missing tests: generate a complete test block in the detected framework
+- For security/auth issues: generate the guard code at the exact location
+- For null/undefined issues: generate the specific null check
+- Never generate placeholder code — write real, runnable code
+- Keep patches small — only the lines that change
+
+Return JSON:
+{
+  "detectedFramework": string (test framework detected from diff, e.g. "vitest", "jest", "pytest", "unknown"),
+  "summary": string (1 sentence: what's being fixed and how),
+  "fixes": [
+    {
+      "issueTitle": string,
+      "filePath": string,
+      "explanation": string (≤ 2 sentences: why this fix works),
+      "patch": string (unified diff format OR code block if new file),
+      "framework": string (only for test-related fixes)
+    }
+  ]
+}`,
+      },
+      {
+        role: "user",
+        content: `Feature: ${input.featureTitle}${criteriaBlock}
+
+Blocking issues to fix:
+${issueList}
+
+=== PR DIFF (context for patch generation) ===
+${input.diffText.slice(0, 6000)}`,
+      },
+    ],
+    { jsonObject: true, temperature: 0.2 },
+  );
+
+  return parseJsonAs(content, BlockingIssueFixesSchema);
+}
+
+// ── Release Notes Generator ────────────────────────────────────────────────────
+
+export type ReleaseNotes = {
+  version: string;
+  title: string;
+  summary: string;
+  whatChanged: string[];
+  breakingChanges: string[];
+  testingInstructions: string;
+  rollbackInstructions: string;
+  markdownBody: string;
+};
+
+const ReleaseNotesSchema = z.object({
+  version: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  whatChanged: z.array(z.string()),
+  breakingChanges: z.array(z.string()).default([]),
+  testingInstructions: z.string(),
+  rollbackInstructions: z.string(),
+  markdownBody: z.string(),
+});
+
+/**
+ * Generates structured, professional release notes from the PRD and PR diff.
+ * Output is formatted as GitHub release markdown and also returned as structured
+ * fields for display in the Qship delivery timeline.
+ */
+export async function generateReleaseNotes(input: {
+  featureTitle: string;
+  rawRequest: string;
+  prd?: {
+    problemStatement?: string;
+    goals?: string[];
+    successMetrics?: string[];
+    rollbackPlan?: string;
+  } | null;
+  diffSummary: string;
+  prNumber?: number;
+  repoFullName?: string;
+}): Promise<ReleaseNotes> {
+  requireOpenAi();
+
+  const prdBlock = input.prd
+    ? `PRD:\n- Problem: ${input.prd.problemStatement ?? "N/A"}\n- Goals: ${input.prd.goals?.join("; ") ?? "N/A"}\n- Rollback: ${input.prd.rollbackPlan ?? "N/A"}`
+    : "PRD not available";
+
+  const content = await createChatCompletion(
+    [
+      {
+        role: "system",
+        content: `You are a technical writer generating GitHub release notes for a shipped feature.
+
+Write clear, professional release notes a developer or PM can publish directly.
+Infer the version from context (if unknown, use "v1.x.0-feature").
+
+Return JSON with EXACTLY these keys:
+- version: string — semantic version tag (e.g. "v1.2.0")
+- title: string — short release title (max 60 chars)
+- summary: string — 2 sentences: what was shipped and why
+- whatChanged: string[] — 3–6 bullet points of specific changes (reference files/APIs)
+- breakingChanges: string[] — any breaking API/schema changes (empty array if none)
+- testingInstructions: string — 2–3 sentences on how to verify the feature works
+- rollbackInstructions: string — how to safely revert (from PRD or inferred)
+- markdownBody: string — complete GitHub release markdown combining all the above fields in a well-formatted way`,
+      },
+      {
+        role: "user",
+        content: `Feature: ${input.featureTitle}
+Request: ${input.rawRequest}
+${input.prNumber ? `PR: #${input.prNumber}${input.repoFullName ? ` on ${input.repoFullName}` : ""}` : ""}
+${prdBlock}
+
+Changed files summary:
+${input.diffSummary.slice(0, 3000)}`,
+      },
+    ],
+    { jsonObject: true, temperature: 0.3 },
+  );
+
+  return parseJsonAs(content, ReleaseNotesSchema);
+}
+
 export {
   FeatureTriageSchema,
   FeatureAiReviewSchema,
