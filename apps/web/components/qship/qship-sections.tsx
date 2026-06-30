@@ -13,6 +13,7 @@ import {
 import { QshipLogoMark, QshipWordmark } from "./qship-logo";
 import { Reveal } from "./qship-reveal";
 import { QshipAgentDemo } from "./qship-agent-demo";
+import { useQshipAuth } from "./qship-auth-provider";
 
 const MARQUEE = ["Next.js", "tRPC", "GitHub", "Inngest", "Drizzle", "PostgreSQL", "BetterAuth", "Razorpay", "AI SDK", "Vercel"];
 
@@ -309,12 +310,19 @@ export function QshipFaq() {
 }
 
 export function QshipCta() {
+  const { demoLogin, isDemoLoading } = useQshipAuth();
+
   return (
     <section id="get-started" className="qship-shell qship-section">
       <div className="qship-frame" style={{ padding: "80px 32px", textAlign: "center" }}>
-        <a href="/sign-in" className="qship-btn-primary">
-          Get started free
-        </a>
+        <button
+          type="button"
+          className="qship-btn-primary"
+          disabled={isDemoLoading}
+          onClick={() => void demoLogin()}
+        >
+          {isDemoLoading ? "Loading…" : "Get started free"}
+        </button>
 
         <p style={{ marginTop: 28, fontSize: 13, color: "var(--qship-dim)" }}>
           Free vs paid plans · AI review credits via Razorpay

@@ -30,6 +30,8 @@ import { QshipLogoMark, QshipWordmark } from "./qship-logo";
 
 import { InViewAnnotation } from "./qship-reveal";
 
+import { useQshipAuth } from "./qship-auth-provider";
+
 
 
 type DockTab = {
@@ -328,6 +330,8 @@ const STATES: Record<string, () => React.ReactNode> = {
 
 export function QshipHero() {
 
+  const { demoLogin, isDemoLoading } = useQshipAuth();
+
   const [tab, setTab] = useState("requests");
 
   const activeTab = DOCK.find((d) => d.id === tab) ?? DOCK[0]!;
@@ -392,9 +396,14 @@ export function QshipHero() {
 
             <div style={{ marginTop: 40, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
 
-              <a href="#get-started" className="qship-btn-primary">
-                Start free
-              </a>
+              <button
+                type="button"
+                className="qship-btn-primary"
+                disabled={isDemoLoading}
+                onClick={() => void demoLogin()}
+              >
+                {isDemoLoading ? "Loading…" : "Start free"}
+              </button>
 
               <a href="#how" className="qship-btn-ghost">
 
