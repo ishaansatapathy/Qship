@@ -12,6 +12,8 @@ function requiredEnv(name: string, fallback?: string) {
   return value;
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -38,6 +40,23 @@ export const auth = betterAuth({
     minPasswordLength: 8,
   },
   socialProviders: getBetterAuthSocialProviders(),
+  advanced: {
+    cookiePrefix: "qship",
+    ...(isProduction
+      ? {
+          defaultCookieAttributes: {
+            secure: true,
+            sameSite: "lax" as const,
+          },
+        }
+      : {}),
+  },
+  account: {
+    accountLinking: {
+      enabled: true,
+      allowDifferentEmailAddresses: false,
+    },
+  },
 });
 
 export type AuthSession = typeof auth.$Infer.Session;
