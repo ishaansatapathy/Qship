@@ -1148,8 +1148,11 @@ export function parseValidatedAiJson<T>(raw: string, schema: z.ZodSchema<T>): T 
 export type IssueFix = {
   issueTitle: string;
   filePath: string;
+  lineNumber?: number;
   explanation: string;
   patch: string;
+  /** Replacement code for GitHub "Commit suggestion" (no diff prefixes). */
+  suggestedCode?: string;
   framework?: string;
 };
 
@@ -1162,8 +1165,10 @@ export type BlockingIssueFixes = {
 const IssueFix_Schema = z.object({
   issueTitle: z.string(),
   filePath: z.string(),
+  lineNumber: z.number().int().positive().optional(),
   explanation: z.string().max(300),
   patch: z.string(),
+  suggestedCode: z.string().optional(),
   framework: z.string().optional(),
 });
 
@@ -1218,25 +1223,33 @@ export async function generateBlockingIssueFixes(input: {
         role: "system",
         content: `You are a senior engineer generating minimal, correct code patches to fix blocking code review issues.
 
-For each issue, produce a unified diff patch (--- a/file / +++ b/file format) that applies the minimal fix.
+For each issue, produce:
+1. suggestedCode — the exact replacement lines (NO diff +/- prefixes) for GitHub "Commit suggestion"
+2. patch — unified diff for reference
+3. lineNumber — line in the PR diff to anchor the suggestion (from the issue when provided)
+
+Rules:
 - Detect the test framework from file extensions and imports in the diff (jest, vitest, pytest, mocha, etc.)
 - For missing tests: generate a complete test block in the detected framework
 - For security/auth issues: generate the guard code at the exact location
 - For null/undefined issues: generate the specific null check
 - Never generate placeholder code — write real, runnable code
-- Keep patches small — only the lines that change
+- Keep fixes small — only the lines that change
+- suggestedCode must be copy-pasteable source only (no markdown fences)
 
 Return JSON:
 {
-  "detectedFramework": string (test framework detected from diff, e.g. "vitest", "jest", "pytest", "unknown"),
-  "summary": string (1 sentence: what's being fixed and how),
+  "detectedFramework": string,
+  "summary": string,
   "fixes": [
     {
       "issueTitle": string,
       "filePath": string,
-      "explanation": string (≤ 2 sentences: why this fix works),
-      "patch": string (unified diff format OR code block if new file),
-      "framework": string (only for test-related fixes)
+      "lineNumber": number (optional, from issue context),
+      "explanation": string,
+      "suggestedCode": string (replacement source lines for GitHub suggestion),
+      "patch": string (unified diff format),
+      "framework": string (optional, test-related fixes only)
     }
   ]
 }`,

@@ -153,35 +153,183 @@ async function upsertReviewComment(
   }
 }
 
-// ── AI auto-fix patches comment ───────────────────────────────────────────────
+// ── AI auto-fix: GitHub "Commit suggestion" + summary comment ─────────────────
 
 const FIX_SENTINEL = "<!-- shipflow-ai-fixes -->";
 
-function buildFixesComment(fixes: Array<{ issueTitle: string; filePath: string; explanation: string; patch: string; framework?: string }>, detectedFramework: string, summary: string): string {
+/** Extract added lines from a unified diff as suggested replacement code. */
+function patchToSuggestedCode(patch: string): string | null {
+  const lines = patch.split("\n");
+  const added = lines.filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+  if (added.length === 0) {
+    // New file or raw code block — use non-header lines as-is
+    const body = lines.filter((l) => !l.startsWith("---") && !l.startsWith("+++") && !l.startsWith("@@"));
+    return body.length > 0 ? body.join("\n").trim() : null;
+  }
+  return added.map((l) => l.slice(1)).join("\n").trim();
+}
+
+function buildSuggestionCommentBody(fix: {
+  issueTitle: string;
+  explanation: string;
+  suggestedCode: string;
+}): string {
+  return [
+    `🔧 **Qship AI fix** · ${fix.issueTitle}`,
+    "",
+    fix.explanation,
+    "",
+    "Click **Commit suggestion** below to apply this fix:",
+    "",
+    "```suggestion",
+    fix.suggestedCode.trim(),
+    "```",
+    "",
+    "_Qship AI · one-click fix_",
+  ].join("\n");
+}
+
+/**
+ * Posts inline GitHub review comments with ```suggestion blocks so developers
+ * can apply fixes with one click ("Commit suggestion") on the PR diff.
+ */
+async function postGithubSuggestedFixes(
+  octokit: ReturnType<typeof getInstallationOctokit>,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  headSha: string,
+  fixes: Array<{
+    filePath: string;
+    lineNumber?: number;
+    issueTitle: string;
+    explanation: string;
+    suggestedCode: string;
+  }>,
+): Promise<number> {
+  const applicable = fixes.filter(
+    (f) =>
+      f.filePath.length > 0 &&
+      f.suggestedCode.trim().length > 0 &&
+      typeof f.lineNumber === "number" &&
+      f.lineNumber > 0,
+  );
+
+  if (applicable.length === 0) return 0;
+
+  const comments = applicable.slice(0, 10).map((fix) => ({
+    path: fix.filePath,
+    line: fix.lineNumber!,
+    side: "RIGHT" as const,
+    body: buildSuggestionCommentBody(fix),
+  }));
+
+  await octokit.rest.pulls.createReview({
+    owner,
+    repo,
+    pull_number: prNumber,
+    commit_id: headSha,
+    event: "COMMENT",
+    body: [
+      `## 🔧 Qship AI — One-click fixes`,
+      "",
+      `${comments.length} inline **Commit suggestion**${comments.length === 1 ? "" : "s"} posted on the diff.`,
+      "Open **Files changed** → find Qship comments → click **Commit suggestion** on each fix.",
+    ].join("\n"),
+    comments,
+  });
+
+  logger.info("github.suggested_fixes.posted", {
+    owner,
+    repo,
+    prNumber,
+    count: comments.length,
+  });
+
+  return comments.length;
+}
+
+function enrichFixesForGithub(
+  fixes: Array<{
+    issueTitle: string;
+    filePath: string;
+    lineNumber?: number;
+    explanation: string;
+    patch: string;
+    suggestedCode?: string;
+    framework?: string;
+  }>,
+  sourceIssues: Array<{
+    title: string;
+    filePath?: string;
+    lineNumber?: string;
+  }>,
+) {
+  return fixes.map((fix) => {
+    const matchedIssue = sourceIssues.find(
+      (i) => i.filePath === fix.filePath && (i.title === fix.issueTitle || fix.issueTitle.includes(i.title)),
+    );
+    const parsedLine = fix.lineNumber ?? parseInt(matchedIssue?.lineNumber ?? "", 10);
+    const lineNumber = !isNaN(parsedLine) && parsedLine > 0 ? parsedLine : undefined;
+    const suggestedCode =
+      fix.suggestedCode?.trim() || patchToSuggestedCode(fix.patch) || "";
+
+    return { ...fix, lineNumber, suggestedCode };
+  });
+}
+
+function buildFixesComment(
+  fixes: Array<{
+    issueTitle: string;
+    filePath: string;
+    lineNumber?: number;
+    explanation: string;
+    patch: string;
+    suggestedCode?: string;
+    framework?: string;
+  }>,
+  detectedFramework: string,
+  summary: string,
+  inlineCount: number,
+): string {
   const lines: string[] = [
     FIX_SENTINEL,
     "",
     "## 🔧 Qship AI — Suggested Code Fixes",
     "",
     `> ${summary}`,
-    ...(detectedFramework && detectedFramework !== "unknown" ? [`> Detected framework: **${detectedFramework}**`] : []),
-    "",
-    "Copy-paste each patch to resolve the blocking issues. Review before applying.",
+    ...(detectedFramework && detectedFramework !== "unknown"
+      ? [`> Detected framework: **${detectedFramework}**`]
+      : []),
     "",
   ];
+
+  if (inlineCount > 0) {
+    lines.push(
+      `✅ **${inlineCount} one-click fix${inlineCount === 1 ? "" : "es"}** posted inline on the diff — use **Commit suggestion** on GitHub.`,
+      "",
+    );
+  } else {
+    lines.push(
+      "Copy-paste each patch below, or wait for inline suggestions when line numbers are available.",
+      "",
+    );
+  }
 
   for (const fix of fixes) {
     lines.push(
       `### ${fix.issueTitle}`,
-      `**File:** \`${fix.filePath}\``,
+      `**File:** \`${fix.filePath}\`${fix.lineNumber ? ` · line ${fix.lineNumber}` : ""}`,
       "",
       fix.explanation,
       "",
-      "```diff",
-      fix.patch,
-      "```",
-      "",
     );
+    if (fix.suggestedCode) {
+      lines.push("```", fix.suggestedCode, "```", "");
+    } else {
+      lines.push("```diff", fix.patch, "```", "");
+    }
+    lines.push("");
   }
 
   lines.push("---", "", `_Qship AI Auto-Fix · ${new Date().toUTCString()}_`);
@@ -397,21 +545,49 @@ export async function runPullRequestAiReview(pullRequestId: string) {
       });
     }
 
-    // Generate and post AI fix patches for blocking issues (best-effort)
+    // Generate one-click GitHub suggestions + summary for blocking issues (best-effort)
     const blockingWithLocation = review.issues.filter(
       (i) => i.severity === "blocking" && i.filePath,
     );
-    if (blockingWithLocation.length > 0) {
+    if (blockingWithLocation.length > 0 && prRow.headSha) {
       generateBlockingIssueFixes({
         featureTitle: feature.title,
         diffText: diff.diffText,
         issues: blockingWithLocation,
         acceptanceCriteria: feature.prd?.content?.acceptanceCriteria,
       })
-        .then((fixes) => {
+        .then(async (fixes) => {
           if (fixes.fixes.length === 0) return;
-          const commentBody = buildFixesComment(fixes.fixes, fixes.detectedFramework, fixes.summary);
-          return upsertFixesComment(octokit, owner, repo, prRow.githubPrNumber, commentBody);
+
+          const enriched = enrichFixesForGithub(fixes.fixes, blockingWithLocation);
+
+          let inlineCount = 0;
+          try {
+            inlineCount = await postGithubSuggestedFixes(
+              octokit,
+              owner,
+              repo,
+              prRow.githubPrNumber,
+              prRow.headSha!,
+              enriched,
+            );
+          } catch (suggestionError) {
+            logger.warn("pr_review.github_suggestions_failed", {
+              pullRequestId,
+              error:
+                suggestionError instanceof Error
+                  ? suggestionError.message
+                  : String(suggestionError),
+            });
+          }
+
+          const commentBody = buildFixesComment(
+            enriched,
+            fixes.detectedFramework,
+            fixes.summary,
+            inlineCount,
+          );
+          await upsertFixesComment(octokit, owner, repo, prRow.githubPrNumber, commentBody);
         })
         .catch((fixError) => {
           logger.warn("pr_review.auto_fix_failed", {
