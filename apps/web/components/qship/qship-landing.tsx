@@ -13,6 +13,7 @@ import {
   QshipIntegrations,
   QshipCapabilities,
   QshipMarquee,
+  QshipPricing,
   QshipWorkflows,
 } from "./qship-sections";
 
@@ -31,6 +32,7 @@ export function QshipLanding() {
         <QshipRotator />
         <QshipCapabilities />
         <QshipAgent />
+        <QshipPricing />
         <QshipFaq />
         <QshipCta />
       </main>

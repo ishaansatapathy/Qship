@@ -12,6 +12,7 @@ const NAV = [
   { label: "Workflows", href: "#workflows" },
   { label: "Integrations", href: "#integrations" },
   { label: "Agent", href: "#agent" },
+  { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ];
 
