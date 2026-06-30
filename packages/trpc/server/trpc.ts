@@ -27,6 +27,7 @@ export const tRPCContext = initTRPC
   });
 
 export const router = tRPCContext.router;
+export const createCallerFactory = tRPCContext.createCallerFactory;
 
 const observabilityMiddleware = tRPCContext.middleware(async ({ path, type, ctx, next }) => {
   const started = Date.now();

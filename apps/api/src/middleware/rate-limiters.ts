@@ -99,6 +99,21 @@ export const authRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
 });
 
+/**
+ * tRPC transport — 150 requests / 5 min per IP.
+ *
+ * The global limiter (300/15 min) explicitly exempts /trpc to avoid double-
+ * counting every page render. This dedicated limiter closes the security gap by
+ * still capping the native tRPC transport separately, preventing brute-force
+ * mutation abuse (agent.chat, feature.create, billing.*, etc.) without blocking
+ * normal dashboard usage (~10–20 queries per page load).
+ */
+export const trpcRateLimiter = createRateLimiter({
+  keyPrefix: "trpc",
+  limit: 150,
+  windowMs: 5 * 60 * 1000,
+});
+
 /** MCP JSON-RPC — 20 requests / 1 min per IP (agent SSE uses per-user limits in-route). */
 export const agentRateLimiter = createRateLimiter({
   keyPrefix: "agent",

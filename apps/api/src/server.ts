@@ -31,6 +31,7 @@ import {
   globalRateLimiter,
   notFoundMiddleware,
   requestIdMiddleware,
+  trpcRateLimiter,
   trustedOriginMiddleware,
 } from "./middleware";
 
@@ -196,6 +197,7 @@ try {
 
 app.use(
   "/trpc",
+  trpcRateLimiter,
   trpcExpress.createExpressMiddleware({
     router: serverRouter,
     createContext,
