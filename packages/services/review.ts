@@ -31,10 +31,12 @@ import {
   reviewHealthLabel,
 } from "./review-health";
 import {
+  evaluateHumanApprovalEligibility,
   getLatestAiReview,
   resolveIdempotentApprovedDecision,
   validateHumanApprovalEligibility,
 } from "./review-gate";
+import { isProductionEnv } from "./runtime-env";
 
 export type { HumanApprovalEligibility } from "./review-gate";
 export {
@@ -94,6 +96,15 @@ export async function persistAiReview(input: {
   let iteration = 0;
 
   await withTransaction(async (tx) => {
+    // ── Serialise concurrent reviews with a row-level advisory lock ───────────
+    // SELECT … FOR UPDATE on the feature row prevents two parallel runAiReview
+    // calls from reading the same MAX(iteration) and generating duplicate numbers.
+    // Combined with the UNIQUE (feature_request_id, iteration) DB constraint, this
+    // guarantees strict monotonic iteration assignment with no gaps.
+    await tx.execute(
+      sql`SELECT id FROM feature_requests WHERE id = ${input.featureRequestId} FOR UPDATE`,
+    );
+
     const prior = await tx.query.aiReviews.findMany({
       where: eq(aiReviews.featureRequestId, input.featureRequestId),
       columns: { iteration: true },
@@ -415,6 +426,30 @@ export async function recordHumanApproval(input: {
       if (input.decision === "approved" && currentStatus === "approved") {
         idempotentAfterRace = true;
         return;
+      }
+
+      // ── In-transaction eligibility re-check (closes TOCTOU window) ──────────
+      // The outer validateHumanApprovalEligibility ran before this transaction
+      // opened. Between that check and this INSERT, a concurrent AI review could
+      // have added new blocking issues. Re-evaluating inside the transaction uses
+      // the same database snapshot as the INSERT, ensuring both see the same state.
+      if (input.decision === "approved") {
+        const txLatestReview = await tx.query.aiReviews.findFirst({
+          where: eq(aiReviews.featureRequestId, input.featureRequestId),
+          orderBy: [desc(aiReviews.createdAt)],
+          with: { issues: true },
+        });
+        const txEligibility = evaluateHumanApprovalEligibility({
+          status: currentStatus,
+          latestReview: txLatestReview ?? null,
+          isProduction: isProductionEnv(),
+        });
+        if (!txEligibility.eligible) {
+          throw new ServiceError(
+            "PRECONDITION_FAILED",
+            txEligibility.reason ?? "Not eligible for approval (concurrent state change detected)",
+          );
+        }
       }
 
       await tx.insert(humanApprovals).values({

@@ -29,9 +29,11 @@ const ALLOWED_TRANSITIONS: Partial<Record<FeatureStatus, FeatureStatus[]>> = {
   prd_ready:           ["planning", "prd_generating"],
   planning:            ["plan_approved", "in_development", "prd_ready"],
   plan_approved:       ["in_development"],
-  pr_open:             ["ai_review", "in_development", "fix_needed", "human_review", "approved"],
+  // "approved" removed: would bypass the human_review gate entirely.
+  pr_open:             ["ai_review", "in_development", "fix_needed", "human_review"],
   ai_review:           ["human_review", "fix_needed"],
-  fix_needed:          ["ai_review", "pr_open", "human_review"],
+  // "human_review" removed: forces re-review before re-entering the approval queue.
+  fix_needed:          ["ai_review", "pr_open"],
   in_development:      ["pr_open", "planning", "human_review"],
   human_review:        ["approved", "fix_needed", "rejected"],
   approved:            ["shipped"],

@@ -103,19 +103,17 @@ const ALLOWED_EDGES: [FeatureStatus, FeatureStatus][] = [
   ["in_development",      "pr_open"],
   ["in_development",      "planning"],
   ["in_development",      "human_review"],
-  // from pr_open
+  // from pr_open (pr_open → approved removed — would bypass human_review gate)
   ["pr_open",             "ai_review"],
   ["pr_open",             "in_development"],
   ["pr_open",             "fix_needed"],
   ["pr_open",             "human_review"],
-  ["pr_open",             "approved"],
   // from ai_review
   ["ai_review",           "human_review"],
   ["ai_review",           "fix_needed"],
-  // from fix_needed
+  // from fix_needed (fix_needed → human_review removed — forces re-review first)
   ["fix_needed",          "ai_review"],
   ["fix_needed",          "pr_open"],
-  ["fix_needed",          "human_review"],
   // from human_review
   ["human_review",        "approved"],
   ["human_review",        "fix_needed"],
@@ -141,6 +139,9 @@ const BLOCKED_EDGES: [FeatureStatus, FeatureStatus][] = [
   ["ai_review",    "shipped"],
   ["ai_review",    "approved"],
   ["pr_open",      "shipped"],
+  // Shortcuts that bypass the review / approval gate (removed from FSM)
+  ["pr_open",      "approved"],
+  ["fix_needed",   "human_review"],
   // Terminal state is truly terminal
   ["shipped",      "submitted"],
   ["shipped",      "approved"],
