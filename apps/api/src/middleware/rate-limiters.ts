@@ -9,7 +9,7 @@ function isProduction() {
 
 function requiresDistributedRateLimit() {
   if (process.env.RATE_LIMIT_ALLOW_IN_MEMORY === "true") return false;
-  return isProduction();
+  return isProduction() && Boolean(process.env.REDIS_URL?.trim());
 }
 
 type RateLimitOptions = {
@@ -50,7 +50,10 @@ export function createRateLimiter(options: RateLimitOptions) {
       if (!result.allowed) {
         res.setHeader("Retry-After", String(Math.ceil(options.windowMs / 1000)));
         const message = "Rate limit exceeded. Please retry shortly.";
-        if (req.path === "/trpc" || req.path.startsWith("/trpc/")) {
+        // req.path is relative to the mount point (e.g. "/github.connectionStatus"
+        // when mounted at "/trpc"), so use originalUrl for tRPC detection.
+        const originalPath = (req.originalUrl ?? "").split("?")[0] ?? "";
+        if (originalPath === "/trpc" || originalPath.startsWith("/trpc/")) {
           res.status(429).json({
             error: {
               json: {
@@ -75,10 +78,24 @@ export function createRateLimiter(options: RateLimitOptions) {
         logger.error("Rate limiter unavailable — denying request", {
           message: error instanceof Error ? error.message : String(error),
         });
-        res.status(503).json({
-          error: "Service temporarily unavailable",
-          message: "Rate limiting backend is unavailable. Please retry shortly.",
-        });
+        const originalPath = (req.originalUrl ?? "").split("?")[0] ?? "";
+        const isTrpc = originalPath === "/trpc" || originalPath.startsWith("/trpc/");
+        if (isTrpc) {
+          res.status(503).json({
+            error: {
+              json: {
+                message: "Rate limiting backend is unavailable. Please retry shortly.",
+                code: -32004,
+                data: { code: "INTERNAL_SERVER_ERROR", httpStatus: 503 },
+              },
+            },
+          });
+        } else {
+          res.status(503).json({
+            error: "Service temporarily unavailable",
+            message: "Rate limiting backend is unavailable. Please retry shortly.",
+          });
+        }
         return;
       }
       logger.warn("Rate limiter degraded — allowing request", {
