@@ -6,7 +6,7 @@
 
 ## 🎬 Demo video
 
-**[▶ Watch the demo on X/Twitter](https://x.com/IshaanSatapathy)**
+**[▶ Watch the demo on X/Twitter](https://x.com/i/status/2072006638832366071)**
 
 ---
 
