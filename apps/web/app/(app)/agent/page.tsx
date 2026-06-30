@@ -487,8 +487,8 @@ function AgentPageContent() {
       : status.isError
         ? "API offline"
         : ready
-          ? (status.data?.model ?? "gpt-4o-mini")
-          : "OpenAI not loaded on API";
+          ? "Online"
+          : "Unavailable";
 
   const agentPlaceholder = status.isLoading
     ? "Connecting to agent…"
