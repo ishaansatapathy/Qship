@@ -43,6 +43,9 @@ describe("core delivery pipeline (integration)", () => {
     expect(isFeatureTransitionAllowed("prd_ready", "human_review")).toBe(false);
     expect(isFeatureTransitionAllowed("pr_open", "shipped")).toBe(false);
     expect(isFeatureTransitionAllowed("approved", "human_review")).toBe(false);
+    // Removed dangerous shortcuts: must pass AI review before human gate
+    expect(isFeatureTransitionAllowed("pr_open", "approved")).toBe(false);
+    expect(isFeatureTransitionAllowed("fix_needed", "human_review")).toBe(false);
   });
 
   describe("production ship gate (merge + deploy webhook)", () => {
