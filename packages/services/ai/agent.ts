@@ -1,5 +1,6 @@
 import { isOpenAiConfigured } from "./openai";
 import type { AgentFocus } from "./agent-focus";
+import type { AgentTraceSpan } from "./agent-trace";
 import { runAgentCorePipeline } from "./agent-core";
 
 export type AgentHistoryMessage = {
@@ -44,7 +45,7 @@ export type AgentChatResult = {
   /** Updated when walkthrough tools advance or explain a new task. */
   walkthroughTaskId?: string | null;
   traceId?: string;
-  traceSpans?: ReturnType<AgentTrace["toSpans"]>;
+  traceSpans?: AgentTraceSpan[];
 };
 
 export function isAgentConfigured() {
