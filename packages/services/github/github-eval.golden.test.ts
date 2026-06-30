@@ -46,6 +46,8 @@ export const GITHUB_EVAL_INVARIANTS = [
   "outbox_dedup_bypass_on_retry",
   /** Optimistic UPDATE WHERE status='pending' prevents double-processing in multi-instance deploys. */
   "outbox_optimistic_claim",
+  "http_webhook_hmac_before_parse",
+  "repository_limit_on_sync",
 ] as const;
 
 export const GITHUB_EVAL_INVARIANT_COUNT = GITHUB_EVAL_INVARIANTS.length;
@@ -103,5 +105,27 @@ describe("github integration eval harness", () => {
   it("registers Inngest cron for webhook outbox processing", () => {
     const ids = inngestFunctions.map((fn) => fn.id());
     expect(ids).toContain("shipflow-github-webhook-outbox");
+  });
+
+  it("HTTP handler verifies HMAC before JSON.parse", () => {
+    const handler = readFileSync(
+      path.resolve(__dirname, "../../../apps/api/src/github-webhook.ts"),
+      "utf8",
+    );
+    expect(handler).toContain("verifyGithubWebhookSignature(payload, signature)");
+    expect(handler.indexOf("verifyGithubWebhookSignature")).toBeLessThan(
+      handler.indexOf("JSON.parse"),
+    );
+    const httpTest = readFileSync(
+      path.resolve(__dirname, "../../../apps/api/src/github-webhook.test.ts"),
+      "utf8",
+    );
+    expect(httpTest).toContain("returns 401 when HMAC verification fails");
+  });
+
+  it("enforces repositoryLimit during installation sync", () => {
+    const src = readFileSync(path.resolve(__dirname, "./installation.ts"), "utf8");
+    expect(src).toContain("repositoryLimit");
+    expect(src).toContain("repo_limit_skipped");
   });
 });

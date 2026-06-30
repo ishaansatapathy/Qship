@@ -9,7 +9,7 @@
     "lint": "eslint src --max-warnings 0",
     "check-types": "tsc --noEmit",
     "test": "vitest run",
-    "test:rate-limit": "vitest run src/middleware/rate-limiters.test.ts"
+    "test:rate-limit": "vitest run src/middleware/rate-limiters.test.ts src/github-webhook.test.ts"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

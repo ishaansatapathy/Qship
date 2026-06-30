@@ -1,4 +1,4 @@
-# ShipFlow AI
+# Qship
 
 > **AI-assisted product delivery platform** — move features from **request → PRD → tasks → code → AI review → human approval → ship**.
 

@@ -11,7 +11,7 @@
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
     "test": "vitest run",
-    "test:engineering-eval": "vitest run server/engineering-eval.golden.test.ts server/mutation-procedure.test.ts server/error-handler.test.ts"
+    "test:engineering-eval": "vitest run server/engineering-eval.golden.test.ts server/mutation-procedure.test.ts server/error-handler.test.ts server/route-caller.test.ts"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

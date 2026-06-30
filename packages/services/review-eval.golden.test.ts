@@ -38,6 +38,9 @@ export const REVIEW_EVAL_INVARIANTS = [
   "fsm_shortcut_fix_needed_human_review_removed",
   "fix_needed_loop_fsm_coverage",
   "advisory_issues_dont_block_approval",
+  "credit_consumed_before_ai_review_transition",
+  "update_feature_status_fsm_guarded",
+  "drizzle_iteration_unique_index",
 ] as const;
 
 export const REVIEW_EVAL_INVARIANT_COUNT = REVIEW_EVAL_INVARIANTS.length;
@@ -167,5 +170,27 @@ describe("review loop eval harness", () => {
       isProduction: false,
     });
     expect(result.eligible).toBe(true);
+  });
+
+  it("consumes AI credits before transitioning to ai_review", () => {
+    const src = readFileSync(path.resolve(__dirname, "./github/pr-review.ts"), "utf8");
+    const creditIdx = src.indexOf("consumeAiReviewCredit");
+    const transitionIdx = src.indexOf('transitionFeatureStatus(feature.id, "ai_review")');
+    expect(creditIdx).toBeGreaterThan(-1);
+    expect(transitionIdx).toBeGreaterThan(creditIdx);
+  });
+
+  it("routes updateFeatureStatus through transitionFeatureStatus FSM guard", () => {
+    const src = readFileSync(path.resolve(__dirname, "./feature-request.ts"), "utf8");
+    expect(src).toContain("return transitionFeatureStatus(featureRequestId, status as FeatureStatus)");
+  });
+
+  it("mirrors iteration unique constraint in Drizzle model", () => {
+    const model = readFileSync(
+      path.resolve(__dirname, "../../packages/database/models/review.ts"),
+      "utf8",
+    );
+    expect(model).toContain("idx_ai_reviews_feature_iteration");
+    expect(model).toContain("uniqueIndex");
   });
 });

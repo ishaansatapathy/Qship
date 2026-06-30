@@ -244,7 +244,7 @@ export function QshipAgent() {
       <div className="qship-frame" style={{ padding: "72px 32px" }}>
         <div style={{ marginBottom: 36, maxWidth: 520 }}>
           <div className="qship-badge" style={{ marginBottom: 16 }}>
-            <span className="qship-eyebrow" style={{ letterSpacing: "0.1em" }}>ShipFlow Agent</span>
+            <span className="qship-eyebrow" style={{ letterSpacing: "0.1em" }}>Qship Agent</span>
           </div>
           <h2 className="qship-h2">Your QA &amp; engineering reviewer</h2>
           <p className="qship-lede" style={{ maxWidth: 420 }}>

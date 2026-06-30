@@ -16,6 +16,8 @@ export const SAAS_EVAL_INVARIANTS = [
   "app_shell_nav_all_surfaces",
   "trpc_proxy_csrf_session",
   "playwright_e2e_saas_journey",
+  "first_time_onboarding_banner",
+  "repository_limit_enforced_on_sync",
 ] as const;
 
 export const SAAS_EVAL_INVARIANT_COUNT = SAAS_EVAL_INVARIANTS.length;
@@ -28,7 +30,7 @@ function readRepo(relativePath: string): string {
 
 describe("SaaS product experience eval harness", () => {
   it(`documents ${SAAS_EVAL_INVARIANT_COUNT} SaaS invariants`, () => {
-    expect(SAAS_EVAL_INVARIANT_COUNT).toBe(12);
+    expect(SAAS_EVAL_INVARIANT_COUNT).toBe(14);
   });
 
   it("exposes one-click demo login with next-path redirect", () => {
@@ -118,6 +120,7 @@ describe("SaaS product experience eval harness", () => {
     expect(spec).toContain('demoLogin(page, "/tasks")');
     expect(spec).toContain('demoLogin(page, "/settings")');
     expect(spec).toContain('demoLogin(page, "/billing")');
+    expect(spec).toContain("getting started");
     expect(spec).toContain("engineering board");
     expect(spec).toContain("billing & plans");
   });
@@ -129,5 +132,21 @@ describe("SaaS product experience eval harness", () => {
     expect(walkthrough).toContain("order-verify.ts");
     expect(demo).toContain("Step 7 · Billing");
     expect(demo).toContain("13 steps");
+  });
+
+  it("shows first-time onboarding banner on /brief", () => {
+    const page = readRepo("apps/web/app/(app)/brief/page.tsx");
+    expect(page).toContain("OnboardingBanner");
+    expect(page).toContain("qship_onboarded_v1");
+    expect(page).toContain("Getting started");
+    const demo = readRepo("DEMO.md");
+    expect(demo).toContain("Getting started");
+  });
+
+  it("enforces repositoryLimit during GitHub repo sync", () => {
+    const installation = readRepo("packages/services/github/installation.ts");
+    expect(installation).toContain("repositoryLimit");
+    expect(installation).toContain("repo_limit_skipped");
+    expect(installation).toContain("repo_limit_trimmed");
   });
 });

@@ -208,7 +208,7 @@ curl -s https://repoapi-production-adfe.up.railway.app/openapi.json | python3 -c
 
 **App shell:** sidebar nav + command palette (`⌘K`) cover all surfaces — `apps/web/components/app/qship-app-shell.tsx`, `qship-command.tsx`
 
-**CI merge gate:** `pnpm --filter @repo/services test:saas-eval` in `ci.yml` (12 invariants + order verification unit tests)
+**CI merge gate:** `pnpm --filter @repo/services test:saas-eval` in `ci.yml` (14 invariants + order verification unit tests)
 
 **E2E:** `apps/web/e2e/shipflow-demo.spec.ts` — demo login, brief stats, billing demo upgrade, kanban, agent walkthrough, settings GitHub, Slack approve path
 
