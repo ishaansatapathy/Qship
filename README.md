@@ -4,6 +4,12 @@
 
 ---
 
+## 🎬 Demo video
+
+**[▶ Watch the demo on X/Twitter](https://x.com/IshaanSatapathy)**
+
+---
+
 ## 🔗 Live demo (zero setup — open in browser)
 
 | Resource | URL |
