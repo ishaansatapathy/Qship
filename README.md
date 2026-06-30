@@ -18,15 +18,12 @@ Razorpay billing is **not a mock** — real UPI and Debit Card payments have bee
 
 | Payment ID | Amount | Method | Status | Date |
 |---|---|---|---|---|
+| `pay_T7wHcYWxxfBaoH` | ₹19.00 | UPI | ✅ Captured | Jun 30, 2026 11:49 PM |
 | `pay_T7uybJQGbdOkIX` | ₹19.00 | UPI | ✅ Captured | Jun 30, 2026 10:32 PM |
 | `pay_T7ursLMzf6jhHA` | ₹19.00 | UPI | ✅ Captured | Jun 30, 2026 10:26 PM |
 | `pay_T7d0epmwMOzI8U` | ₹10.00 | Debit Card | ✅ Captured | Jun 30, 2026 4:57 AM |
 
 > Real users upgraded to the **Test Plan (₹19)** via Razorpay UPI during the hackathon window — payment created → authorized → captured, with settlement scheduled to bank account.
-
-**Razorpay Dashboard — all payments captured:**
-
-![Razorpay payments list](./docs/assets/billing-payments-list.png)
 
 <details>
 <summary>Individual payment details (click to expand)</summary>
@@ -42,6 +39,10 @@ Razorpay billing is **not a mock** — real UPI and Debit Card payments have bee
 **Payment 3 — ₹10.00 Debit Card · Captured** *(internal test)*
 
 ![Payment 3 detail](./docs/assets/billing-pay3-10rs.png)
+
+**Payment 4 — ₹19.00 UPI · Captured**
+
+![Payment 4 detail](./docs/assets/billing-pay4-19rs.png)
 
 </details>
 
