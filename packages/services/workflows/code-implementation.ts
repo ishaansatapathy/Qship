@@ -65,6 +65,7 @@ export async function runCodeImplementationWorkflow(input: {
     const primaryTask = feature.tasks[0]!;
 
     let repoSnippets: RepoFileSnippet[] = [];
+    let repoContextNote = "";
     try {
       repoSnippets = await fetchRepoSnippetsForTask(
         octokit,
@@ -75,17 +76,19 @@ export async function runCodeImplementationWorkflow(input: {
         5,
       );
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       logger.warn("code_implementation.repo_context_skipped", {
         featureId: input.featureId,
-        message: error instanceof Error ? error.message : String(error),
+        message: errMsg,
       });
+      repoContextNote = " (no repo context — using PRD only)";
       repoSnippets = [];
     }
 
     await assertWorkflowRunActive(input.workflowRunId);
     await updateWorkflowRun(input.workflowRunId, {
       progress: 50,
-      message: "Generating implementation files with AI…",
+      message: `Generating implementation files with AI…${repoContextNote}`,
     });
 
     const codegen = await generateFeatureImplementation({

@@ -1,5 +1,7 @@
+import { z } from "zod";
 import type { PrdContent } from "@repo/database/schema";
 
+import { logger } from "@repo/logger";
 import { ServiceError } from "./errors";
 import { createChatCompletion, isOpenAiConfigured } from "./ai/openai";
 
@@ -11,6 +13,29 @@ function requireOpenAi() {
   }
 }
 
+/**
+ * Parse raw AI JSON output and validate against a Zod schema.
+ * Prevents hallucinated field names from silently corrupting the database.
+ */
+function parseJsonAs<T>(raw: string, schema: z.ZodSchema<T>): T {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new ServiceError("INTERNAL", "AI returned invalid JSON. Try again.");
+  }
+  const result = schema.safeParse(parsed);
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((i) => `${i.path.join(".") || "root"}: ${i.message}`)
+      .join("; ");
+    logger.warn("ai.response_schema_mismatch", { issues });
+    throw new ServiceError("INTERNAL", `AI response did not match expected structure: ${issues}`);
+  }
+  return result.data;
+}
+
+/** Legacy unvalidated parser — only used for non-DB-persisted auxiliary outputs. */
 function parseJson<T>(raw: string): T {
   try {
     return JSON.parse(raw) as T;
@@ -18,6 +43,55 @@ function parseJson<T>(raw: string): T {
     throw new ServiceError("INTERNAL", "AI returned invalid JSON. Try again.");
   }
 }
+
+// ── Zod schemas for DB-persisted AI outputs ────────────────────────────────────
+
+const FeatureTriageSchema = z.object({
+  priority: z.enum(["P0", "P1", "P2", "P3"]),
+  impactSummary: z.string(),
+  category: z.string(),
+  estimatedEffort: z.enum(["S", "M", "L", "XL"]),
+  riskLevel: z.enum(["low", "medium", "high", "critical"]),
+  riskFactors: z.array(z.string()).default([]),
+  clarifyingQuestions: z.array(z.string()).default([]),
+  recommendation: z.string(),
+  stakeholderImpact: z.string(),
+  breakingChangeRisk: z.boolean(),
+});
+
+const FeatureTaskDraftSchema = z.object({
+  title: z.string().min(1),
+  description: z.string(),
+  status: z.enum(["backlog", "todo"]).default("backlog"),
+  type: z.enum(["backend", "frontend", "infra", "testing", "docs", "design"]),
+  acceptanceCriteria: z.array(z.string()).default([]),
+});
+
+const PrReviewIssueSchema = z.object({
+  severity: z.enum(["blocking", "non_blocking"]),
+  category: z.string(),
+  title: z.string(),
+  description: z.string(),
+  suggestion: z.string().optional(),
+  filePath: z.string().optional(),
+  lineNumber: z.string().optional(),
+  requirementRef: z.string().optional(),
+});
+
+const FeatureAiReviewSchema = z.object({
+  summary: z.string(),
+  findings: z.array(z.string()).default([]),
+  recommendation: z.string(),
+  pass: z.boolean(),
+  severity: z.enum(["low", "medium", "high"]),
+  checklistResults: z
+    .array(z.object({ dimension: z.string(), pass: z.boolean(), note: z.string() }))
+    .default([]),
+});
+
+const PrAiReviewResultSchema = FeatureAiReviewSchema.extend({
+  issues: z.array(PrReviewIssueSchema).default([]),
+});
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -132,7 +206,7 @@ Be specific to this request. Avoid generic advice.`,
     { jsonObject: true, temperature: 0.2 },
   );
 
-  return parseJson<FeatureTriage>(content);
+  return parseJsonAs(content, FeatureTriageSchema);
 }
 
 /**
@@ -221,7 +295,7 @@ Reference specific PRD acceptance criteria in task descriptions where applicable
     { jsonObject: true, temperature: 0.2 },
   );
 
-  const parsed = parseJson<{ tasks: FeatureTaskDraft[] }>(content);
+  const parsed = parseJsonAs(content, z.object({ tasks: z.array(FeatureTaskDraftSchema) }));
   return parsed.tasks ?? [];
 }
 
@@ -398,13 +472,7 @@ Cite file paths and line numbers from the diff whenever identifiable. Be specifi
     { jsonObject: true, temperature: 0.1 },
   );
 
-  const parsed = parseJson<PrAiReviewResult>(content);
-  return {
-    ...parsed,
-    issues: parsed.issues ?? [],
-    findings: parsed.findings ?? [],
-    checklistResults: parsed.checklistResults ?? [],
-  };
+  return parseJsonAs(content, PrAiReviewResultSchema);
 }
 
 /**
@@ -499,13 +567,7 @@ For unresolved prior issues, include them in issues[] with severity "blocking" a
     { jsonObject: true, temperature: 0.1 },
   );
 
-  const parsed = parseJson<PrAiReviewResult>(content);
-  return {
-    ...parsed,
-    issues: parsed.issues ?? [],
-    findings: parsed.findings ?? [],
-    checklistResults: parsed.checklistResults ?? [],
-  };
+  return parseJsonAs(content, PrAiReviewResultSchema);
 }
 
 // ── Approval briefing ──────────────────────────────────────────────────────────

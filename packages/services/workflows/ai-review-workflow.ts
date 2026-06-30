@@ -6,6 +6,14 @@ import { getReviewDelta, getReviewStats } from "../review";
 import { ServiceError } from "../errors";
 import { updateWorkflowRun, assertWorkflowRunActive } from "../workflow-runs";
 
+// ── Types shared between full workflow and split steps ─────────────────────────
+
+type AiReviewStepInput = { featureId: string; userId: string; workflowRunId: string };
+
+type AiReviewStepResult =
+  | { ok: false; reason: string; organizationId: string }
+  | { ok: true; pass: boolean; organizationId: string; iteration?: number; reviewId?: string; nextStatus?: string; prLinked?: boolean };
+
 /**
  * Inngest workflow for AI-powered pre-ship review.
  *
@@ -163,4 +171,87 @@ function buildCompletionMessage(
   return delta
     ? `✓ AI review passed${iterTag} — all ${delta.resolved.length + delta.persisting.length === 0 ? "" : delta.resolved.length + " "}issue(s) resolved`
     : `✓ AI review passed${iterTag} — ready for human approval`;
+}
+
+// ── Inngest multi-step exports ─────────────────────────────────────────────────
+
+/**
+ * Step 1: Run AI analysis — memoised by Inngest on retry so credits are not
+ * consumed again if only the DB write failed.
+ */
+export async function runAiReviewStep(input: AiReviewStepInput): Promise<AiReviewStepResult> {
+  const { featureId, userId, workflowRunId } = input;
+
+  await assertWorkflowRunActive(workflowRunId);
+  await updateWorkflowRun(workflowRunId, {
+    status: "running",
+    progress: 30,
+    message: "Validating workspace and loading review context…",
+  });
+
+  const membership = await getMembershipForUser(userId);
+  if (!membership) {
+    throw new ServiceError("FORBIDDEN", "Join a workspace before running reviews");
+  }
+
+  const stats = await getReviewStats(featureId);
+  await updateWorkflowRun(workflowRunId, {
+    progress: 65,
+    message:
+      stats.iterationCount === 0
+        ? "Running full AI review (first iteration)…"
+        : `Running delta re-review (iteration ${stats.iterationCount + 1})…`,
+  });
+
+  const result = await runFeatureAiReviewWithOptionalPr(featureId, membership.organizationId);
+  return { ...result, organizationId: membership.organizationId };
+}
+
+/**
+ * Step 2: Persist results and finalize workflow run status.
+ * Safe to retry without re-running the AI call.
+ */
+export async function runAiReviewPersistStep(
+  input: AiReviewStepInput,
+  result: AiReviewStepResult,
+) {
+  const { featureId, workflowRunId } = input;
+
+  await updateWorkflowRun(workflowRunId, {
+    progress: 85,
+    message: "Persisting review results and posting GitHub comment…",
+  });
+
+  const delta = await getReviewDelta(featureId).catch(() => null);
+  const stats = await getReviewStats(featureId);
+  const completionMessage = buildCompletionMessage(result, delta, stats.iterationCount);
+
+  await updateWorkflowRun(workflowRunId, {
+    status: "completed",
+    progress: 100,
+    message: completionMessage,
+    result: {
+      ok: result.ok,
+      pass: "pass" in result ? result.pass : undefined,
+      reviewId: "reviewId" in result ? result.reviewId : undefined,
+      iteration: "iteration" in result ? result.iteration : undefined,
+      delta: delta
+        ? {
+            resolved: delta.resolved.length,
+            persisting: delta.persisting.length,
+            new: delta.newIssues.length,
+            progress: delta.overallProgress,
+          }
+        : null,
+    },
+  });
+
+  logger.info("ai_review_workflow.completed", {
+    featureId,
+    workflowRunId,
+    pass: "pass" in result ? result.pass : false,
+    ok: result.ok,
+  });
+
+  return result;
 }

@@ -1,4 +1,4 @@
-import { generateFeatureTasks } from "../feature-ai";
+import { generateFeatureTasks, type FeatureTaskDraft } from "../feature-ai";
 import {
   appendFeatureActivity,
   getFeatureRequest,
@@ -70,4 +70,46 @@ export async function runTaskGenerationWorkflow(input: {
     });
     throw error;
   }
+}
+
+// ── Inngest multi-step exports ─────────────────────────────────────────────────
+
+/** Step 1: OpenAI call — result is memoised by Inngest on retry. */
+export async function runTaskAiStep(input: {
+  featureId: string;
+  workflowRunId: string;
+}): Promise<FeatureTaskDraft[]> {
+  await updateWorkflowRun(input.workflowRunId, {
+    status: "running",
+    progress: 50,
+    message: "Breaking PRD into engineering tasks…",
+  });
+  const feature = await getFeatureRequest(input.featureId);
+  if (!feature.prd?.content) {
+    throw new ServiceError("PRECONDITION_FAILED", "Generate a PRD before creating tasks");
+  }
+  return generateFeatureTasks({ title: feature.title, rawRequest: feature.rawRequest, prd: feature.prd.content });
+}
+
+/** Step 2: DB persist — safe to retry without re-calling OpenAI. */
+export async function runTaskPersistStep(
+  input: { featureId: string; workflowRunId: string },
+  drafts: FeatureTaskDraft[],
+) {
+  await updateWorkflowRun(input.workflowRunId, { progress: 85, message: "Saving task board…" });
+  const tasks = await replaceFeatureTasks(input.featureId, drafts);
+  await updateFeatureStatus(input.featureId, "planning");
+  await appendFeatureActivity(input.featureId, {
+    kind: "tasks",
+    title: "Engineering tasks generated",
+    detail: `${tasks.length} task(s)`,
+    actor: "agent",
+  });
+  await updateWorkflowRun(input.workflowRunId, {
+    status: "completed",
+    progress: 100,
+    message: `${tasks.length} tasks ready`,
+    result: { taskCount: tasks.length, featureId: input.featureId },
+  });
+  return { tasks };
 }
