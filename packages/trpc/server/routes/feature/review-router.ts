@@ -6,11 +6,11 @@
 import { z } from "../../schema";
 import {
   assertFeatureInUserWorkspace,
-  assertAiReviewInUserWorkspace,
   appendFeatureActivity,
 } from "@repo/services/feature-request";
 import { dispatchAiReview } from "@repo/services/inngest/dispatch";
 import {
+  assertAiReviewInUserWorkspace,
   listAiReviewsForFeature,
   getReviewDelta,
   getReviewStats,
