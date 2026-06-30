@@ -61,7 +61,7 @@
 │  users + sessions    │              │                                     │
 │  (+ 11 more)         │              └─────────────────────────────────────┘
 │                      │
-│ 42 Drizzle migrations│
+│ 53 Drizzle migrations│
 │ 14 performance idxs  │
 │ SQL enums (2)        │
 └──────────────────────┘
@@ -96,7 +96,7 @@ shipflow-ai/
 │   │   └── inngest/               Event dispatch + Inngest client
 │   ├── database/         Drizzle ORM — schema, migrations, relations
 │   │   ├── models/                26 table definitions
-│   │   ├── drizzle/               42 SQL migration files
+│   │   ├── drizzle/               53 SQL migration files
 │   │   ├── schema.ts              Barrel export
 │   │   ├── relations.ts           All Drizzle relations
 │   │   ├── pg.ts                  Pool + connection management
