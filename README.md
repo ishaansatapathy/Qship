@@ -25,6 +25,10 @@ Razorpay billing is **not a mock** — real UPI and Debit Card payments have bee
 
 > Real users upgraded to the **Test Plan (₹19)** via Razorpay UPI during the hackathon window — payment created → authorized → captured, with settlement scheduled to bank account.
 
+**Razorpay Dashboard — ₹67 collected · 4 captured payments · 0 refunds · 0 disputes:**
+
+![Razorpay dashboard overview](./docs/assets/billing-dashboard-overview.png)
+
 <details>
 <summary>Individual payment details (click to expand)</summary>
 
