@@ -289,10 +289,10 @@ Try these exact prompts:
 
 ```bash
 curl -fsS https://repoapi-production-adfe.up.railway.app/health
-# → {"status":"ok","timestamp":"..."}
+# → {"healthy":true,"ready":true,"message":"App API is healthy"}
 
 curl -fsS https://repoapi-production-adfe.up.railway.app/ready
-# → {"ready":true,"db":"connected","timestamp":"..."}
+# → {"ready":true,"database":"ok","slack":{"configured":true,"mode":"live","channelHint":"#product-shipping",...}}
 ```
 
 ### MCP tools list (no auth required)
@@ -381,12 +381,14 @@ curl -s -X POST http://localhost:8000/mcp \
 |---|---|
 | **Monorepo** | Turborepo + pnpm — shared types, zero duplication |
 | **Type safety** | 100% TypeScript, `pnpm check-types` zero errors enforced in CI |
-| **Database** | 42 Drizzle migrations, 14 perf indexes, proper boolean/integer types (not text) |
+| **Database** | 53 Drizzle migrations, 14 perf indexes, unique constraint on `(feature_request_id, iteration)` |
 | **AI prompts** | 9-dimension PR review checklist, delta re-review, technical PRD with rollback plan |
-| **GitHub** | 55-min token cache, paginated repo sync, idempotent webhook delivery |
+| **GitHub** | 55-min token cache, paginated repo sync, idempotent webhook delivery, outbox optimistic claim |
 | **CI** | Parallel static + integration + E2E jobs, Playwright artifacts on failure |
-| **Security** | HMAC-SHA256 webhooks, approval gate validation, scoped tool execution |
+| **Security** | HMAC-SHA256 webhooks, in-transaction approval gate (TOCTOU-safe), CSRF guard, tRPC rate limiting |
 | **MCP** | 37 tools, CI parity test, JSON-RPC 2.0 spec-compliant |
+| **tRPC architecture** | v11 + OpenAPI bridge, split feature sub-routers (review / approval / release), `createCallerFactory` route tests |
+| **FSM** | Strict state machine — dangerous shortcuts (`pr_open→approved`, `fix_needed→human_review`) removed |
 
 ---
 

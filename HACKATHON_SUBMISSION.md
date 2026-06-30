@@ -55,7 +55,7 @@ Every step is tracked, queryable via 37 MCP tools, and accessible via the ShipFl
 | Zero-setup demo | One-click demo login at `/api-auth/demo?next=/brief` |
 | API health | `/health` + `/ready` both return 200 |
 | No broken endpoints | HMAC guard returns 401 (not 500) on unsigned webhooks |
-| Database | Neon PostgreSQL — 43 migrations, seeded demo data |
+| Database | Neon PostgreSQL — 53 migrations, seeded demo data |
 
 ### AI Agent Quality
 
@@ -176,7 +176,7 @@ Browser → Next.js (web)
               └── workflows/        (Inngest)
                      │
               packages/database
-              (PostgreSQL + Drizzle, 43 migrations, 14 indexes)
+              (PostgreSQL + Drizzle, 53 migrations, 14 indexes)
 ```
 
 ---

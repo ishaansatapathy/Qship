@@ -118,20 +118,24 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 ### 4. Review Loop & Human Approval · /15
 
-**Claim:** Iteration tracking + delta comparison + enforced approval gate.
+**Claim:** Iteration tracking + delta comparison + enforced approval gate — concurrency-safe and TOCTOU-free.
 
 | Feature | File / function |
 |---|---|
 | Persist reviews + iteration counter | `review.ts` → `persistAiReview` |
-| Delta: resolved / persisting / new | `review.ts` → `getReviewDelta` |
+| Iteration race prevention | `review.ts` → `persistAiReview` — `SELECT … FOR UPDATE` row lock |
+| Unique iteration constraint | `packages/database/drizzle/0053_ai_review_iteration_unique.sql` |
+| Delta: resolved / persisting / new | `review.ts` → `getReviewDelta` → `computeReviewDelta` (pure, tested) |
 | Stats: pass rate, avg issues | `review.ts` → `getReviewStats` |
 | Block approve if blocking issues | `review.ts` → `validateHumanApprovalEligibility` / `evaluateHumanApprovalEligibility` |
-| Approval eligibility read API | `feature/route.ts` → `getApprovalEligibility` |
-| Approve / request changes | `review.ts` → `recordHumanApproval`; tRPC `requestChanges` (+ deprecated `reject` alias) |
+| **In-txn TOCTOU re-check** | `review.ts` → `recordHumanApproval` — eligibility re-evaluated inside the transaction |
+| Approval eligibility read API | `feature/approval-router.ts` → `getApprovalEligibility` |
+| Approve / request changes | `review.ts` → `recordHumanApproval`; `approval-router.ts` → `requestChanges` (+ deprecated `reject` alias) |
 | Gate module (single fetch) | `review-gate.ts` → `loadHumanApprovalGateContext` |
 | Optimistic FSM transitions | `feature-request.ts` → `guardedUpdateFeatureStatusInTx` |
 | Audit trail | `review.ts` → `listHumanApprovals` |
 | Agent tools | `approve_feature`, `reject_feature`, `request_changes`, `get_review_delta` |
+| **FSM shortcuts removed** | `pr_open → approved` and `fix_needed → human_review` transitions blocked |
 
 **UI:** Approve disabled while eligibility loads or when `eligible: false` (same gate as server).
 
@@ -145,12 +149,15 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 |---|---|
 | Turborepo monorepo | `apps/web`, `apps/api`, `packages/*` |
 | tRPC v11 + OpenAPI bridge | `packages/trpc`, Scalar at `/docs` |
-| 52 DB migrations | `packages/database/drizzle/` |
+| **53 DB migrations** | `packages/database/drizzle/` (incl. `0053_ai_review_iteration_unique`) |
 | 14+ perf indexes | migration `0041_add_indexes.sql` |
 | CI: types + lint + unit + golden evals + E2E | `.github/workflows/ci.yml` |
 | 249+ unit tests | `pnpm test` in CI |
 | Playwright E2E | `apps/web/e2e/shipflow-demo.spec.ts` |
-| **Engineering eval gate (15 invariants)** | `packages/trpc/server/engineering-eval.golden.test.ts` |
+| **Engineering eval gate (18 invariants)** | `packages/trpc/server/engineering-eval.golden.test.ts` |
+| **Feature route split** | `feature/review-router.ts` + `feature/approval-router.ts` + `feature/release-router.ts` |
+| **tRPC rate limiting** | `trpcRateLimiter` (150/5min) applied to `/trpc` mount in `apps/api/src/server.ts` |
+| **createCallerFactory tests** | `packages/trpc/server/route-caller.test.ts` — 8 procedure invocation tests |
 
 **CI merge gate:** `pnpm --filter @repo/trpc test:engineering-eval` + `pnpm --filter @repo/api test:rate-limit` in `ci.yml`
 
@@ -199,10 +206,13 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 ## Key differentiators (vs typical hackathon submissions)
 
 1. **Delta-aware re-review** — each prior blocking issue classified RESOLVED / UNRESOLVED (`runDeltaAiReview`).
-2. **Approval gate at all entry points** — UI, tRPC, and agent tool (`validateHumanApprovalEligibility`).
+2. **TOCTOU-safe approval gate** — eligibility re-evaluated *inside* the approval transaction, closing the race window.
 3. **37 tools with CI parity** — agent and MCP share identical tool surface.
-4. **FSM-validated workflow** — illegal status jumps rejected (`guardedUpdateFeatureStatus`).
+4. **Strict FSM** — dangerous shortcuts (`pr_open→approved`, `fix_needed→human_review`) removed; 122-case FSM test suite.
 5. **Scalar OpenAPI from tRPC** — `trpc-to-openapi` + live `/docs`.
+6. **Iteration concurrency** — `SELECT … FOR UPDATE` + `UNIQUE (feature_request_id, iteration)` prevents duplicate iterations.
+7. **tRPC transport rate-limited** — dedicated `trpcRateLimiter` closes the mutation abuse gap.
+8. **Modular route architecture** — 1081-line monolith split into focused sub-routers; `createCallerFactory` route tests.
 
 ---
 
