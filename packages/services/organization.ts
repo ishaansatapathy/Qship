@@ -38,7 +38,7 @@ export async function ensurePersonalWorkspace(userId: string, displayName?: stri
       id: projectId,
       organizationId: orgId,
       name: "Core Platform",
-      description: "Default ShipFlow delivery pipeline",
+      description: "Default Qship delivery pipeline",
     })
     .onConflictDoNothing();
 

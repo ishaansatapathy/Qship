@@ -233,7 +233,7 @@ Click **"Ship"** (appears after `approved` status).
 
 ---
 
-### Step 12 · ShipFlow Agent (`/agent`)
+### Step 12 · Qship Agent (`/agent`)
 
 > **URL:** https://qship.ishaandev.co.in/agent
 
@@ -278,7 +278,7 @@ Try these exact prompts:
 
 **What to observe:**
 - Judge quick-start table at the top of the info panel
-- Tag groups: Getting started / ShipFlow core / AI platform / Integrations
+- Tag groups: Getting started / Qship core / AI platform / Integrations
 - Interactive code samples with `curl` examples
 - MCP tool manifest with all **37** tool descriptions
 - `/mcp`, `/agent/stream`, `/webhooks/github` documented as reference paths
@@ -369,7 +369,7 @@ curl -s -X POST http://localhost:8000/mcp \
 | Item | Details |
 |---|---|
 | User | `demo@qship.dev` / `DemoPass123!` |
-| Organisation | ShipFlow Demo Org |
+| Organisation | Qship Demo Org |
 | Project | Core Platform |
 | Feature 1 | `submitted` — "Rate limiting on auth endpoints" |
 | Feature 2 | `prd_ready` — "CSV export for audit log" |

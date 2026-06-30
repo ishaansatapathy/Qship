@@ -93,7 +93,7 @@ export default function InboxPage() {
       setRawRequest("");
       if (result.educated) {
         toast.message("Existing capability detected", {
-          description: "ShipFlow educated instead of duplicating work. Open the request to review.",
+          description: "Qship educated instead of duplicating work. Open the request to review.",
         });
       } else {
         toast.success("Intake received — triage complete");

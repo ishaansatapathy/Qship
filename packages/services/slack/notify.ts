@@ -61,7 +61,7 @@ function buildApprovedBlocks(input: {
     input.channel ? `Channel: ${input.channel}` : null,
     input.approverNotes ? `Notes: ${input.approverNotes}` : null,
     input.prUrl ? `PR: ${input.prUrl}` : null,
-    `<${buildFeatureRequestsUrl(input.featureId)}|Open in ShipFlow>`,
+    `<${buildFeatureRequestsUrl(input.featureId)}|Open in Qship>`,
   ].filter(Boolean);
 
   return {
@@ -78,7 +78,7 @@ function buildShippedBlocks(input: {
   const lines = [
     `*${input.featureTitle}* has been marked *shipped* to production.`,
     input.channel ? `Channel: ${input.channel}` : null,
-    `<${buildFeatureRequestsUrl(input.featureId)}|Open in ShipFlow>`,
+    `<${buildFeatureRequestsUrl(input.featureId)}|Open in Qship>`,
   ].filter(Boolean);
 
   return {

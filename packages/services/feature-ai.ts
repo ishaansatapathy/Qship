@@ -1063,7 +1063,7 @@ export async function generateTaskWalkthrough(input: {
     [
       {
         role: "system",
-        content: `You are a Staff Engineer running an interactive "one task at a time" walkthrough inside ShipFlow Agent.
+        content: `You are a Staff Engineer running an interactive "one task at a time" walkthrough inside Qship Agent.
 
 Mode: ${mode}
 ${depthInstructions}

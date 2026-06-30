@@ -10,7 +10,7 @@ export async function executeShipflowTool(
 ): Promise<string> {
   const handler = SHIPFLOW_TOOL_HANDLERS[name];
   if (!handler) {
-    throw new ServiceError("NOT_FOUND", `Unknown ShipFlow tool: ${name}`);
+    throw new ServiceError("NOT_FOUND", `Unknown Qship tool: ${name}`);
   }
   return handler(ctx, args);
 }

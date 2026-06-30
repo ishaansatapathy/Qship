@@ -1,6 +1,6 @@
 # SHIP_DEPLOY_WEBHOOK_URL — setup (5 minutes)
 
-When a PM clicks **Mark shipped**, ShipFlow:
+When a PM clicks **Mark shipped**, Qship:
 
 1. Merges the linked GitHub PR (if connected)
 2. **POSTs to `SHIP_DEPLOY_WEBHOOK_URL`**

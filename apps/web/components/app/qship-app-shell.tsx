@@ -171,7 +171,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const meta = PAGE_META[pathname ?? "/brief"] ?? { title: "ShipFlow", sub: "" };
+  const meta = PAGE_META[pathname ?? "/brief"] ?? { title: "Qship", sub: "" };
 
   return (
     <div className="qship-page qship-app">
@@ -232,7 +232,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
               )}
             </span>
             <span className="qship-app-user-meta">
-              <span className="qship-app-user-name">{user.displayName || user.fullName || "ShipFlow user"}</span>
+              <span className="qship-app-user-name">{user.displayName || user.fullName || "Qship user"}</span>
             </span>
             <ChevronsUpDown size={15} style={{ color: "var(--qship-dim)", flexShrink: 0 }} />
           </button>

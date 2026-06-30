@@ -38,7 +38,7 @@ function buildReviewComment(
   const lines: string[] = [
     COMMENT_SENTINEL,
     "",
-    `## 🤖 ShipFlow AI Review — Iteration ${iteration}`,
+    `## 🤖 Qship AI Review — Iteration ${iteration}`,
     "",
     `> ${statusBadge}`,
     "",
@@ -115,7 +115,7 @@ function buildReviewComment(
   lines.push(
     "---",
     "",
-    `_ShipFlow AI Review · Iteration ${iteration} · ${new Date().toUTCString()}_`,
+    `_Qship AI Review · Iteration ${iteration} · ${new Date().toUTCString()}_`,
   );
 
   return lines.join("\n");

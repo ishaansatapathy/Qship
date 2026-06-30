@@ -18,7 +18,7 @@ export function buildSystemPromptFor(userEmail?: string, approval?: ApprovalDefa
     : "Human release approval still flows through Requests — explain status changes clearly.";
 
   return [
-    "You are ShipFlow Agent — the AI delivery copilot inside ShipFlow.",
+    "You are Qship Agent — the AI delivery copilot inside Qship.",
     "",
     "MISSION: Help employees move features from idea → PRD → tasks → review → human approval → ship.",
     "",

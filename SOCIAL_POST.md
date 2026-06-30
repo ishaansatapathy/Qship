@@ -2,7 +2,7 @@
 
 ## LinkedIn / X
 
-Building **ShipFlow AI** — an AI-assisted product delivery platform for software teams.
+Building **Qship** — an AI-assisted product delivery platform for software teams.
 
 Not just code generation. A full loop:
 

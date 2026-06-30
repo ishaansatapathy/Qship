@@ -1,4 +1,4 @@
-# ShipFlow — Quick Deploy Checklist
+# Qship — Quick Deploy Checklist
 
 Production architecture: **Neon Postgres** · **Railway (API)** · **Vercel (Web)** · **Hostinger DNS**
 
@@ -98,7 +98,7 @@ Required only for **live** Slack channel messages. Without it, approve/ship stil
 
 1. [Create a Slack workspace](https://slack.com/get-started) (free)
 2. Open **[api.slack.com/apps](https://api.slack.com/apps)** → **Create New App** → **From scratch**
-3. App name: `ShipFlow` · Workspace: yours
+3. App name: `Qship` · Workspace: yours
 4. **Incoming Webhooks** → toggle **On** → **Add New Webhook to Workspace**
 5. Select channel `#product-shipping` (or any channel) → **Allow**
 6. Copy the webhook URL

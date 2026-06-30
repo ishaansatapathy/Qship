@@ -21,7 +21,7 @@ export type McpToolDef = {
 export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   {
     name: "get_workspace",
-    description: "Get the authenticated user's ShipFlow workspace (organization + project).",
+    description: "Get the authenticated user's Qship workspace (organization + project).",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -391,7 +391,7 @@ export const SHIPFLOW_MCP_TOOLS: McpToolDef[] = [
   {
     name: "explain_engineering_task",
     description:
-      "Interactive task walkthrough for ShipFlow Agent: returns pseudo-code steps (brief) or a full implementation guide (full). When analyzeRepo=true and GitHub is connected, compares the task against the linked codebase and reports what is already implemented vs still needed. Use ONE task at a time in walkthrough mode; wait for the user to say 'explain more' or call advance_task_walkthrough for next task.",
+      "Interactive task walkthrough for Qship Agent: returns pseudo-code steps (brief) or a full implementation guide (full). When analyzeRepo=true and GitHub is connected, compares the task against the linked codebase and reports what is already implemented vs still needed. Use ONE task at a time in walkthrough mode; wait for the user to say 'explain more' or call advance_task_walkthrough for next task.",
     inputSchema: {
       type: "object",
       required: ["taskId"],

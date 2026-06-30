@@ -28,7 +28,7 @@ function parseSenderAddress(from: string) {
     return { name: bracketMatch[1]!.trim(), email: bracketMatch[2]!.trim() };
   }
   return {
-    name: env.EMAIL_SENDER_NAME?.trim() || "ShipFlow",
+    name: env.EMAIL_SENDER_NAME?.trim() || "Qship",
     email: trimmed,
   };
 }

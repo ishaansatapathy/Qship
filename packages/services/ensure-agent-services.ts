@@ -10,8 +10,8 @@ import { registerQueueService, getQueueService, type QueueService } from "./queu
 import { registerSettingsService, getSettingsService, type SettingsService } from "./settings";
 import { createDbSettingsService } from "./settings/approval-defaults";
 
-const GMAIL_MSG = "Gmail is not connected in ShipFlow. Use feature or GitHub tools instead.";
-const CALENDAR_MSG = "Google Calendar is not connected in ShipFlow.";
+const GMAIL_MSG = "Gmail is not connected in Qship. Use feature or GitHub tools instead.";
+const CALENDAR_MSG = "Google Calendar is not connected in Qship.";
 const QUEUE_MSG = "Approval queue is not available without Gmail/Calendar integration.";
 
 function notConnected(method: string) {

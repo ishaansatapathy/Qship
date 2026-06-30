@@ -87,7 +87,7 @@ export function QshipAuthCard({
         const result = await authClient.signUp.email({
           email: email.trim(),
           password,
-          name: name.trim() || email.split("@")[0] || "ShipFlow User",
+          name: name.trim() || email.split("@")[0] || "Qship User",
         });
         if (result.error) {
           setLocalError(result.error.message ?? "Sign up failed");
@@ -113,7 +113,7 @@ export function QshipAuthCard({
         <p className="qship-auth-subtitle">
           {isLogin
             ? "Welcome back. Enter your credentials to continue."
-            : "Get started with ShipFlow in under a minute."}
+            : "Get started with Qship in under a minute."}
         </p>
       </div>
 

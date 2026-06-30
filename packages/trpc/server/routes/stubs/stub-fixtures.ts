@@ -4,10 +4,10 @@ export type ConnectionState = "connected" | "missing_credentials" | "not_connect
 
 export const emptyDailyBrief = {
   greeting: "Good morning",
-  summary: "Connect GitHub and submit feature requests to see your ShipFlow pipeline here.",
+  summary: "Connect GitHub and submit feature requests to see your Qship pipeline here.",
   todaysFocus: {
     headline: "Review open feature requests",
-    detail: "ShipFlow tracks delivery from request → PRD → ship.",
+    detail: "Qship tracks delivery from request → PRD → ship.",
     byTime: "Today",
     contextId: undefined as string | undefined,
     eventId: undefined as string | undefined,
@@ -106,7 +106,7 @@ export function emptyQueueItem(id = "demo-queue-item") {
 export const emptyMailContext = {
   summary: "",
   bullets: [] as string[],
-  whyMatters: "No mail context in ShipFlow demo mode.",
+  whyMatters: "No mail context in Qship demo mode.",
   nextAction: "Open Requests or submit a new feature request.",
   isFollowUpNeeded: false,
   followUpSuggestion: undefined as string | undefined,
@@ -130,5 +130,5 @@ export const emptyRankResult = {
     urgency: "high" | "medium" | "low" | "noise";
     reason: string;
   }>,
-  summary: "No inbox items to rank in ShipFlow demo mode.",
+  summary: "No inbox items to rank in Qship demo mode.",
 };

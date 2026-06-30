@@ -11,7 +11,7 @@ export default function GlobalError({
     <html lang="en">
       <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#0a0a0a", color: "#f5f5f5" }}>
         <div style={{ maxWidth: 420, margin: "80px auto", padding: 24 }}>
-          <h1 style={{ fontSize: 18, marginBottom: 8 }}>ShipFlow encountered an error</h1>
+          <h1 style={{ fontSize: 18, marginBottom: 8 }}>Qship encountered an error</h1>
           <p style={{ fontSize: 14, lineHeight: 1.5, color: "#a3a3a3" }}>
             Something unexpected happened. Try reloading the page.
           </p>
