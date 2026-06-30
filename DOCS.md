@@ -1,4 +1,4 @@
-# Qship — ShipFlow Technical Documentation
+# Qship — Technical Documentation
 
 > **AI-assisted product delivery platform** for the ChaiCode hackathon — tRPC monorepo SaaS.
 
@@ -7,7 +7,7 @@
 | Web app | http://localhost:3000 | https://qship.ishaandev.co.in |
 | **Scalar API docs** | http://localhost:8000/docs | https://repoapi-production-adfe.up.railway.app/docs |
 | OpenAPI JSON | http://localhost:8000/openapi.json | https://repoapi-production-adfe.up.railway.app/openapi.json |
-| ShipFlow MCP | `POST http://localhost:8000/mcp` | `POST https://repoapi-production-adfe.up.railway.app/mcp` |
+| Qship MCP | `POST http://localhost:8000/mcp` | `POST https://repoapi-production-adfe.up.railway.app/mcp` |
 | Agent SSE | `POST http://localhost:8000/agent/stream` | via web proxy `/agent/stream` |
 | GitHub webhook | `POST http://localhost:8000/webhooks/github` | `POST https://repoapi-production-adfe.up.railway.app/webhooks/github` |
 
@@ -33,7 +33,7 @@ Next.js (web)  ──tRPC/REST──►  Express API  ──Octokit──►  Gi
 | Auth | BetterAuth — email/password + Google OAuth |
 | Database | PostgreSQL + Drizzle ORM |
 | AI | OpenAI gpt-4o-mini (configurable via `OPENAI_MODEL`) |
-| MCP | MCP 2024-11-05 — **37** ShipFlow tools |
+| MCP | MCP 2024-11-05 — **37** Qship tools |
 
 ### Monorepo layout
 
@@ -229,7 +229,7 @@ curl -s -X POST http://localhost:8000/mcp \
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /agent/stream` | SSE streaming chat with **37** ShipFlow tools |
+| `POST /agent/stream` | SSE streaming chat with **37** Qship tools |
 
 Rate limit: **20 requests/min/user**.
 

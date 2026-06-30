@@ -1,4 +1,4 @@
-# ShipFlow Engineering Guide
+# Qship Engineering Guide
 
 > **Rubric:** tRPC Monorepo & Engineering Quality · 
 > This document maps the codebase structure, security middleware, test strategy, and deployment gates for judges and reviewers.

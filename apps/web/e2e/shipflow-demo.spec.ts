@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { demoLogin, skipUnlessDemoLogin } from "./helpers/auth";
 
-test.describe("ShipFlow demo journey", () => {
+test.describe("Qship demo journey", () => {
   test.beforeEach((_fixtures, testInfo) => {
     skipUnlessDemoLogin(testInfo);
   });

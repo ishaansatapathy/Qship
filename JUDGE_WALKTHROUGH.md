@@ -1,4 +1,4 @@
-# ShipFlow AI — Judge Walkthrough
+# Qship — Judge Walkthrough
 
 > **Primary entry for human evaluation** — timed demo, no jargon required.
 >
@@ -172,7 +172,7 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 ## Agent prompts to copy-paste
 
 ```
-"Give me a complete summary of the ShipFlow pipeline — what's submitted, in review, and shipped"
+"Give me a complete summary of the Qship pipeline — what's submitted, in review, and shipped"
 ```
 
 ```

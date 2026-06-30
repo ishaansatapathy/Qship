@@ -1,4 +1,4 @@
-# ShipFlow API — Vercel deployment
+# Qship API — Vercel deployment
 
 Deploy **`apps/api`** as a separate Vercel project.
 

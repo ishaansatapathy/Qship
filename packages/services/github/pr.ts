@@ -41,11 +41,11 @@ function buildPrBody(feature: {
   const goals = feature.prd?.content?.goals ?? [];
 
   const lines: string[] = [
-    `<!-- ShipFlow-Feature: ${feature.id} -->`,
+    `<!-- Qship-Feature: ${feature.id} -->`,
     "",
-    `## 🚀 ShipFlow Feature: ${feature.title}`,
+    `## 🚀 Qship Feature: ${feature.title}`,
     "",
-    "> This PR is managed by **ShipFlow AI** — an automated delivery pipeline.",
+    "> This PR is managed by **Qship** — an automated delivery pipeline.",
     "",
     "---",
     "",
@@ -87,7 +87,7 @@ function buildPrBody(feature: {
     "",
     "### 🤖 AI Review Pipeline",
     "",
-    "ShipFlow automatically reviews every push to this branch:",
+    "Qship automatically reviews every push to this branch:",
     "",
     "1. **Diff analysis** — code is checked against acceptance criteria",
     "2. **Security scan** — blocking issues halt the review loop",
@@ -96,8 +96,8 @@ function buildPrBody(feature: {
     "---",
     "",
     appSlug
-      ? `_Opened by [ShipFlow AI](https://github.com/apps/${appSlug})_`
-      : "_Opened by ShipFlow AI_",
+      ? `_Opened by [Qship](https://github.com/apps/${appSlug})_`
+      : "_Opened by Qship_",
   );
 
   return lines.join("\n");

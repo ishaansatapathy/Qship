@@ -87,11 +87,11 @@ Feature Request → Triage → Clarifying Questions → PRD → Engineering Task
       → Code (GitHub PR) → AI Review → Fix Loop → Human Approval → Ship
 ```
 
-Every stage is tracked in real time, queryable via tRPC, accessible via 37 MCP tools, and navigable through the ShipFlow Agent chat.
+Every stage is tracked in real time, queryable via tRPC, accessible via 37 MCP tools, and navigable through the Qship Agent chat.
 
 ### Slack notifications (Core Workflow closure)
 
-When a feature passes **human approval** or is marked **shipped**, ShipFlow posts a Slack message via an incoming webhook (or records an auditable simulated delivery when no webhook is configured).
+When a feature passes **human approval** or is marked **shipped**, Qship posts a Slack message via an incoming webhook (or records an auditable simulated delivery when no webhook is configured).
 
 | Event | Trigger | Evidence |
 |---|---|---|
@@ -113,7 +113,7 @@ When a feature passes **human approval** or is marked **shipped**, ShipFlow post
 
 1. Create a free [Slack workspace](https://slack.com/get-started) if you do not have one
 2. Open **[Slack API → Your Apps](https://api.slack.com/apps)** → **Create New App** → **From scratch**
-3. Name the app (e.g. `ShipFlow`) and select your workspace
+3. Name the app (e.g. `Qship`) and select your workspace
 4. Go to **Incoming Webhooks** → toggle **On** → **Add New Webhook to Workspace**
 5. Choose a channel (recommended: `#product-shipping`) → **Allow**
 6. Copy the webhook URL (format: `https://hooks.slack.com/services/T…/B…/…`)
@@ -152,7 +152,7 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 | **Human approval gate** | Approve / reject / changes UI + agent | `approve_feature`, `reject_feature`, `request_changes` |
 | **Slack approve/ship alerts** | Timeline after Approve or Ship | `notifySlackFeatureApproved`, `GET /integrations/slack` |
 | **Approval audit trail** | Timeline events per decision | `get_approval_history` |
-| **ShipFlow Agent** | `/agent` — 37-tool streaming copilot | `POST /agent/stream` |
+| **Qship Agent** | `/agent` — 37-tool streaming copilot | `POST /agent/stream` |
 | **MCP server** | Cursor / Claude integration | `POST /mcp` — 37 tools |
 | **GitHub App connect** | `/settings` — install + repo sync | `github.*` tRPC |
 | **GitHub PR webhook** | Auto-links PRs to features | `POST /webhooks/github` |
@@ -164,7 +164,7 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 
 ---
 
-## ShipFlow Agent — 37 tools
+## Qship Agent — 37 tools
 
 The streaming agent at `/agent` and the MCP server at `/mcp` share the same 37 tools, verified by CI parity test.
 
@@ -226,7 +226,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 │              Browser (Next.js on Vercel — qship.ishaandev.co.in)   │
 │  /brief      Pipeline overview + counts by stage                   │
 │  /requests   Feature hub — submit, triage, PRD, tasks, timeline    │
-│  /agent      ShipFlow Agent — SSE streaming, 37 tools              │
+│  /agent      Qship Agent — SSE streaming, 37 tools              │
 │  /tasks      Engineering Kanban (backlog → todo → done)            │
 │  /analytics  Delivery metrics + throughput                         │
 │  /settings   GitHub App connect + repo sync + approval toggles     │
@@ -237,7 +237,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 │        Express API (apps/api on Railway — long-lived process)      │
 │  /trpc              Type-safe tRPC procedures (all features)        │
 │  /api/*             REST — trpc-to-openapi auto-generated           │
-│  /mcp               MCP 2024-11-05 JSON-RPC — 37 ShipFlow tools    │
+│  /mcp               MCP 2024-11-05 JSON-RPC — 37 Qship tools    │
 │  /agent/stream      SSE streaming agent (rate-limited, guardrailed) │
 │  /webhooks/github   GitHub App events (HMAC-SHA256 verified)       │
 │  /health  /ready    Liveness + readiness probes (+ Slack status)   │
@@ -384,7 +384,7 @@ pnpm db:generate      # Regenerate Drizzle client after schema changes
 
 ## MCP integration
 
-ShipFlow exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **37 tools**.
+Qship exposes `POST /mcp` — a fully spec-compliant MCP 2024-11-05 JSON-RPC server with **37 tools**.
 
 ### Configure in Cursor / Claude Desktop
 

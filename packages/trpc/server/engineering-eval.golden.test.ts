@@ -144,7 +144,7 @@ describe("engineering quality eval harness", () => {
 
   it("includes Playwright demo journey spec", () => {
     const spec = readRepo("apps/web/e2e/shipflow-demo.spec.ts");
-    expect(spec).toContain("ShipFlow demo journey");
+    expect(spec).toContain("Qship demo journey");
     expect(spec).toContain("demoLogin");
   });
 

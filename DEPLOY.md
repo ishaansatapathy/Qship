@@ -1,4 +1,4 @@
-# ShipFlow — Full production deploy (one shot)
+# Qship — Full production deploy (one shot)
 
 **Order:** Neon seed → Railway (API) → Vercel (Web) → Hostinger DNS → external dashboards (Google / GitHub / Razorpay / Slack) → verify.
 

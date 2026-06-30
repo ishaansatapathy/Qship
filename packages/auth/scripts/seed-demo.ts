@@ -19,7 +19,7 @@ import { ensurePassingAiReview } from "@repo/services/demo-bootstrap";
 
 const DEMO_EMAIL = process.env.SEED_USER_EMAIL ?? "demo@qship.dev";
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "DemoPass123!";
-const DEMO_NAME = "ShipFlow Demo";
+const DEMO_NAME = "Qship Demo";
 
 const DEMO_FEATURES = [
   {
@@ -85,7 +85,7 @@ async function ensureWorkspace(userId: string) {
     .insert(organizations)
     .values({
       id: orgId,
-      name: "ShipFlow Demo Org",
+      name: "Qship Demo Org",
       slug: "shipflow-demo",
       planTier: "pro",
       // Generous credits so judges can run AI features without hitting the limit.
@@ -113,7 +113,7 @@ async function ensureWorkspace(userId: string) {
       id: projectId,
       organizationId: orgId,
       name: "Core Platform",
-      description: "Primary ShipFlow delivery pipeline",
+      description: "Primary Qship delivery pipeline",
     })
     .onConflictDoNothing();
 
@@ -190,7 +190,7 @@ export async function runShipflowSeed() {
   const { orgId, projectId } = await ensureWorkspace(user.id);
   await seedFeatures(orgId, projectId, user.id);
 
-  console.log("[seed] ShipFlow demo workspace ready.");
+  console.log("[seed] Qship demo workspace ready.");
   console.log(`       org:     ${orgId}`);
   console.log(`       project: ${projectId}`);
 }

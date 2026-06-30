@@ -35,7 +35,7 @@ export async function buildFocusSystemAppendix(
         const { assertFeatureInUserWorkspace } = await import("../feature-request");
         const { feature } = await assertFeatureInUserWorkspace(tenantId, featureId);
         lines.push(
-          "Type: FEATURE REQUEST (ShipFlow)",
+          "Type: FEATURE REQUEST (Qship)",
           `featureId: ${feature.id}`,
           `title: ${feature.title}`,
           `status: ${feature.status}`,
@@ -47,7 +47,7 @@ export async function buildFocusSystemAppendix(
         );
       } catch {
         lines.push(
-          "Type: FEATURE REQUEST (ShipFlow)",
+          "Type: FEATURE REQUEST (Qship)",
           `featureId: ${featureId}`,
           `Use get_feature_request with id "${featureId}".`,
         );

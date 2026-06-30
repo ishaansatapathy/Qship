@@ -11,7 +11,7 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("ShipFlow app error:", error);
+    console.error("Qship app error:", error);
   }, [error]);
 
   return (

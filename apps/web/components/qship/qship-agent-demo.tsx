@@ -22,7 +22,7 @@ const SCENARIOS: Scenario[] = [
     id: "prd",
     chip: "Generate PRD",
     icon: ClipboardList,
-    prompt: "@ShipFlow turn this feature request into a structured PRD",
+    prompt: "@Qship turn this feature request into a structured PRD",
     reply: "PRD draft ready — problem, goals, user stories, acceptance criteria, and edge cases included.",
     effectTitle: "Planning · PRD v1",
     effect: (
@@ -45,7 +45,7 @@ const SCENARIOS: Scenario[] = [
     id: "tasks",
     chip: "Create tasks",
     icon: Kanban,
-    prompt: "@ShipFlow break the GDPR export PRD into engineering tasks",
+    prompt: "@Qship break the GDPR export PRD into engineering tasks",
     reply: "8 tasks created across Backlog, In progress, and Review columns.",
     effectTitle: "Task board · 8 tasks",
     effect: (
@@ -69,7 +69,7 @@ const SCENARIOS: Scenario[] = [
     id: "review",
     chip: "QA review",
     icon: GitPullRequest,
-    prompt: "@ShipFlow review PR #42 against the PRD and acceptance criteria",
+    prompt: "@Qship review PR #42 against the PRD and acceptance criteria",
     reply: "3 findings — 1 blocking (missing rate limit). Fix loop started.",
     effectTitle: "AI review · PR #42",
     effect: (
@@ -136,7 +136,7 @@ export function QshipAgentDemo() {
         <div className="qship-agent-chat">
           <div className="qship-agent-chat-head">
             <Bot size={13} style={{ opacity: 0.6 }} />
-            <span>ShipFlow agent</span>
+            <span>Qship agent</span>
           </div>
 
           <div className="qship-agent-chat-body">

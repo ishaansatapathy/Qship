@@ -21,7 +21,7 @@ export function QshipPrHighlight() {
             High-precision review on every change
           </h2>
           <p className="qship-lede" style={{ maxWidth: 520, marginInline: "auto" }}>
-            Inspired by modern review platforms — ShipFlow agents reason over PRD, tasks, and codebase
+            Inspired by modern review platforms — Qship agents reason over PRD, tasks, and codebase
             context to flag real issues before merge.
           </p>
 
@@ -128,7 +128,7 @@ export function QshipPrHighlight() {
                     <p style={{ fontSize: 11, fontWeight: 700, color: "var(--qship-accent-bright)" }}>
                       shipflow-ai · review
                     </p>
-                    <p style={{ marginTop: 8, fontWeight: 600 }}>Code review by ShipFlow</p>
+                    <p style={{ marginTop: 8, fontWeight: 600 }}>Code review by Qship</p>
                     <p style={{ marginTop: 6, fontSize: 13, color: "var(--qship-muted)" }}>
                       3 findings — 1 action required before human approval
                     </p>

@@ -93,7 +93,7 @@ async function buildEducationWithAi(input: {
     [
       {
         role: "system",
-        content: `You are a product educator for ShipFlow. Decide if a NEW request duplicates an EXISTING capability.
+        content: `You are a product educator for Qship. Decide if a NEW request duplicates an EXISTING capability.
 Return JSON only: {
   "shouldEducate": boolean,
   "educationMessage": "2-3 sentences explaining what already exists and where user can find it — friendly, actionable",

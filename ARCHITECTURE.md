@@ -1,4 +1,4 @@
-# ShipFlow AI — Architecture
+# Qship — Architecture
 
 > Full technical reference. For a 3-minute judge path: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
 
@@ -12,7 +12,7 @@
 │                                                                             │
 │  /brief       Pipeline overview — stage counts, next actions                │
 │  /requests    Feature hub — submit, triage, PRD, tasks, review, approve     │
-│  /agent       ShipFlow Agent — SSE streaming copilot (37 tools)             │
+│  /agent       Qship Agent — SSE streaming copilot (37 tools)             │
 │  /tasks       Engineering Kanban (backlog → todo → in_progress → done)      │
 │  /analytics   Delivery metrics — throughput, cycle time, stage funnel       │
 │  /inbox       Multi-channel intake (email, support, API)                    │
@@ -29,7 +29,7 @@
 │                                                                             │
 │  /trpc                  tRPC v11 — all feature, GitHub, billing procedures  │
 │  /api/*                 REST — trpc-to-openapi auto-generated               │
-│  /mcp                   MCP 2024-11-05 JSON-RPC — 25 ShipFlow tools        │
+│  /mcp                   MCP 2024-11-05 JSON-RPC — 37 Qship tools        │
 │  /agent/stream          SSE streaming agent (rate-limited, guardrailed)     │
 │  /webhooks/github       GitHub App events (HMAC-SHA256, idempotent)        │
 │  /webhooks/razorpay     Billing events                                      │
@@ -259,8 +259,8 @@ Cache is invalidated immediately on `installation.deleted` webhook.
 
 ### PR body (`pr.ts`)
 
-Each ShipFlow PR includes:
-- Hidden machine-readable tag: `<!-- ShipFlow-Feature: <uuid> -->`
+Each Qship PR includes:
+- Hidden machine-readable tag: `<!-- Qship-Feature: <uuid> -->`
 - Acceptance criteria as `- [ ]` checklist
 - Engineering task list
 - AI review pipeline notice

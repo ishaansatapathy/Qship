@@ -158,7 +158,7 @@ export function QshipRotator() {
       <div className="qship-frame qship-rotator" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
         <div className="qship-rotator-copy">
           <h2 className="qship-h2" style={{ marginBottom: 22 }}>
-            What else can ShipFlow do?
+            What else can Qship do?
           </h2>
 
           <p className="qship-rotator-phrases">

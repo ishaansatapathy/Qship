@@ -56,7 +56,7 @@ async function handler(req: IncomingMessage, res: ServerResponse) {
       sendJson(res, 200, {
         healthy: true,
         ready: false,
-        message: "ShipFlow API is starting — wait a few seconds and retry",
+        message: "Qship API is starting — wait a few seconds and retry",
       });
       void bootPromise.catch(() => undefined);
       return;
@@ -69,7 +69,7 @@ async function handler(req: IncomingMessage, res: ServerResponse) {
     const message = err instanceof Error ? err.message : String(err);
     sendJson(res, 503, {
       ok: false,
-      error: "ShipFlow API failed to start",
+      error: "Qship API failed to start",
       message,
       hint: "Check Vercel env vars and deployment logs (see apps/api/VERCEL_DEPLOY.md)",
     });

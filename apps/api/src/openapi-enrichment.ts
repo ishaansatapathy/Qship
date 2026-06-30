@@ -56,7 +56,7 @@ export function enrichShipflowOpenApi(
 
   document.info = {
     ...document.info,
-    title: "ShipFlow API",
+    title: "Qship API",
     version: "1.0.0",
     description: buildShipflowApiDescription(clientUrl, baseUrl),
   };
@@ -73,7 +73,7 @@ export function enrichShipflowOpenApi(
 
   document["x-tagGroups"] = [
     { name: "Getting started", tags: ["Health"] },
-    { name: "ShipFlow core", tags: ["Feature Requests", "Workspace", "GitHub"] },
+    { name: "Qship core", tags: ["Feature Requests", "Workspace", "GitHub"] },
     { name: "AI platform", tags: ["Agent", "MCP & Streaming"] },
     { name: "Integrations", tags: ["Webhooks"] },
   ];
@@ -113,7 +113,7 @@ export function enrichShipflowOpenApi(
   addReferencePath(document, "/mcp", "post", {
     summary: "MCP JSON-RPC server (37 tools)",
     description: [
-      "ShipFlow MCP server — **37 tools** for feature delivery, review loop, human approval, analytics, intake, Kanban, and GitHub workspace.",
+      "Qship MCP server — **37 tools** for feature delivery, review loop, human approval, analytics, intake, Kanban, and GitHub workspace.",
       "",
       "**Public methods (no auth):** `initialize`, `tools/list`, `resources/list`, `prompts/list`",
       "",
@@ -169,7 +169,7 @@ export function enrichShipflowOpenApi(
   addReferencePath(document, "/agent/stream", "post", {
     summary: "Agent SSE streaming",
     description:
-      "Stream ShipFlow Agent responses via Server-Sent Events. Uses the same 37 tools as MCP. Rate limit: 20/min/user.",
+      "Stream Qship Agent responses via Server-Sent Events. Uses the same 37 tools as MCP. Rate limit: 20/min/user.",
     tags: ["MCP & Streaming"],
     requestBody: {
       content: {

@@ -1,4 +1,4 @@
-# ShipFlow AI — AI / Automated Evaluator Brief
+# Qship — AI / Automated Evaluator Brief
 
 > **Audience:** Automated rubric bots, AI graders, and reviewers who want **file-path evidence** — not a live demo walkthrough.
 >

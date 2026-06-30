@@ -210,7 +210,7 @@ export function QshipCapabilities() {
         <Reveal>
           <span className="qship-eyebrow">What you can do</span>
           <h2 className="qship-h2" style={{ marginTop: 14, marginBottom: 12 }}>
-            Built around the ShipFlow loop
+            Built around the Qship loop
           </h2>
           <p className="qship-lede" style={{ maxWidth: 480, marginBottom: 36 }}>
             Connect GitHub, intake requests, and let agents handle planning and QA — humans approve release.
@@ -268,7 +268,7 @@ export function QshipFaq() {
         <div>
           <span className="qship-eyebrow">Questions</span>
           <h2 className="qship-h2" style={{ marginTop: 14 }}>FAQ</h2>
-          <p className="qship-lede">Questions about ShipFlow &amp; the ChaiCode build.</p>
+          <p className="qship-lede">Questions about Qship &amp; the ChaiCode build.</p>
         </div>
 
         <div>
@@ -337,7 +337,7 @@ export function QshipFooter() {
           <a href="#faq">FAQ</a>
           <a href="#workflows">Workflows</a>
           <a href="/privacy">Privacy Policy</a>
-          <span>#chaicode #shipflow</span>
+          <span>#chaicode #qship</span>
         </div>
         <div style={{ fontSize: 12, color: "var(--qship-dim)" }}>
           Early preview · hackathon build

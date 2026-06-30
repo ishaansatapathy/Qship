@@ -24,7 +24,7 @@ const COPY: Record<
   },
   calendar: {
     title: "Connect workspace integrations",
-    body: "This action stays in your approval queue until integrations are configured. Complete setup in Settings to continue the ShipFlow loop.",
+    body: "This action stays in your approval queue until integrations are configured. Complete setup in Settings to continue the Qship loop.",
     primaryLabel: "Open settings",
     icon: Calendar,
   },
@@ -37,13 +37,13 @@ const DEMO_COPY: Record<
   gmail: {
     title: "Sign in for full workflow",
     body: "Demo mode shows sample data only. Sign in with your workspace to connect GitHub and run real PRD → ship flows.",
-    primaryLabel: "Sign in to ShipFlow",
+    primaryLabel: "Sign in to Qship",
     icon: Mail,
   },
   calendar: {
     title: "Sign in for full workflow",
     body: "Demo mode limits planning actions. Sign in with your workspace to use the full task board and approval gate.",
-    primaryLabel: "Sign in to ShipFlow",
+    primaryLabel: "Sign in to Qship",
     icon: Calendar,
   },
 };

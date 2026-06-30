@@ -282,7 +282,7 @@ export default function SettingsPage() {
       {/* Account */}
       <section className="qship-set-section">
         <h2>Account</h2>
-        <p>Your ShipFlow workspace identity. Display name is what teammates and the agent use.</p>
+        <p>Your Qship workspace identity. Display name is what teammates and the agent use.</p>
 
         <div className="qship-set-row" style={{ alignItems: "flex-start", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%" }}>
@@ -296,7 +296,7 @@ export default function SettingsPage() {
               )}
             </span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{user.fullName || "ShipFlow user"}</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{user.fullName || "Qship user"}</div>
               <div style={{ fontSize: 12.5, color: "var(--qship-dim)" }}>{user.email}</div>
             </div>
             <span className="qship-set-status" data-on={user.emailVerified} style={{ marginLeft: "auto" }}>

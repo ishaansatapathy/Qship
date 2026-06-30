@@ -467,7 +467,7 @@ function FeatureDetailPanel({
               setConfirm({
                 title: "Generate PRD with AI?",
                 description:
-                  "ShipFlow will draft a product requirements document from this request. You can review it on the timeline before moving forward.",
+                  "Qship will draft a product requirements document from this request. You can review it on the timeline before moving forward.",
                 confirmLabel: "Generate PRD",
                 onConfirm: () => {
                   setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));
@@ -533,7 +533,7 @@ function FeatureDetailPanel({
                 setConfirm({
                   title: "Implement with AI?",
                   description:
-                    "ShipFlow will generate implementation code from the PRD and tasks, commit to a GitHub branch, and open a pull request for review.",
+                    "Qship will generate implementation code from the PRD and tasks, commit to a GitHub branch, and open a pull request for review.",
                   confirmLabel: "Implement",
                   onConfirm: () => {
                     setConfirm((prev) => (prev ? { ...prev, loading: true } : prev));

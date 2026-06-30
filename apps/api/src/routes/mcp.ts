@@ -69,7 +69,7 @@ mcpRouter.get("/", (_req: Request, res: Response) => {
   return res.json({
     name: "shipflow-mcp",
     version: MCP_SERVER_VERSION,
-    description: "ShipFlow MCP — feature delivery pipeline + GitHub workspace tools",
+    description: "Qship MCP — feature delivery pipeline + GitHub workspace tools",
     protocol: "MCP 2024-11 / JSON-RPC 2.0",
     endpoint: "/mcp",
     tools: SHIPFLOW_MCP_TOOLS.map((t) => t.name),

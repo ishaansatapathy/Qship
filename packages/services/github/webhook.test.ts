@@ -12,7 +12,13 @@ describe("extractFeatureIdFromPullRequest (production)", () => {
     expect(extractFeatureIdFromPullRequest({ head: { ref: `shipflow/${UUID}` } })).toBe(UUID);
   });
 
-  it("extracts UUID from ShipFlow-Feature tag in PR body", () => {
+  it("extracts UUID from Qship-Feature tag in PR body", () => {
+    expect(
+      extractFeatureIdFromPullRequest({ body: `closes #123\n\nQship-Feature: ${UUID}` }),
+    ).toBe(UUID);
+  });
+
+  it("extracts UUID from ShipFlow-Feature tag in PR body (legacy)", () => {
     expect(
       extractFeatureIdFromPullRequest({ body: `closes #123\n\nShipFlow-Feature: ${UUID}` }),
     ).toBe(UUID);

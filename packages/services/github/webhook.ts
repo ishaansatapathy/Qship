@@ -13,8 +13,8 @@ import { isGithubDeliveryDuplicate } from "./webhook-dedup";
 
 /** Branch name pattern: `shipflow/<uuid>` */
 const FEATURE_BRANCH_RE = /^shipflow\/([0-9a-f-]{36})$/i;
-/** PR body / title tag: `ShipFlow-Feature: <uuid>` */
-const FEATURE_TAG_RE = /ShipFlow-Feature:\s*([0-9a-f-]{36})/i;
+/** PR body / title tag: `Qship-Feature: <uuid>` (legacy `ShipFlow-Feature` also accepted) */
+const FEATURE_TAG_RE = /(?:Qship|ShipFlow)-Feature:\s*([0-9a-f-]{36})/i;
 
 function extractFeatureId(pr: { head?: { ref?: string }; body?: string | null }): string | null {
   return extractFeatureIdFromPullRequest(pr);
@@ -147,7 +147,7 @@ export async function processGithubPullRequestWebhook(
       handled: true,
       linked: false,
       action,
-      hint: 'Link by naming the branch "shipflow/<feature-uuid>" or adding "ShipFlow-Feature: <uuid>" to the PR body',
+      hint: 'Link by naming the branch "shipflow/<feature-uuid>" or adding "Qship-Feature: <uuid>" to the PR body',
     };
   }
 

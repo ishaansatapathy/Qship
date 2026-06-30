@@ -46,7 +46,7 @@ const SLIDES: Slide[] = [
       </Window>
     ),
     front: (
-      <Window title="shipflow · requests" accent>
+      <Window title="qship · requests" accent>
         <div className="qship-rotator-stack">
           <div className="qship-rotator-row" style={{ borderColor: "rgba(0, 102, 255, 0.35)" }}>
             <Zap size={13} color="var(--qship-accent-bright)" style={{ flexShrink: 0 }} />
@@ -65,7 +65,7 @@ const SLIDES: Slide[] = [
     title: "PRD and tasks, ready for dev",
     desc: "Structured PRDs become kanban tasks — teams approve the plan before code starts.",
     back: (
-      <Window title="shipflow · prd">
+      <Window title="qship · prd">
         <div className="qship-rotator-stack">
           <div className="qship-rotator-row">
             <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
@@ -78,7 +78,7 @@ const SLIDES: Slide[] = [
       </Window>
     ),
     front: (
-      <Window title="shipflow · tasks" accent>
+      <Window title="qship · tasks" accent>
         <div className="qship-rotator-stack">
           {[
             { icon: Sparkles, label: "Generate PRD" },
@@ -102,7 +102,7 @@ const SLIDES: Slide[] = [
     title: "Review, fix, re-review, ship",
     desc: "QA agent loops until release-ready. Humans verify PRD, tasks, PR, and review history.",
     back: (
-      <Window title="shipflow · review">
+      <Window title="qship · review">
         <div className="qship-rotator-stack">
           <div className="qship-rotator-row">
             <GitPullRequest size={13} style={{ opacity: 0.5, flexShrink: 0 }} />
@@ -115,7 +115,7 @@ const SLIDES: Slide[] = [
       </Window>
     ),
     front: (
-      <Window title="shipflow · shipped" accent>
+      <Window title="qship · shipped" accent>
         <div className="qship-rotator-stack">
           <div className="qship-show-done">
             <CheckCircle2 size={15} color="var(--qship-accent-bright)" />

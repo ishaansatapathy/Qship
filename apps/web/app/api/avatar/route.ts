@@ -6,7 +6,7 @@ async function fetchPhoto(url: string) {
   const response = await fetch(url, {
     redirect: "follow",
     headers: {
-      "User-Agent": "ShipFlow/1.0",
+      "User-Agent": "Qship/1.0",
       Accept: "image/*",
     },
     next: { revalidate: 60 * 60 * 24 },

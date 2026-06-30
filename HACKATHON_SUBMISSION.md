@@ -133,7 +133,7 @@ Every step is tracked, queryable via 37 MCP tools, and accessible via the Qship 
 ## Key differentiators vs. other submissions
 
 ### 1. Delta-aware AI re-review
-Most submissions run the same generic review every time. ShipFlow's `runDeltaAiReview` specifically checks each blocking issue from the previous iteration and classifies it as `RESOLVED / PARTIALLY_RESOLVED / UNRESOLVED`. The AI cannot mark a re-review as passing without verifying each prior issue was fixed.
+Most submissions run the same generic review every time. Qship's `runDeltaAiReview` specifically checks each blocking issue from the previous iteration and classifies it as `RESOLVED / PARTIALLY_RESOLVED / UNRESOLVED`. The AI cannot mark a re-review as passing without verifying each prior issue was fixed.
 
 ### 2. Approval gate enforced at all entry points
 `validateHumanApprovalEligibility` is called before any `approve_feature` action — whether from the UI button, agent tool, or tRPC mutation. If the latest AI review has blocking issues, approval is blocked with a specific error explaining why.
@@ -150,7 +150,7 @@ The agent and MCP server share the same 37 tools, verified by a CI test (`tool-p
 - Review comments update in-place (no spam on each push)
 
 ### 5. Technical PRD with security + rollback plan
-`generateFeaturePrd` produces 10 structured sections including `technicalRequirements`, `securityRequirements`, `testingStrategy`, and `rollbackPlan`. Most AI tools generate vague goal/story lists — ShipFlow generates specs that engineers can implement and security teams can audit.
+`generateFeaturePrd` produces 10 structured sections including `technicalRequirements`, `securityRequirements`, `testingStrategy`, and `rollbackPlan`. Most AI tools generate vague goal/story lists — Qship generates specs that engineers can implement and security teams can audit.
 
 ---
 

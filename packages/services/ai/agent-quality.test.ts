@@ -36,7 +36,7 @@ describe("estimateAgentContextTokens", () => {
   ];
 
   it("always returns a higher count than the old estimateTokenCount", () => {
-    const systemPrompt = "You are ShipFlow Agent. ".repeat(100); // ~2200 chars
+    const systemPrompt = "You are Qship Agent. ".repeat(100); // ~2200 chars
     const tools = [
       { type: "function", function: { name: "get_workspace", description: "Get workspace", parameters: {} } },
     ];
@@ -63,7 +63,7 @@ describe("estimateAgentContextTokens", () => {
   });
 
   it("old estimateTokenCount under-counts by a significant margin for full agent context", () => {
-    const systemPrompt = "You are ShipFlow Agent.\n".repeat(200); // realistic ~5000 chars
+    const systemPrompt = "You are Qship Agent.\n".repeat(200); // realistic ~5000 chars
     const tools = new Array(37).fill({
       type: "function",
       function: { name: "t", description: "description text here ".repeat(20), parameters: {} },
@@ -75,7 +75,7 @@ describe("estimateAgentContextTokens", () => {
   });
 
   it("stays under MAX_AGENT_CONTEXT_TOKENS for normal short conversations", () => {
-    const systemPrompt = "You are ShipFlow Agent.";
+    const systemPrompt = "You are Qship Agent.";
     const shortMessages = [{ role: "user" as const, content: "Show my features" }];
     expect(estimateAgentContextTokens(shortMessages, systemPrompt)).toBeLessThan(MAX_AGENT_CONTEXT_TOKENS);
   });

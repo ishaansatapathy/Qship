@@ -69,7 +69,7 @@ async function bootstrap() {
       openaiConfigured: isOpenAiConfigured(),
     });
     if (!isOpenAiConfigured()) {
-      logger.warn("OPENAI_API_KEY is not set — ShipFlow Agent will be disabled until you add it to .env and restart");
+      logger.warn("OPENAI_API_KEY is not set — Qship Agent will be disabled until you add it to .env and restart");
     }
 
     if (process.env.DEMO_LOGIN_ENABLED === "true") {

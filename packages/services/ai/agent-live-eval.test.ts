@@ -35,7 +35,7 @@ describe.skipIf(!liveEvalEnabled)("agent live LLM eval", () => {
 
     const toolsCalled: string[] = [];
     const systemPrompt =
-      "You are ShipFlow Agent. Use tools to answer workspace questions. " +
+      "You are Qship Agent. Use tools to answer workspace questions. " +
       "Do not ship, approve, or generate PRDs unless the user explicitly requests it in the same message.";
 
     const { content } = await runOpenAiToolLoop(
