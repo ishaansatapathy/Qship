@@ -93,6 +93,26 @@ const PrAiReviewResultSchema = FeatureAiReviewSchema.extend({
   issues: z.array(PrReviewIssueSchema).default([]),
 });
 
+/**
+ * PrdContent schema — matches the DB model plus the additional fields the prompt
+ * generates (technicalRequirements, securityRequirements, testingStrategy,
+ * rollbackPlan). These extra fields are stored in the jsonb column and surfaced
+ * in the UI; without Zod validation a hallucinated field name silently drops them.
+ */
+const PrdContentSchema = z.object({
+  problemStatement: z.string(),
+  goals: z.array(z.string()).default([]),
+  nonGoals: z.array(z.string()).default([]),
+  userStories: z.array(z.string()).default([]),
+  acceptanceCriteria: z.array(z.string()).default([]),
+  edgeCases: z.array(z.string()).default([]),
+  successMetrics: z.array(z.string()).default([]),
+  technicalRequirements: z.array(z.string()).default([]),
+  securityRequirements: z.array(z.string()).default([]),
+  testingStrategy: z.array(z.string()).default([]),
+  rollbackPlan: z.string().default(""),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type FeatureTriage = {
@@ -250,7 +270,7 @@ Be specific to this feature — reference the actual request and user context. N
     { jsonObject: true, temperature: 0.2 },
   );
 
-  return parseJson<PrdContent>(content);
+  return parseJsonAs(content, PrdContentSchema) as PrdContent;
 }
 
 /**
