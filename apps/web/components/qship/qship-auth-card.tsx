@@ -46,9 +46,7 @@ export function QshipAuthCard({
     isLogin &&
     (providers.some((provider) => provider.provider === "GOOGLE_OAUTH" && provider.enabled) ||
       providers.length === 0);
-  const githubEnabled = providers.some(
-    (provider) => provider.provider === "GITHUB_OAUTH" && provider.enabled,
-  );
+  const githubEnabled = false;
 
   const OAUTH_ERROR_MESSAGES: Record<string, string> = {
     state_mismatch:
