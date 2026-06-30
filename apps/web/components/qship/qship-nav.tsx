@@ -66,7 +66,7 @@ export function QshipNav() {
           </a>
           {user ? (
             <Link href="/inbox" className="qship-btn-accent qship-nav-cta" onClick={closeMenu}>
-              <span className="qship-nav-cta-text">Open ShipFlow</span>
+              <span className="qship-nav-cta-text">Open Qship</span>
               <ArrowRight size={15} />
             </Link>
           ) : (
@@ -130,7 +130,7 @@ export function QshipNav() {
             </a>
             {user ? (
               <Link href="/inbox" className="qship-btn-accent" onClick={closeMenu}>
-                Open ShipFlow
+                Open Qship
               </Link>
             ) : (
               <button

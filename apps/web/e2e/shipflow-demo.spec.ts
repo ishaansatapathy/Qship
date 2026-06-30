@@ -30,9 +30,9 @@ test.describe("ShipFlow demo journey", () => {
     await expect(page.getByText(/oauth login for enterprise customers/i)).toBeVisible({ timeout: 15_000 });
   });
 
-  test("agent page loads ShipFlow Agent", async ({ page }) => {
+  test("agent page loads Qship Agent", async ({ page }) => {
     await demoLogin(page, "/agent");
-    await expect(page.getByText(/ShipFlow Agent/i)).toBeVisible();
+    await expect(page.getByText(/Qship Agent/i)).toBeVisible();
   });
 
   test("agent chat returns an assistant reply", async ({ page }) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Bot,
@@ -12,6 +12,7 @@ import {
   Sparkles,
   Sun,
   Target,
+  X,
 } from "lucide-react";
 
 import type { RouterOutputs } from "@repo/trpc/client";
@@ -98,6 +99,134 @@ function greetingForHour() {
   return "Good evening";
 }
 
+const ONBOARD_KEY = "qship_onboarded_v1";
+
+const ONBOARD_STEPS = [
+  {
+    icon: <Github size={16} />,
+    title: "Connect GitHub",
+    desc: "Install the Qship GitHub App to track PRs, reviews, and releases.",
+    href: "/settings",
+    cta: "Go to Settings",
+  },
+  {
+    icon: <Sparkles size={16} />,
+    title: "Submit a feature request",
+    desc: "Describe what you want to build. Qship drafts the PRD and tasks automatically.",
+    href: "/requests",
+    cta: "New request",
+  },
+  {
+    icon: <Bot size={16} />,
+    title: "Chat with Qship Agent",
+    desc: "Ask the agent to triage, plan, or review — it loops until the feature is ship-ready.",
+    href: "/agent",
+    cta: "Open Agent",
+  },
+];
+
+function OnboardingBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div
+      className="qship-content-reveal"
+      style={{
+        background: "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.08) 100%)",
+        border: "1px solid rgba(99,102,241,0.25)",
+        borderRadius: 12,
+        padding: "20px 20px 16px",
+        marginBottom: 20,
+        position: "relative",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss onboarding"
+        style={{
+          position: "absolute",
+          top: 12,
+          right: 12,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--qship-dim)",
+          padding: 2,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <X size={14} />
+      </button>
+      <p
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "var(--qship-accent-bright)",
+          marginBottom: 8,
+        }}
+      >
+        Getting started
+      </p>
+      <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, color: "var(--qship-text)" }}>
+        3 steps to your first shipped feature
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        {ONBOARD_STEPS.map((step, i) => (
+          <Link
+            key={step.href}
+            href={step.href}
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8,
+              padding: "12px 12px 10px",
+              textDecoration: "none",
+              display: "block",
+              transition: "background 0.15s",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 6,
+                color: "var(--qship-accent-bright)",
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 20,
+                  height: 20,
+                  background: "rgba(99,102,241,0.2)",
+                  borderRadius: 4,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "var(--qship-accent-bright)",
+                }}
+              >
+                {i + 1}
+              </span>
+              {step.icon}
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--qship-text)" }}>
+                {step.title}
+              </span>
+            </div>
+            <p style={{ fontSize: 11, color: "var(--qship-dim)", lineHeight: 1.5, margin: 0 }}>
+              {step.desc}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PipelineStat({
   label,
   value,
@@ -118,6 +247,24 @@ export default function BriefPage() {
   const summary = trpc.feature.pipelineSummary.useQuery({});
   const features = trpc.feature.list.useQuery({});
   const github = trpc.github.connectionStatus.useQuery({});
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARD_KEY)) setShowOnboarding(true);
+    } catch {
+      // private browsing — skip
+    }
+  }, []);
+
+  const dismissOnboarding = () => {
+    try {
+      localStorage.setItem(ONBOARD_KEY, "1");
+    } catch {
+      // ignore
+    }
+    setShowOnboarding(false);
+  };
 
   const needsAttention = useMemo(() => {
     const rows = features.data ?? [];
@@ -165,14 +312,14 @@ export default function BriefPage() {
     if (github.data?.connected !== true) {
       return {
         headline: "Connect GitHub",
-        detail: "Link your repos so ShipFlow can track PRs, reviews, and releases.",
+        detail: "Link your repos so Qship can track PRs, reviews, and releases.",
         href: "/settings",
         cta: "Connect GitHub",
       };
     }
     return {
       headline: "Submit your first feature request",
-      detail: "ShipFlow tracks delivery from request → PRD → code → review → ship.",
+      detail: "Qship tracks delivery from request → PRD → code → review → ship.",
       href: "/requests",
       cta: "New request",
     };
@@ -222,10 +369,12 @@ export default function BriefPage() {
             ) : summary.data && summary.data.total > 0 ? (
               `${summary.data.inDelivery} in delivery · ${summary.data.awaitingApproval} awaiting approval · ${summary.data.shipped} shipped`
             ) : (
-              "Connect GitHub and submit feature requests to see your ShipFlow pipeline here."
+              "Connect GitHub and submit feature requests to see your Qship pipeline here."
             )}
           </p>
         </div>
+
+        {showOnboarding && <OnboardingBanner onDismiss={dismissOnboarding} />}
 
         {summaryLoading ? (
           <StatSkeletonGrid />

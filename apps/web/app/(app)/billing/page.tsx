@@ -87,7 +87,7 @@ export default function BillingPage() {
           key: result.keyId,
           amount: result.amount,
           currency: result.currency,
-          name: "ShipFlow",
+          name: "Qship",
           description: `${result.planName} plan`,
           order_id: result.orderId,
           prefill: {
