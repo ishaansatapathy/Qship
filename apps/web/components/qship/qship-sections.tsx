@@ -14,6 +14,7 @@ import { QshipLogoMark, QshipWordmark } from "./qship-logo";
 import { Reveal } from "./qship-reveal";
 import { QshipAgentDemo } from "./qship-agent-demo";
 import { useQshipAuth } from "./qship-auth-provider";
+import { BILLING_PLAN_LIST, formatPlanPrice } from "@repo/services/billing/plans";
 
 const MARQUEE = ["Next.js", "tRPC", "GitHub", "Inngest", "Drizzle", "PostgreSQL", "BetterAuth", "Razorpay", "AI SDK", "Vercel"];
 
@@ -303,6 +304,94 @@ export function QshipFaq() {
             </div>
           ))}
           <div style={{ borderTop: "1px solid var(--qship-line)" }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function QshipPricing() {
+  const { demoLogin, isDemoLoading } = useQshipAuth();
+
+  return (
+    <section id="pricing" className="qship-shell qship-section">
+      <div className="qship-frame">
+        <Reveal>
+          <div className="qship-section-label">Pricing</div>
+          <h2 className="qship-section-title">Simple, transparent plans</h2>
+          <p className="qship-section-sub">
+            Start free. Try the Test Plan at ₹19. Scale when you ship.
+          </p>
+        </Reveal>
+
+        <div
+          style={{
+            display: "grid",
+            gap: 20,
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            marginTop: 48,
+          }}
+        >
+          {BILLING_PLAN_LIST.map((plan) => {
+            const isHighlighted = plan.id === "test";
+            return (
+              <div
+                key={plan.id}
+                className="qship-rotator-row"
+                style={{
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  padding: "24px 22px",
+                  gap: 0,
+                  border: isHighlighted
+                    ? "1.5px solid var(--qship-accent-bright)"
+                    : "1px solid var(--qship-line)",
+                  position: "relative",
+                }}
+              >
+                {"badge" in plan && plan.badge ? (
+                  <span
+                    className="qship-rotator-chip qship-rotator-chip--hot"
+                    style={{ position: "absolute", top: 16, right: 16, fontSize: 10 }}
+                  >
+                    {plan.badge}
+                  </span>
+                ) : null}
+
+                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--qship-dim)", marginBottom: 6 }}>
+                  {plan.name}
+                </p>
+                <p style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, marginBottom: 4 }}>
+                  {formatPlanPrice(plan)}
+                </p>
+                {plan.priceInr > 0 ? (
+                  <p style={{ fontSize: 11, color: "var(--qship-dim)", marginBottom: 18 }}>
+                    one-time · credits added to workspace
+                  </p>
+                ) : (
+                  <p style={{ fontSize: 11, color: "var(--qship-dim)", marginBottom: 18 }}>
+                    forever free
+                  </p>
+                )}
+
+                <ul style={{ paddingLeft: 16, margin: "0 0 24px", fontSize: 12.5, lineHeight: 1.8, opacity: 0.88 }}>
+                  {plan.features.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+
+                <button
+                  type="button"
+                  className={isHighlighted ? "qship-btn-accent" : "qship-btn-ghost"}
+                  style={{ width: "100%", justifyContent: "center" }}
+                  disabled={isDemoLoading}
+                  onClick={() => void demoLogin()}
+                >
+                  {isDemoLoading ? "Loading…" : plan.priceInr === 0 ? "Get started free" : `Try with Razorpay`}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
