@@ -50,16 +50,47 @@ export function QshipAuthCard({
     (provider) => provider.provider === "GITHUB_OAUTH" && provider.enabled,
   );
 
-  const displayError = localError ?? errorMessage ?? null;
+  const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+    state_mismatch:
+      "Sign-in session expired or the link was opened in a different browser tab. Please try again.",
+    email_not_found:
+      "No Qship account is linked to this GitHub email. Please sign up with email first, then connect GitHub from Settings.",
+    user_not_found:
+      "No account found. Please sign up first.",
+    account_not_linked:
+      "This social account is not linked to any Qship account.",
+    email_not_verified:
+      "Please verify your email address before signing in.",
+    invalid_credentials:
+      "Incorrect email or password.",
+    too_many_requests:
+      "Too many sign-in attempts. Please wait a moment and try again.",
+  };
+
+  const resolvedError =
+    errorMessage && OAUTH_ERROR_MESSAGES[errorMessage]
+      ? OAUTH_ERROR_MESSAGES[errorMessage]
+      : errorMessage;
+
+  const displayError = localError ?? resolvedError ?? null;
 
   async function handleSocialSignIn(provider: "google" | "github") {
     setLocalError(null);
     setLoading(true);
 
     try {
+      const absoluteCallbackURL =
+        typeof window !== "undefined"
+          ? `${window.location.origin}${nextPath}`
+          : nextPath;
+
       await authClient.signIn.social({
         provider,
-        callbackURL: nextPath,
+        callbackURL: absoluteCallbackURL,
+        errorCallbackURL:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/?login=1`
+            : "/?login=1",
       });
     } catch {
       setLocalError("Social sign-in failed. Try again.");
