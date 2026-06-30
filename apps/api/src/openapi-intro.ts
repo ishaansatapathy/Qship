@@ -125,7 +125,7 @@ export function buildShipflowApiDescription(clientUrl: string, baseUrl: string):
     "|----------|--------|---------|",
     "| `/agent/stream` | POST | SSE streaming agent with 37 Qship tools |",
     "",
-    "Rate limit: 20 requests/min/user. Guardrails: prompt injection detection, token budget, human-in-the-loop prompts for sensitive actions.",
+    "Rate limit: **40 requests/min/user** (SSE + tRPC `agent.chat`). Guardrails: full-history prompt injection scan, JSON Schema tool-arg validation, token budget, human-in-the-loop confirmation gates, MCP parity with agent executor.",
     "",
     "---",
     "",

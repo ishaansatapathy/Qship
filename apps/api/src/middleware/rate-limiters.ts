@@ -2,6 +2,16 @@ import type { Request, Response, NextFunction } from "express";
 import { logger } from "@repo/logger";
 import { checkDistributedRateLimit } from "@repo/services/cache/rate-limit";
 
+function isProduction() {
+  const nodeEnv = String(process.env.NODE_ENV ?? "");
+  return nodeEnv === "production" || nodeEnv === "prod";
+}
+
+function requiresDistributedRateLimit() {
+  if (process.env.RATE_LIMIT_ALLOW_IN_MEMORY === "true") return false;
+  return isProduction();
+}
+
 type RateLimitOptions = {
   windowMs: number;
   limit: number;
@@ -61,6 +71,16 @@ export function createRateLimiter(options: RateLimitOptions) {
 
       next();
     } catch (error) {
+      if (requiresDistributedRateLimit()) {
+        logger.error("Rate limiter unavailable — denying request", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+        res.status(503).json({
+          error: "Service temporarily unavailable",
+          message: "Rate limiting backend is unavailable. Please retry shortly.",
+        });
+        return;
+      }
       logger.warn("Rate limiter degraded — allowing request", {
         message: error instanceof Error ? error.message : String(error),
       });

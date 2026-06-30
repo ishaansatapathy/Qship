@@ -12,6 +12,7 @@ import {
   getAgentSession,
 } from "@repo/services/ai/agent-sessions";
 import { checkDistributedRateLimit } from "@repo/services/cache/rate-limit";
+import { AGENT_USER_RATE_LIMIT } from "@repo/services/cache/agent-rate-limits";
 import { resolveSessionUser } from "@repo/trpc/server";
 
 const toolMemoryEntrySchema = z.object({
@@ -57,7 +58,11 @@ agentStreamRouter.post("/", async (req: Request, res: Response) => {
   }
 
   if (!skipInTests()) {
-    const result = await checkDistributedRateLimit(`agent:${user.id}`, 40, 60_000);
+    const result = await checkDistributedRateLimit(
+      `agent:${user.id}`,
+      AGENT_USER_RATE_LIMIT.limit,
+      AGENT_USER_RATE_LIMIT.windowMs,
+    );
     res.setHeader("RateLimit-Remaining", String(result.remaining));
     if (!result.allowed) {
       return res.status(429).json({

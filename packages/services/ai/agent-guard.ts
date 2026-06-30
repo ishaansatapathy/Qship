@@ -147,6 +147,18 @@ export function detectInjectionAttempt(message: string): InjectionCheckResult {
   return { flagged: false };
 }
 
+/** Scan every user-role message in conversation history (defence against history-stuffing attacks). */
+export function scanUserMessagesForInjection(
+  messages: Array<{ role: string; content: string }>,
+): InjectionCheckResult {
+  for (const message of messages) {
+    if (message.role !== "user") continue;
+    const result = detectInjectionAttempt(message.content);
+    if (result.flagged) return result;
+  }
+  return { flagged: false };
+}
+
 const TOOL_ARG_INJECTION_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   {
     pattern: /ignore\s+(all\s+)?(the\s+)?(previous|prior|above)\s+instructions/i,

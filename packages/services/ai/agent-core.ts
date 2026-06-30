@@ -11,6 +11,7 @@
 
 import { logger } from "@repo/logger";
 import { ServiceError } from "../errors";
+import { incrementSharedCounter } from "../observability/counters";
 import { isOpenAiConfigured } from "./openai";
 import type { OpenAiConversationMessage } from "./openai-tools";
 import { runOpenAiToolLoop, MAX_TOOL_ROUNDS } from "./openai-tools";
@@ -18,6 +19,7 @@ import {
   detectInjectionAttempt,
   estimateAgentContextTokens,
   MAX_AGENT_CONTEXT_TOKENS,
+  scanUserMessagesForInjection,
 } from "./agent-guard";
 import { AGENT_TOOLS } from "./agent-internals";
 import { buildToolExecutor } from "./agent-executor";
@@ -69,9 +71,10 @@ export async function runAgentCorePipeline(
     throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured. Set OPENAI_API_KEY.");
   }
 
-  // ── 1. Injection guard ────────────────────────────────────────────────────
+  // ── 1. Injection guard (current message + full user history) ───────────────
   const injectionCheck = detectInjectionAttempt(input.message);
   if (injectionCheck.flagged) {
+    incrementSharedCounter("agent.injection_blocked");
     logger.warn("agent.injection_attempt_blocked", {
       tenantId,
       reason: injectionCheck.reason,
@@ -87,6 +90,21 @@ export async function runAgentCorePipeline(
 
   // ── 2. Server-side sanitise client-supplied slices ────────────────────────
   const safeHistory = sanitizeClientHistory(input.history);
+  const historyInjection = scanUserMessagesForInjection(safeHistory);
+  if (historyInjection.flagged) {
+    incrementSharedCounter("agent.injection_blocked_history");
+    logger.warn("agent.history_injection_blocked", {
+      tenantId,
+      reason: historyInjection.reason,
+    });
+    return {
+      reply:
+        "I detected unsafe instructions in the conversation history and can't continue this session safely. " +
+        "Please start a new conversation.",
+      actions: [],
+    };
+  }
+
   const safeToolMemory = sanitizeClientToolMemory(input.toolMemory);
 
   // ── 3. Prepare run context (system prompt + memory + focus) ───────────────
@@ -111,6 +129,7 @@ export async function runAgentCorePipeline(
     AGENT_TOOLS,
   );
   if (estimatedTokens > MAX_AGENT_CONTEXT_TOKENS) {
+    incrementSharedCounter("agent.context_too_large");
     logger.warn("agent.context_too_large", { tenantId, estimatedTokens });
     return {
       reply: "The conversation history is too long for me to process safely. Please start a new conversation.",

@@ -9,6 +9,9 @@ import {
   updateAgentSession,
 } from "@repo/services/ai/agent-sessions";
 import { isOpenAiConfigured } from "@repo/services/ai/openai";
+import { AGENT_USER_RATE_LIMIT } from "@repo/services/cache/agent-rate-limits";
+import { checkDistributedRateLimit } from "@repo/services/cache/rate-limit";
+import { TRPCError } from "@trpc/server";
 import { agentStatusOutput } from "../../openapi-outputs";
 
 import { mapServiceError, protectedProcedure, mutationProcedure, router } from "../../trpc";
@@ -63,6 +66,20 @@ export const agentRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        if (process.env.VITEST !== "true") {
+          const rateLimit = await checkDistributedRateLimit(
+            `agent:${ctx.user.id}`,
+            AGENT_USER_RATE_LIMIT.limit,
+            AGENT_USER_RATE_LIMIT.windowMs,
+          );
+          if (!rateLimit.allowed) {
+            throw new TRPCError({
+              code: "TOO_MANY_REQUESTS",
+              message: "Agent rate limit exceeded. Please retry shortly.",
+            });
+          }
+        }
+
         let history = input.history;
         let toolMemory = input.toolMemory;
         let focus = {

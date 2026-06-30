@@ -108,9 +108,15 @@ curl -s https://repoapi-production-adfe.up.railway.app/openapi.json | python3 -c
 | 37 MCP + agent tools | `packages/services/shipflow-agent-tools/` (domain handlers + registry) |
 | CI parity test | `packages/services/ai/tool-parity.test.ts` |
 | Golden eval (71 cases) | `packages/services/ai/agent-eval-cases.ts` + `agent-eval.golden.test.ts` |
+| **Safety eval (mentor rubric)** | `agent-safety-eval.golden.test.ts` — history injection, MCP guard parity, schema validation, rate limits |
 | Trajectory integration | `packages/services/ai/agent-loop.integration.test.ts` |
 | CI merge gate | `.github/workflows/ci.yml` → `pnpm test:agent-eval` |
-| Injection + intent guards | `agent-guard.ts`, `agent-tool-confirm.ts` |
+| Injection + intent guards | `agent-guard.ts` (current + **full history**), `agent-tool-confirm.ts` |
+| **Unified guarded executor** | `agent-executor.ts` → `executeGuardedShipflowTool` (agent + MCP share path) |
+| **Tool arg JSON Schema validation** | `shipflow-agent-tools/validate-args.ts` |
+| **Fail-closed rate limits** | `cache/rate-limit.ts` — production denies when Redis unavailable |
+| **Per-user agent rate limit** | 40/min — SSE (`agent-stream.ts`) + tRPC (`agent.chat`) via `AGENT_USER_RATE_LIMIT` |
+| **Safety counters** | `observability/counters.ts` → `observability.summary` tRPC |
 | Session memory + compaction | `agent-sessions.ts`, `agent-memory-retrieval.ts`, `agent-compaction.ts` |
 | Trace spans + `x-trace-id` | `agent-trace.ts`, `apps/api/src/routes/agent-stream.ts` |
 | SSE streaming | `apps/api/src/routes/agent-stream.ts` |

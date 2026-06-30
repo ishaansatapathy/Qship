@@ -7,9 +7,10 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { logger } from "@repo/logger";
 import { ServiceError } from "@repo/services/errors";
+import { executeGuardedShipflowTool } from "@repo/services/ai/agent-executor";
+import { loadAgentApprovalDefaults } from "@repo/services/ai/agent-run";
 import {
   SHIPFLOW_MCP_TOOLS,
-  executeShipflowTool,
   isShipflowTool,
 } from "@repo/services/shipflow-agent-tools";
 import { checkDistributedRateLimit } from "@repo/services/cache/rate-limit";
@@ -181,8 +182,17 @@ mcpRouter.post("/", async (req: Request, res: Response) => {
         return res.status(400).json(rpcError(id, -32601, `Unknown tool: ${toolName}`));
       }
 
+      const approvalDefaults = await loadAgentApprovalDefaults(userId);
       const actions: import("@repo/services/ai/agent").AgentActionCard[] = [];
-      const raw = await executeShipflowTool({ userId, actions }, toolName, toolArgs);
+      const raw = await executeGuardedShipflowTool({
+        tenantId: userId,
+        actions,
+        toolName,
+        toolArgs,
+        userMessage: "",
+        approvalDefaults,
+        channel: "mcp",
+      });
       const parsed = JSON.parse(raw) as unknown;
 
       if (parsed && typeof parsed === "object" && "error" in (parsed as Record<string, unknown>)) {

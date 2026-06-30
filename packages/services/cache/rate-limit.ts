@@ -30,13 +30,13 @@ export async function checkDistributedRateLimit(
       : await cacheIncr(`rl:${key}`, windowMs);
   } catch (error) {
     if (requiresDistributedRateLimit()) {
-      logger.warn("rate_limit.redis_unavailable_allowing_request", {
+      logger.error("rate_limit.redis_unavailable_denying_request", {
         key,
         message: error instanceof Error ? error.message : String(error),
       });
       return {
-        allowed: true,
-        remaining: limit,
+        allowed: false,
+        remaining: 0,
         limit,
       };
     }
