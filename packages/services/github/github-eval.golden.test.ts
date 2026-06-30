@@ -42,6 +42,10 @@ export const GITHUB_EVAL_INVARIANTS = [
   "webhook_operator_visibility",
   "inngest_outbox_cron",
   "github_live_smoke_optional",
+  /** Outbox retries bypass the delivery dedup so mid-flight failures are never lost. */
+  "outbox_dedup_bypass_on_retry",
+  /** Optimistic UPDATE WHERE status='pending' prevents double-processing in multi-instance deploys. */
+  "outbox_optimistic_claim",
 ] as const;
 
 export const GITHUB_EVAL_INVARIANT_COUNT = GITHUB_EVAL_INVARIANTS.length;
