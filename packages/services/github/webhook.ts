@@ -51,11 +51,24 @@ type GithubPullRequestPayload = {
   };
 };
 
+export type WebhookProcessorOpts = {
+  /**
+   * Set to true when called from the outbox retry path.
+   * The outbox has its own unique constraint dedup — bypassing the per-delivery
+   * dedup check prevents a caught mid-flight failure from permanently blocking
+   * retries (the dedup row is written at the start of the first attempt, so
+   * without this flag every outbox retry would look like a duplicate and be
+   * silently dropped).
+   */
+  skipDedup?: boolean;
+};
+
 export async function processGithubPullRequestWebhook(
   payload: GithubPullRequestPayload,
   deliveryId = "unknown",
+  opts?: WebhookProcessorOpts,
 ) {
-  if (await isGithubDeliveryDuplicate(deliveryId, "pull_request")) {
+  if (!opts?.skipDedup && await isGithubDeliveryDuplicate(deliveryId, "pull_request")) {
     logger.info("webhook.pull_request.duplicate_skipped", { deliveryId });
     return { handled: false, reason: "duplicate_delivery" as const };
   }
@@ -288,8 +301,9 @@ type GithubInstallationPayload = {
 export async function processGithubInstallationWebhook(
   payload: GithubInstallationPayload,
   deliveryId = "unknown",
+  opts?: WebhookProcessorOpts,
 ) {
-  if (await isGithubDeliveryDuplicate(deliveryId, "installation")) {
+  if (!opts?.skipDedup && await isGithubDeliveryDuplicate(deliveryId, "installation")) {
     return { handled: false, reason: "duplicate_delivery" as const };
   }
 
