@@ -150,8 +150,13 @@ async function syncInstallationRepositories(
 
     const currentOrg = await db.query.organizations.findFirst({
       where: eq(organizations.id, organizationId),
-      columns: { githubAccountLogin: true },
+      columns: { githubAccountLogin: true, repositoryLimit: true },
     });
+    const repositoryLimit = currentOrg?.repositoryLimit ?? 1;
+
+    const existingGhIds = new Set(existing.map((r) => r.githubRepoId));
+    let newRepoSlotsUsed = 0;
+    const newRepoBudget = Math.max(0, repositoryLimit - existingGhIds.size);
 
     for (const repo of ghRepos) {
       const fullName = repo.full_name?.trim();
@@ -165,6 +170,20 @@ async function syncInstallationRepositories(
         continue;
       }
 
+      const repoId = String(repo.id);
+      const isExisting = existingGhIds.has(repoId);
+      if (!isExisting) {
+        if (newRepoSlotsUsed >= newRepoBudget) {
+          logger.info("github.installation.repo_limit_skipped", {
+            organizationId,
+            fullName,
+            repositoryLimit,
+          });
+          continue;
+        }
+        newRepoSlotsUsed += 1;
+      }
+
       await clearStaleRepositoryClaim({
         organizationId,
         fullName,
@@ -172,7 +191,6 @@ async function syncInstallationRepositories(
         currentAccountLogin: currentOrg?.githubAccountLogin ?? null,
       });
 
-      const repoId = String(repo.id);
       const rowId = existingByGhId.get(repoId) ?? `${organizationId}-repo-${repoId}`;
 
       await db
@@ -212,10 +230,30 @@ async function syncInstallationRepositories(
       }
     }
 
+    // Trim repos beyond plan limit (e.g. after downgrade).
+    const synced = await db.query.repositories.findMany({
+      where: eq(repositories.organizationId, organizationId),
+      columns: { id: true, updatedAt: true },
+    });
+    if (synced.length > repositoryLimit) {
+      const excess = synced
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+        .slice(repositoryLimit);
+      for (const row of excess) {
+        await db.delete(repositories).where(eq(repositories.id, row.id));
+        logger.info("github.installation.repo_limit_trimmed", {
+          organizationId,
+          repositoryId: row.id,
+          repositoryLimit,
+        });
+      }
+    }
+
     logger.info("github.installation.repos_synced", {
       organizationId,
       installationId,
-      count: ghRepos.length,
+      count: Math.min(ghRepos.length, repositoryLimit),
+      repositoryLimit,
     });
   } catch (error) {
     rethrowGithubSyncError(error);

@@ -145,7 +145,7 @@ app.get("/integrations/ship", (_req, res) => {
 
 function buildOpenApiDocument(): OpenApiDocumentWithPaths {
   const document = generateOpenApiDocument(openApiRouter, {
-    title: "ShipFlow API",
+    title: "Qship API",
     version: "1.0.0",
     baseUrl: env.BASE_URL.concat("/api"),
   }) as OpenApiDocumentWithPaths;
@@ -175,7 +175,7 @@ if (env.PUBLIC_OPENAPI_DOCS === "true") {
     apiReference({
       url: "/openapi.json",
       theme: "purple",
-      metaData: { title: "ShipFlow API — Scalar Docs" },
+      metaData: { title: "Qship API — Scalar Docs" },
     }),
   );
 }

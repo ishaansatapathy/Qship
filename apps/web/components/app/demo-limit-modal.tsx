@@ -15,7 +15,7 @@ const FEATURE_COPY: Record<
 > = {
   agent: {
     title: "Agent demo limit reached",
-    body: "You've used all 3 demo Agent prompts. Sign in or connect GitHub to keep using ShipFlow Agent.",
+    body: "You've used all 3 demo Agent prompts. Sign in or connect GitHub to keep using Qship Agent.",
     primaryLabel: "Open settings",
     primaryHref: "/settings",
   },

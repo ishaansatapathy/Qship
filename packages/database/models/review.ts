@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { users } from "./auth";
 import { featureRequests } from "./feature-request";
@@ -30,6 +30,7 @@ export const aiReviews = pgTable(
   (t) => [
     index("idx_ai_reviews_feature_id").on(t.featureRequestId, t.createdAt),
     index("idx_ai_reviews_pull_request_id").on(t.pullRequestId),
+    uniqueIndex("idx_ai_reviews_feature_iteration").on(t.featureRequestId, t.iteration),
   ],
 );
 

@@ -35,15 +35,6 @@ function parseJsonAs<T>(raw: string, schema: z.ZodSchema<T>): T {
   return result.data;
 }
 
-/** Legacy unvalidated parser — only used for non-DB-persisted auxiliary outputs. */
-function parseJson<T>(raw: string): T {
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    throw new ServiceError("INTERNAL", "AI returned invalid JSON. Try again.");
-  }
-}
-
 // ── Zod schemas for DB-persisted AI outputs ────────────────────────────────────
 
 const FeatureTriageSchema = z.object({
@@ -734,7 +725,7 @@ Return JSON with EXACTLY these keys:
 - keyThingsToVerify: string[] (3-6 specific verifiable items the reviewer must personally check)
 - remainingConcerns: string[] (non-blocking issues to note; empty array if none)
 - approvalRecommendation: "approve" | "hold" | "reject"
-- confidence: number 0-100
+- confidence: number 0-1 (decimal fraction, e.g. 0.85 for 85% confidence)
 - riskLevel: "low" | "medium" | "high" | "critical"
 - rationale: string (one sentence justifying the decision)`,
       },
@@ -1124,3 +1115,19 @@ For repo_aware mode: cite actual paths from snippets. Say things like "you alrea
       : ["Explain more", "Mark task done — next task", "What should I test first?"],
   };
 }
+
+/** Exported for Zod regression tests. */
+export function parseValidatedAiJson<T>(raw: string, schema: z.ZodSchema<T>): T {
+  return parseJsonAs(raw, schema);
+}
+
+export {
+  FeatureTriageSchema,
+  FeatureAiReviewSchema,
+  ApprovalBriefingSchema,
+  PrAiReviewResultSchema,
+  ChangeRequestAnalysisSchema,
+  SimilarityDetectionResultSchema,
+  DeveloperOnboardingGuideSchema,
+  TaskWalkthroughSchema,
+};

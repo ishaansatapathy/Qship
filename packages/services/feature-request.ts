@@ -25,13 +25,13 @@ const ALLOWED_TRANSITIONS: Partial<Record<FeatureStatus, FeatureStatus[]>> = {
   submitted:           ["clarifying", "prd_generating", "duplicate_education", "rejected"],
   clarifying:          ["prd_generating", "rejected"],
   duplicate_education: ["submitted", "rejected"],
-  prd_generating:      ["prd_ready"],
+  prd_generating:      ["prd_ready", "submitted"],
   prd_ready:           ["planning", "prd_generating"],
   planning:            ["plan_approved", "in_development", "prd_ready"],
   plan_approved:       ["in_development"],
   // "approved" removed: would bypass the human_review gate entirely.
   pr_open:             ["ai_review", "in_development", "fix_needed", "human_review"],
-  ai_review:           ["human_review", "fix_needed"],
+  ai_review:           ["human_review", "fix_needed", "pr_open"],
   // "human_review" removed: forces re-review before re-entering the approval queue.
   fix_needed:          ["ai_review", "pr_open"],
   in_development:      ["pr_open", "planning", "human_review"],
@@ -204,17 +204,12 @@ export async function updateFeatureMetadata(
   return row!;
 }
 
+/** FSM-validated status transition — all internal callers route through the same guard as tRPC. */
 export async function updateFeatureStatus(
   featureRequestId: string,
   status: (typeof featureRequests.$inferSelect)["status"],
 ) {
-  const [row] = await db
-    .update(featureRequests)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(featureRequests.id, featureRequestId))
-    .returning();
-  if (!row) throw new ServiceError("NOT_FOUND", "Feature request not found");
-  return row;
+  return transitionFeatureStatus(featureRequestId, status as FeatureStatus);
 }
 
 export async function saveFeaturePrd(featureRequestId: string, content: PrdContent) {

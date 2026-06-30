@@ -14,6 +14,15 @@ test.describe("ShipFlow demo journey", () => {
     await expect(page.getByText(/^In delivery$/i)).toBeVisible();
   });
 
+  test("first-time onboarding banner appears on /brief", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.removeItem("qship_onboarded_v1");
+    });
+    await demoLogin(page, "/brief");
+    await expect(page.getByText(/getting started/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/3 steps to your first shipped feature/i)).toBeVisible();
+  });
+
   test("billing page shows plans and supports demo upgrade", async ({ page }) => {
     await demoLogin(page, "/billing");
     await expect(page.getByRole("heading", { name: /billing & plans/i })).toBeVisible();

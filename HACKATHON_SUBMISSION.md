@@ -1,4 +1,4 @@
-# ShipFlow AI — Hackathon Submission
+# Qship — Hackathon Submission
 
 > **ChaiCode Hackathon** · AI-assisted product delivery platform
 
@@ -25,9 +25,9 @@ Demo credentials: `demo@qship.dev` / `DemoPass123!`
 
 ---
 
-## What ShipFlow AI does
+## What Qship does
 
-ShipFlow AI is a **full-stack AI-assisted product delivery platform** that manages the entire lifecycle from feature request to production ship:
+Qship is a **full-stack AI-assisted product delivery platform** that manages the entire lifecycle from feature request to production ship:
 
 ```
 Employee submits request
@@ -41,7 +41,7 @@ Employee submits request
   → Approved → Ship to production
 ```
 
-Every step is tracked, queryable via 37 MCP tools, and accessible via the ShipFlow Agent chat.
+Every step is tracked, queryable via 37 MCP tools, and accessible via the Qship Agent chat.
 
 ---
 

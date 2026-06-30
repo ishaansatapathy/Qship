@@ -90,6 +90,7 @@ const ALLOWED_EDGES: [FeatureStatus, FeatureStatus][] = [
   ["duplicate_education", "rejected"],
   // from prd_generating
   ["prd_generating",      "prd_ready"],
+  ["prd_generating",      "submitted"],
   // from prd_ready
   ["prd_ready",           "planning"],
   ["prd_ready",           "prd_generating"],
@@ -111,6 +112,7 @@ const ALLOWED_EDGES: [FeatureStatus, FeatureStatus][] = [
   // from ai_review
   ["ai_review",           "human_review"],
   ["ai_review",           "fix_needed"],
+  ["ai_review",           "pr_open"],
   // from fix_needed (fix_needed → human_review removed — forces re-review first)
   ["fix_needed",          "ai_review"],
   ["fix_needed",          "pr_open"],

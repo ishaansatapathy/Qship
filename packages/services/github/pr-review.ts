@@ -186,9 +186,8 @@ export async function runPullRequestAiReview(pullRequestId: string) {
     return { ok: false as const, reason: "github_not_connected" as const };
   }
 
-  await transitionFeatureStatus(feature.id, "ai_review");
-
   await consumeAiReviewCredit(org.id);
+  await transitionFeatureStatus(feature.id, "ai_review");
 
   const octokit = getInstallationOctokit(org.githubInstallationId);
   const { owner, name: repo } = prRow.repository;
@@ -300,6 +299,7 @@ export async function runFeatureAiReviewWithOptionalPr(
   logger.info("pr_review.fallback_feature_only", { featureId });
 
   await consumeAiReviewCredit(organizationId);
+  await transitionFeatureStatus(featureId, "ai_review");
 
   const review = await runFeatureAiReview({
     title: feature.title,

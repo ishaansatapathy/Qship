@@ -37,7 +37,7 @@ export default function PrivacyPage() {
             store installation metadata and linked repository names to support the delivery workflow.
           </li>
           <li>
-            <strong>Agent sessions</strong> — chat history and tool memory for the ShipFlow Agent,
+            <strong>Agent sessions</strong> — chat history and tool memory for the Qship Agent,
             tied to your account.
           </li>
         </ul>
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
       <Section title="How We Use Your Data">
         <ul>
           <li>To run the feature delivery pipeline (triage, PRD generation, task breakdown, reviews).</li>
-          <li>To power the ShipFlow Agent and MCP tools scoped to your workspace.</li>
+          <li>To power the Qship Agent and MCP tools scoped to your workspace.</li>
           <li>To connect and sync GitHub repositories you authorize.</li>
           <li>To authenticate you and secure your session.</li>
         </ul>

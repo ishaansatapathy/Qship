@@ -1,4 +1,4 @@
-# ShipFlow AI — Demo Guide
+# Qship — Demo Guide
 
 > **Evaluating?** Jump directly to [Judge Walkthrough](#judge-walkthrough-13-steps) below.
 > Timed 3-minute path: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
@@ -49,7 +49,9 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 
 > **URL:** https://qship.ishaandev.co.in/brief
 
-After demo login you land here. You'll see:
+After demo login you land here. First-time visitors see a **Getting started** banner (3 steps: GitHub → feature request → Agent). Dismiss it once — it won't return.
+
+You'll see:
 - Counts of features by pipeline stage (submitted, in PRD, in review, shipped)
 - The core delivery loop diagram
 - Quick-access links to pending actions

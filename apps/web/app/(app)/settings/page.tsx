@@ -431,7 +431,7 @@ export default function SettingsPage() {
 
         <ApprovalToggle
           title="Agent PRDs & plans"
-          description="PRDs, task breakdowns, and delivery plans drafted by ShipFlow Agent."
+          description="PRDs, task breakdowns, and delivery plans drafted by Qship Agent."
           enabled={approvalDefaults.data?.autoApproveAgentEmail ?? false}
           disabled={approvalDefaults.isLoading || updateApproval.isPending}
           onToggle={(value) => setApprovalPref("autoApproveAgentEmail", value)}

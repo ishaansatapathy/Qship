@@ -88,7 +88,7 @@ describe("engineering quality eval harness", () => {
 
   it("generates OpenAPI 3.x from tRPC procedures", () => {
     const doc = generateOpenApiDocument(openApiRouter, {
-      title: "ShipFlow API",
+      title: "Qship API",
       version: "1.0.0",
       baseUrl: "http://localhost:8000/api",
     });
