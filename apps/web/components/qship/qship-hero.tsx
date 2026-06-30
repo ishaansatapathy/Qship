@@ -18,7 +18,6 @@ import GradientBlinds from "./GradientBlinds";
 
 import { QshipLogoMark, QshipWordmark } from "./qship-logo";
 
-import { InViewAnnotation } from "./qship-reveal";
 
 import { useQshipAuth } from "./qship-auth-provider";
 
@@ -420,9 +419,7 @@ export function QshipHero() {
             >
               Qship turns messy requests into PRDs, engineering tasks, and GitHub PRs — then runs a{" "}
               <strong style={{ color: "var(--qship-text)", fontWeight: 600 }}>
-                <InViewAnnotation type="underline" delay={600} strokeWidth={2}>
-                  QA agent loop
-                </InViewAnnotation>
+                QA agent loop
               </strong>{" "}
               before humans approve release.
             </p>
