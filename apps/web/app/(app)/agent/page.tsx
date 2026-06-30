@@ -495,7 +495,7 @@ function AgentPageContent() {
     : status.isError
       ? "API unavailable — run pnpm dev and refresh"
       : ready
-        ? "Ask ShipFlow Agent… e.g. triage requests or generate a PRD"
+        ? "Ask Qship Agent… e.g. triage requests or generate a PRD"
         : "Restart pnpm dev after saving OPENAI_API_KEY in .env";
 
   const { isDemo: isDemoUser, tryFeature, modal: demoModal } = useDemoAiGuard(meQuery.data?.email, "agent");
@@ -851,7 +851,7 @@ function AgentPageContent() {
           <div className="qship-agent-pane">
             <div className="qship-agent-pane-head">
               <Bot size={14} style={{ opacity: 0.7 }} />
-              ShipFlow Agent
+              Qship Agent
               <span className="qship-mono-tag" style={{ marginLeft: "auto" }}>
                 {agentBadge}
               </span>

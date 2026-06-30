@@ -113,6 +113,80 @@ const PrdContentSchema = z.object({
   rollbackPlan: z.string().default(""),
 });
 
+const ApprovalBriefingSchema = z.object({
+  summary: z.string(),
+  keyThingsToVerify: z.array(z.string()).default([]),
+  remainingConcerns: z.array(z.string()).default([]),
+  approvalRecommendation: z.enum(["approve", "hold", "reject"]),
+  confidence: z.number().min(0).max(1),
+  riskLevel: z.enum(["low", "medium", "high", "critical"]),
+  rationale: z.string(),
+});
+
+const ChangeRequestAnalysisSchema = z.object({
+  summary: z.string(),
+  actionItems: z
+    .array(
+      z.object({
+        category: z.string(),
+        title: z.string(),
+        description: z.string(),
+        priority: z.enum(["blocking", "advisory"]),
+        estimatedEffort: z.enum(["S", "M", "L"]),
+      }),
+    )
+    .default([]),
+  totalBlockingEffort: z.enum(["S", "M", "L", "XL"]),
+  nextStep: z.string(),
+});
+
+const SimilarityCandidateSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  status: z.string(),
+  similarityScore: z.number(),
+  overlappingAspects: z.array(z.string()).default([]),
+  recommendation: z.enum(["merge", "track_as_duplicate", "continue_separately"]),
+  reason: z.string(),
+});
+
+const SimilarityDetectionResultSchema = z.object({
+  hasSimilar: z.boolean(),
+  topCandidates: z.array(SimilarityCandidateSchema).default([]),
+  consolidationRecommendation: z.string().default(""),
+});
+
+const DeveloperOnboardingGuideSchema = z.object({
+  summary: z.string(),
+  implementationApproach: z.array(z.string()).default([]),
+  keyAreasToUnderstand: z.array(z.string()).default([]),
+  suggestedFilePatterns: z.array(z.string()).default([]),
+  potentialPitfalls: z.array(z.string()).default([]),
+  testingStrategy: z.string().default(""),
+  estimatedComplexity: z.enum(["low", "medium", "high"]),
+  estimatedHours: z.number(),
+  firstAction: z.string(),
+});
+
+const TaskWalkthroughSchema = z.object({
+  briefSummary: z.string(),
+  pseudoCodeSteps: z.array(z.string()).default([]),
+  fullExplanation: z.string(),
+  acceptanceChecklist: z.array(z.string()).default([]),
+  repoFindings: z
+    .object({
+      alreadyImplemented: z
+        .array(z.object({ file: z.string(), note: z.string() }))
+        .default([]),
+      stillNeeded: z
+        .array(z.object({ action: z.string(), reason: z.string() }))
+        .default([]),
+      suggestedSkip: z.array(z.string()).default([]),
+    })
+    .optional(),
+  suggestedUserReplies: z.array(z.string()).default([]),
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type FeatureTriage = {
@@ -399,12 +473,7 @@ Be specific to this feature. Cite exact PRD content. Never give generic advice l
     { jsonObject: true, temperature: 0.15 },
   );
 
-  const parsed = parseJson<FeatureAiReview>(content);
-  return {
-    ...parsed,
-    findings: parsed.findings ?? [],
-    checklistResults: parsed.checklistResults ?? [],
-  };
+  return parseJsonAs(content, FeatureAiReviewSchema);
 }
 
 /**
@@ -687,7 +756,7 @@ Return JSON with EXACTLY these keys:
     { jsonObject: true, temperature: 0.15 },
   );
 
-  return parseJson<ApprovalBriefing>(content);
+  return parseJsonAs(content, ApprovalBriefingSchema);
 }
 
 // ── Change request analysis ────────────────────────────────────────────────────
@@ -757,8 +826,7 @@ If PM says "add tests", specify: which functions, which edge cases, expected ass
     { jsonObject: true, temperature: 0.2 },
   );
 
-  const parsed = parseJson<ChangeRequestAnalysis>(content);
-  return { ...parsed, actionItems: parsed.actionItems ?? [] };
+  return parseJsonAs(content, ChangeRequestAnalysisSchema);
 }
 
 // ── Semantic duplicate detection ───────────────────────────────────────────────
@@ -858,12 +926,7 @@ Recommendations:
     { jsonObject: true, temperature: 0.1 },
   );
 
-  const parsed = parseJson<SimilarityDetectionResult>(content);
-  return {
-    hasSimilar: parsed.hasSimilar ?? false,
-    topCandidates: parsed.topCandidates ?? [],
-    consolidationRecommendation: parsed.consolidationRecommendation ?? "",
-  };
+  return parseJsonAs(content, SimilarityDetectionResultSchema);
 }
 
 // ── Developer onboarding guide ─────────────────────────────────────────────────
@@ -947,14 +1010,7 @@ Be concrete and specific. Generic advice like "read the codebase" is not helpful
     { jsonObject: true, temperature: 0.2 },
   );
 
-  const parsed = parseJson<DeveloperOnboardingGuide>(content);
-  return {
-    ...parsed,
-    implementationApproach: parsed.implementationApproach ?? [],
-    keyAreasToUnderstand: parsed.keyAreasToUnderstand ?? [],
-    suggestedFilePatterns: parsed.suggestedFilePatterns ?? [],
-    potentialPitfalls: parsed.potentialPitfalls ?? [],
-  };
+  return parseJsonAs(content, DeveloperOnboardingGuideSchema);
 }
 
 // ── Interactive task walkthrough ───────────────────────────────────────────────
@@ -1055,32 +1111,16 @@ For repo_aware mode: cite actual paths from snippets. Say things like "you alrea
     { jsonObject: true, temperature: 0.2 },
   );
 
-  const parsed = parseJson<Omit<TaskWalkthrough, "mode" | "taskTitle" | "taskIndex" | "totalTasks">>(
-    content,
-  );
-
-  const repoFindings = parsed.repoFindings
-    ? {
-        alreadyImplemented: parsed.repoFindings.alreadyImplemented ?? [],
-        stillNeeded: parsed.repoFindings.stillNeeded ?? [],
-        suggestedSkip: parsed.repoFindings.suggestedSkip ?? [],
-      }
-    : undefined;
+  const parsed = parseJsonAs(content, TaskWalkthroughSchema);
 
   return {
     mode,
     taskTitle: input.taskTitle,
     taskIndex: input.taskIndex,
     totalTasks: input.totalTasks,
-    briefSummary: parsed.briefSummary ?? "",
-    pseudoCodeSteps: parsed.pseudoCodeSteps ?? [],
-    fullExplanation: parsed.fullExplanation ?? "",
-    acceptanceChecklist: parsed.acceptanceChecklist ?? [],
-    repoFindings,
-    suggestedUserReplies: parsed.suggestedUserReplies ?? [
-      "Explain more",
-      "Mark task done — next task",
-      "What should I test first?",
-    ],
+    ...parsed,
+    suggestedUserReplies: parsed.suggestedUserReplies.length
+      ? parsed.suggestedUserReplies
+      : ["Explain more", "Mark task done — next task", "What should I test first?"],
   };
 }

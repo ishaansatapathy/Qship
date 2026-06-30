@@ -43,7 +43,7 @@ const PAGE_META: Record<string, { title: string; sub: string }> = {
   "/inbox": { title: "Intake hub", sub: "Email, support, calls, and in-app feature requests" },
   "/requests": { title: "Feature Requests", sub: "Submit, triage, and ship product work" },
   "/tasks": { title: "Engineering board", sub: "Kanban view of tasks across all features" },
-  "/agent": { title: "ShipFlow Agent", sub: "PRD, tasks, reviews — with human oversight" },
+  "/agent": { title: "Qship Agent", sub: "PRD, tasks, reviews — with human oversight" },
   "/analytics": { title: "Analytics", sub: "Delivery pipeline and agent activity" },
   "/billing": { title: "Billing", sub: "Plans, AI credits, and Razorpay checkout" },
   "/settings": { title: "Settings", sub: "Workspace, GitHub, and approvals" },

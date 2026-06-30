@@ -24,11 +24,11 @@ export function QshipAuthScreen({
 
   const brand = onClose ? (
     <button type="button" className="qship-auth-screen-brand" onClick={onClose}>
-      ShipFlow
+      Qship
     </button>
   ) : (
     <Link href="/" className="qship-auth-screen-brand">
-      ShipFlow
+      Qship
     </Link>
   );
 

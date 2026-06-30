@@ -52,7 +52,7 @@ export function QshipCommand({
       { id: "requests", group: "Navigate", label: "Feature requests", icon: Rocket, run: go("/requests") },
       { id: "tasks", group: "Navigate", label: "Engineering board", icon: Kanban, run: go("/tasks") },
       { id: "inbox", group: "Navigate", label: "Intake hub", icon: Inbox, run: go("/inbox") },
-      { id: "agent", group: "Navigate", label: "ShipFlow Agent", icon: Bot, run: go("/agent") },
+      { id: "agent", group: "Navigate", label: "Qship Agent", icon: Bot, run: go("/agent") },
       { id: "analytics", group: "Navigate", label: "Analytics", icon: BarChart2, run: go("/analytics") },
       { id: "billing", group: "Navigate", label: "Billing & plans", icon: CreditCard, run: go("/billing") },
       { id: "settings", group: "Navigate", label: "Settings", icon: Settings, run: go("/settings") },

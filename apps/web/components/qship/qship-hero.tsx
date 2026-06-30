@@ -379,7 +379,7 @@ export function QshipHero() {
 
             >
 
-              ShipFlow turns messy requests into PRDs, engineering tasks, and GitHub PRs — then runs a{" "}
+              Qship turns messy requests into PRDs, engineering tasks, and GitHub PRs — then runs a{" "}
               <strong style={{ color: "var(--qship-text)", fontWeight: 600 }}>
                 <InViewAnnotation type="underline" delay={600} strokeWidth={2}>
                   QA agent loop

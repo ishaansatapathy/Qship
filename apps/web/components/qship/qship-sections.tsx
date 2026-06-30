@@ -68,8 +68,8 @@ const CAPABILITIES = [
 
 const FAQS = [
   {
-    q: "What is ShipFlow?",
-    a: "ShipFlow is a multi-tenant SaaS for AI-assisted product delivery — from feature request through PRD, tasks, code review, and human-approved release.",
+    q: "What is Qship?",
+    a: "Qship is a multi-tenant SaaS for AI-assisted product delivery — from feature request through PRD, tasks, code review, and human-approved release.",
   },
   {
     q: "How does the core loop work?",
@@ -80,7 +80,7 @@ const FAQS = [
     a: "Yes — Octokit connects repositories, receives webhooks, tracks pull requests, analyzes diffs, and posts AI review comments. Hardcoded PR data is not used.",
   },
   {
-    q: "What stack powers ShipFlow?",
+    q: "What stack powers Qship?",
     a: "Next.js, tRPC monorepo, Shadcn UI, BetterAuth, Razorpay, Drizzle + PostgreSQL, Inngest, AI SDK, and Vercel — as required by ChaiCode.",
   },
 ];

@@ -2,22 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — ShipFlow",
-  description: "How ShipFlow (Qship) handles your data.",
+  title: "Privacy Policy — Qship",
+  description: "How Qship handles your data.",
 };
 
 export default function PrivacyPage() {
   return (
     <main className="qship-privacy">
       <Link href="/" className="qship-privacy-back">
-        ← Back to ShipFlow
+        ← Back to Qship
       </Link>
 
       <h1 className="qship-privacy-title">Privacy Policy</h1>
       <p className="qship-privacy-updated">Last updated: June 2026</p>
 
       <Section title="Overview">
-        ShipFlow (&quot;the app&quot;, built as Qship) is an AI-assisted product delivery platform
+        Qship is an AI-assisted product delivery platform
         for software teams. We are committed to protecting your privacy. This policy explains what
         data we collect, how we use it, and how it is stored.
       </Section>
