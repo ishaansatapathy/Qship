@@ -23,12 +23,20 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: "/trpc/:path*",
+        destination: `${apiInternalUrl}/trpc/:path*`,
+      },
+      {
         source: "/api-auth/:path*",
         destination: `${apiInternalUrl}/auth/:path*`,
       },
       {
         source: "/mcp",
         destination: `${apiInternalUrl}/mcp`,
+      },
+      {
+        source: "/agent/stream",
+        destination: `${apiInternalUrl}/agent/stream`,
       },
     ];
   },
