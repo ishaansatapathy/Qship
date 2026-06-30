@@ -321,6 +321,13 @@ function FeatureDetailPanel({
       staleTime: 10_000,
     },
   );
+  const shipReadiness = trpc.feature.shipReadiness.useQuery(
+    { featureId },
+    {
+      enabled: detail.data?.status === "human_review",
+      staleTime: 30_000,
+    },
+  );
 
   const githubConnected = githubStatus.data?.connected === true;
 
@@ -912,6 +919,100 @@ function FeatureDetailPanel({
               {reviewDelta.data.persisting.length} persisting unresolved
             </p>
           )}
+        </section>
+      )}
+
+      {shipReadiness.data && feature.status === "human_review" && (
+        <section className="qship-req-prd">
+          <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ShieldCheck size={14} />
+            Ship Readiness Checklist
+            <span
+              className="qship-req-tag"
+              style={{
+                marginLeft: 4,
+                color:
+                  shipReadiness.data.recommendation === "approve"
+                    ? "var(--qship-accent-bright)"
+                    : shipReadiness.data.recommendation === "needs_fixes"
+                      ? "#f59e0b"
+                      : "var(--qship-muted)",
+              }}
+            >
+              {shipReadiness.data.score}/100 ·{" "}
+              {shipReadiness.data.recommendation === "approve"
+                ? "READY"
+                : shipReadiness.data.recommendation === "needs_fixes"
+                  ? "NEEDS FIXES"
+                  : "NOT REVIEWABLE"}
+            </span>
+          </h3>
+          <p style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>
+            {shipReadiness.data.recommendationReason}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {(shipReadiness.data.items as Array<{
+              id: string;
+              label: string;
+              pass: boolean | null;
+              detail: string;
+              severity: "blocker" | "warning" | "info";
+            }>).map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  fontSize: 12,
+                  padding: "4px 0",
+                  borderBottom: "1px solid var(--qship-border)",
+                }}
+                title={item.detail}
+              >
+                <span style={{ flexShrink: 0, marginTop: 1 }}>
+                  {item.pass === null ? (
+                    <span style={{ opacity: 0.4 }}>○</span>
+                  ) : item.pass ? (
+                    <CheckCircle2 size={12} color="var(--qship-accent-bright)" />
+                  ) : item.severity === "blocker" ? (
+                    <AlertTriangle size={12} color="#ef4444" />
+                  ) : (
+                    <AlertTriangle size={12} color="#f59e0b" />
+                  )}
+                </span>
+                <span style={{ flex: 1 }}>
+                  <span
+                    style={{
+                      fontWeight: item.severity === "blocker" && item.pass === false ? 600 : 400,
+                      color:
+                        item.pass === false && item.severity === "blocker"
+                          ? "#ef4444"
+                          : item.pass === false && item.severity === "warning"
+                            ? "#f59e0b"
+                            : "inherit",
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  {item.pass === false && (
+                    <span style={{ opacity: 0.65, marginLeft: 6 }}>— {item.detail}</span>
+                  )}
+                </span>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 10,
+                    opacity: 0.5,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {item.severity}
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 

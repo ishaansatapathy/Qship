@@ -6,6 +6,8 @@ import { logger } from "@repo/logger";
 import { ServiceError } from "../errors";
 import { getFeatureRequest } from "../feature-request";
 import { getInstallationOctokit } from "./client";
+import { generateReleaseNotes } from "../feature-ai";
+import { fetchPullRequestDiff } from "./diff";
 
 export type FeatureReleaseResult = {
   merge: {
@@ -142,4 +144,73 @@ export async function executeFeatureRelease(input: {
   }
 
   return { merge, deploy };
+}
+
+/**
+ * Generates release notes from PRD + PR diff and creates a GitHub Release on
+ * the merged PR's repository. Best-effort — never throws.
+ *
+ * Returns the release URL if successful, null otherwise.
+ */
+export async function createGithubReleaseForFeature(input: {
+  featureId: string;
+  installationId: string;
+  prNumber: number;
+  owner: string;
+  repo: string;
+  repoFullName: string;
+}): Promise<{ releaseUrl: string; tagName: string; notes: object } | null> {
+  try {
+    const feature = await getFeatureRequest(input.featureId);
+    const octokit = getInstallationOctokit(input.installationId);
+
+    // Fetch diff for context (best-effort — proceed without if unavailable)
+    let diffSummary = "";
+    try {
+      const diff = await fetchPullRequestDiff(octokit, input.owner, input.repo, input.prNumber);
+      diffSummary = diff.files
+        .map((f) => `${f.filename} (+${f.additions ?? 0}/-${f.deletions ?? 0})`)
+        .join("\n");
+    } catch {
+      diffSummary = "Diff unavailable";
+    }
+
+    const notes = await generateReleaseNotes({
+      featureTitle: feature.title,
+      rawRequest: feature.rawRequest,
+      prd: feature.prd?.content ?? null,
+      diffSummary,
+      prNumber: input.prNumber,
+      repoFullName: input.repoFullName,
+    });
+
+    // Derive a unique tag — use feature id prefix if version is generic
+    const tagName = notes.version.match(/v\d+\.\d+\.\d+/)
+      ? notes.version
+      : `qship-${input.featureId.slice(0, 8)}`;
+
+    const { data: release } = await octokit.rest.repos.createRelease({
+      owner: input.owner,
+      repo: input.repo,
+      tag_name: tagName,
+      name: notes.title,
+      body: notes.markdownBody,
+      draft: false,
+      prerelease: false,
+    });
+
+    logger.info("github.release.created", {
+      featureId: input.featureId,
+      releaseUrl: release.html_url,
+      tagName,
+    });
+
+    return { releaseUrl: release.html_url, tagName, notes };
+  } catch (error) {
+    logger.warn("github.release.creation_failed", {
+      featureId: input.featureId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }

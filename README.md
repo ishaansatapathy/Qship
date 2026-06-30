@@ -171,6 +171,9 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 | **Semantic duplicate check** | Real-time warning in create form (debounced, pre-submit) | `feature.preflightDuplicateCheck` |
 | **Duplicate education** | Before every new feature | `check_existing_capability` |
 | **Autonomous background agent** | Hourly Inngest cron: auto-triage, duplicate scan, stale alerts | `autonomous-sweep.ts` (Inngest cron) |
+| **AI Auto-Fix Patches** | After AI review, generates unified-diff patches for each blocking issue and posts as GitHub PR comment | `github/pr-review.ts` → `generateBlockingIssueFixes` |
+| **Auto Release Notes** | On ship: AI generates release notes from PRD + diff → creates GitHub Release with version tag | `github/release-ship.ts` → `createGithubReleaseForFeature` |
+| **Ship Readiness Dashboard** | Pre-approval checklist (12 items: AI review, security, tests, PR, rollback) with score/100 and recommendation | `ship-readiness.ts` → `feature.shipReadiness` |
 | **Multi-channel intake** | Email / support / call / GitHub Issues | `intake_from_channel` |
 | **Analytics** | `/analytics` — delivery metrics | `shipflow-observability` |
 | **Billing** | `/billing` — one-time Razorpay checkout + AI credit limits | billing tRPC |
@@ -293,9 +296,9 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 | **API** | Express, tRPC v11, trpc-to-openapi, Scalar |
 | **Auth** | BetterAuth — Google OAuth, email/password, demo login |
 | **Database** | PostgreSQL 16 + Drizzle ORM — 53 migrations, 14 perf indexes |
-| **AI** | OpenAI API (`gpt-4o-mini`) — triage, PRD, tasks, 9-dim PR review, delta re-review, codebase-aware PRD, AI morning brief, semantic duplicate detection |
+| **AI** | OpenAI API (`gpt-4o-mini`) — triage, PRD, tasks, 9-dim PR review, delta re-review, codebase-aware PRD, AI morning brief, semantic duplicate detection, auto-fix patches, release notes generation |
 | **MCP** | MCP 2024-11-05 — 37 tools, JSON-RPC 2.0, CI parity test |
-| **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments + inline diff annotations, issues intake |
+| **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments + inline diff annotations, auto-fix patch comments, issues intake, Release creation on ship |
 | **Background jobs** | Inngest — PRD gen, task gen, AI review, autonomous pipeline sweep (hourly cron), GitHub webhook outbox (2-min cron) |
 | **Billing** | Razorpay — one-time checkout, server order verify, webhook, AI credit limits |
 | **CI** | GitHub Actions — parallel type-check + test + E2E + Playwright artifacts |
@@ -321,6 +324,9 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 | **AI Morning Brief** | GPT generates a 3–5 sentence natural language pipeline summary with urgency-ranked action items on every load | `packages/services/pipeline-overview.ts` |
 | **GitHub Issues auto-intake** | `issues.opened` webhook converts GitHub issues into Qship features, runs AI triage, labels the issue, posts link-back comment | `packages/services/github/issue-intake.ts` |
 | **GitHub PR inline annotations** | After main review comment, posts per-issue diff-level review comments via `pulls.createReview` (file + line) | `packages/services/github/pr-review.ts` → `postInlineAnnotations` |
+| **AI Auto-Fix Code Patches** | Detects test framework from diff, generates unified-diff patches for each blocking issue, posts as separate GitHub PR comment (upserted) | `packages/services/feature-ai.ts` → `generateBlockingIssueFixes` + `packages/services/github/pr-review.ts` |
+| **Auto Release Notes Generator** | On ship: generates structured release notes (version, what changed, breaking changes, rollback instructions) from PRD + PR diff; creates GitHub Release | `packages/services/feature-ai.ts` → `generateReleaseNotes` + `packages/services/github/release-ship.ts` → `createGithubReleaseForFeature` |
+| **Ship Readiness Dashboard** | Deterministic pre-approval checklist (12 items): AI review ran, no blocking issues, security pass, PR linked, tasks done, rollback plan, tests — with score/100 and approve/needs-fixes verdict | `packages/services/ship-readiness.ts` → `feature.shipReadiness` tRPC |
 
 ---
 
@@ -530,6 +536,16 @@ GitHub Actions (`.github/workflows/ci.yml`):
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Full technical deep-dive |
 | [.env.example](./.env.example) | All environment variables with inline documentation |
 | [mcp-server.json](./mcp-server.json) | MCP client manifest for Cursor / Claude Desktop |
+
+### Technical reference (`docs/`)
+
+| File | Purpose |
+|---|---|
+| [docs/agent-safety.md](./docs/agent-safety.md) | Agent guardrails — prompt injection, rate limits, retries, fallbacks, HMAC, token budgets |
+| [docs/database-schema.md](./docs/database-schema.md) | Full DB schema — all tables, columns, indexes, FSM, migration notes |
+| [docs/ai-features.md](./docs/ai-features.md) | AI features deep-dive — all 14 capabilities, prompts, Zod validation, fallbacks |
+| [docs/github-integration.md](./docs/github-integration.md) | GitHub App setup — webhooks, PR annotations, issues intake, release creation |
+| [docs/inngest-workflows.md](./docs/inngest-workflows.md) | Inngest workflows — step memoisation, retry config, autonomous sweep |
 
 ---
 

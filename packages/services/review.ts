@@ -18,7 +18,7 @@ import {
   guardedUpdateFeatureStatusInTx,
 } from "./feature-request";
 import type { FeatureStatus } from "./workflow";
-import { executeFeatureRelease } from "./github/release-ship";
+import { executeFeatureRelease, createGithubReleaseForFeature } from "./github/release-ship";
 import { getGithubConnectionForUser } from "./github/installation";
 import { notifySlackFeatureApproved, notifySlackFeatureShipped } from "./slack";
 import type { PrAiReviewResult } from "./feature-ai";
@@ -661,6 +661,30 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
     rawRequest: feature.rawRequest,
   });
 
+  // Create an auto-generated GitHub Release with AI release notes (best-effort, fire-and-forget)
+  let githubRelease: { releaseUrl: string; tagName: string } | null = null;
+  if (release.merge.merged && gh.installationId && openPr?.repository) {
+    const { owner, name: repo } = openPr.repository;
+    createGithubReleaseForFeature({
+      featureId: featureRequestId,
+      installationId: gh.installationId,
+      prNumber: release.merge.prNumber!,
+      owner,
+      repo,
+      repoFullName: `${owner}/${repo}`,
+    }).then((result) => {
+      if (result) {
+        githubRelease = result;
+        appendFeatureActivity(featureRequestId, {
+          kind: "status",
+          title: "GitHub Release published 📋",
+          detail: `Auto-generated release notes created: [${result.tagName}](${result.releaseUrl})`,
+          actor: "agent",
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }
+
   logger.info("review.feature_shipped", {
     featureRequestId,
     userId,
@@ -670,7 +694,7 @@ export async function markFeatureShipped(featureRequestId: string, userId: strin
     slackMode: slack.simulated ? "simulated" : slack.sent ? "live" : "failed",
   });
 
-  return { status: "shipped" as const, slack, release };
+  return { status: "shipped" as const, slack, release, githubRelease };
 }
 
 // ── Individual issue resolution ────────────────────────────────────────────────
