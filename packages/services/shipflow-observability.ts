@@ -5,6 +5,7 @@ import { agentChatSessionsTable, featureRequests, pullRequests, repositories } f
 import { getPipelineSummary, getWorkspaceProjectForUser } from "./feature-request";
 import { getGithubWebhookOutboxStats } from "./github/webhook-outbox";
 import { isGithubAppConfigured } from "./github/config";
+import { getSharedCountersMerged } from "./observability/counters";
 
 export async function getDeliveryActivityTimeline(projectId: string, days = 14) {
   const since = new Date(Date.now() - days * 86_400_000);
@@ -59,6 +60,7 @@ export async function getShipflowObservabilitySummary(userId: string) {
         repositoryCount: 0,
         webhookOutbox: {},
       },
+      safetyCounters: {},
     };
   }
 
@@ -99,6 +101,7 @@ export async function getShipflowObservabilitySummary(userId: string) {
   const pipeline = await getPipelineSummary(ws.project.id);
   const deliveryTimeline = await getDeliveryActivityTimeline(ws.project.id);
   const githubWebhookOutbox = await getGithubWebhookOutboxStats().catch(() => ({}));
+  const safetyCounters = await getSharedCountersMerged();
 
   return {
     agentSessions: Number(sessionAgg?.sessions ?? 0),
@@ -113,5 +116,6 @@ export async function getShipflowObservabilitySummary(userId: string) {
       repositoryCount: orgRepos.length,
       webhookOutbox: githubWebhookOutbox,
     },
+    safetyCounters,
   };
 }
