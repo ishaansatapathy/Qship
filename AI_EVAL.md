@@ -174,7 +174,7 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 **App shell:** sidebar nav + command palette (`⌘K`) cover all surfaces — `apps/web/components/app/qship-app-shell.tsx`, `qship-command.tsx`
 
-**CI merge gate:** `pnpm --filter @repo/services test:saas-eval` in `ci.yml` (11 invariants + order verification unit tests)
+**CI merge gate:** `pnpm --filter @repo/services test:saas-eval` in `ci.yml` (12 invariants + order verification unit tests)
 
 **E2E:** `apps/web/e2e/shipflow-demo.spec.ts` — demo login, brief stats, billing demo upgrade, kanban, agent walkthrough, settings GitHub, Slack approve path
 
@@ -184,12 +184,15 @@ curl -s https://repoapi-production-adfe.up.railway.app/mcp/ | grep -o '"tools":\
 
 | Document | Audience |
 |---|---|
-| **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | **Human judges** — 3-minute live demo path |
+| **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** | **Human judges** — 3-minute live demo (pipeline → review → **billing** → agent → Scalar) |
 | **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** | **Human judges** — one-pager + differentiators |
+| **[DEMO.md](./DEMO.md)** | **13-step** walkthrough with curl proofs + billing step |
 | **AI_EVAL.md** (this file) | Automated / AI rubric — evidence index |
-| **[DEMO.md](./DEMO.md)** | Step-by-step with curl proofs |
 | **Scalar** | https://repoapi-production-adfe.up.railway.app/docs |
 | **`.github-meta.json`** | Machine-readable URLs + counts |
+| **`node scripts/verify-production.mjs`** | One-command production smoke test |
+
+**Billing in docs:** `/billing` covered in minute 3 of JUDGE_WALKTHROUGH and Step 7 of DEMO.md — live Razorpay + server order verify + AI credit limits.
 
 ---
 

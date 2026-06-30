@@ -1,6 +1,6 @@
 # ShipFlow AI — Demo Guide
 
-> **Evaluating?** Jump directly to [Judge Walkthrough](#judge-walkthrough-12-steps) below.
+> **Evaluating?** Jump directly to [Judge Walkthrough](#judge-walkthrough-13-steps) below.
 > Timed 3-minute path: **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)**
 > Rubric map: **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)**
 
@@ -19,6 +19,7 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/ready   # API + DB read
 |---|---|---|
 | Web app | https://qship.ishaandev.co.in | — |
 | **One-click demo login** | https://qship.ishaandev.co.in/api-auth/demo?next=/brief | none |
+| **Billing & plans** | https://qship.ishaandev.co.in/billing | demo login or your account |
 | Scalar API docs | https://repoapi-production-adfe.up.railway.app/docs | none |
 | API health | https://repoapi-production-adfe.up.railway.app/health | none |
 | API readiness | https://repoapi-production-adfe.up.railway.app/ready | none |
@@ -42,7 +43,7 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 
 ---
 
-## Judge walkthrough — 12 steps
+## Judge walkthrough — 13 steps
 
 ### Step 1 · Pipeline overview (`/brief`)
 
@@ -129,7 +130,34 @@ Click **"Generate Tasks"**.
 
 ---
 
-### Step 7 · AI review loop
+### Step 7 · Billing & Razorpay (`/billing`)
+
+> **URL:** https://qship.ishaandev.co.in/billing
+
+After demo login (or your own account for live payment):
+
+**What to observe:**
+- Plan cards: **Free**, **Pro** (₹999), **Enterprise** (₹4999) — optional **Test** (₹10) when `BILLING_ENABLE_TEST_PLAN=true`
+- Header stats: **Plan · AI credits · Status**
+- Copy: **One-time purchase · credits added to your workspace** (not a subscription)
+- Click **Pay with Razorpay** → demo instant upgrade (local/no keys) **or** live Razorpay checkout (production)
+- After upgrade: plan shows **Current**, AI credits match tier (e.g. Test → 20, Pro → 100)
+- Run **AI Review** on a feature → credits decrement; at **0** → blocked with upgrade message
+
+**Server integrity (code):**
+- `packages/services/billing/order-verify.ts` — verifies Razorpay order amount + workspace + plan tier
+- `packages/services/review.ts` → `consumeAiReviewCredit` — atomic credit enforcement
+
+**curl (billing configured check — authenticated session required for summary):**
+```bash
+# Public billing status (no auth)
+curl -s https://repoapi-production-adfe.up.railway.app/trpc/billing.status \
+  | python3 -m json.tool
+```
+
+---
+
+### Step 8 · AI review loop
 
 Back on the feature, click **"Run AI Review"**.
 
@@ -156,7 +184,7 @@ After fixing issues and re-running, the AI specifically checks:
 
 ---
 
-### Step 8 · Review delta and stats
+### Step 9 · Review delta and stats
 
 On any feature with 2+ review iterations:
 
@@ -173,7 +201,7 @@ On any feature with 2+ review iterations:
 
 ---
 
-### Step 9 · Human approval gate
+### Step 10 · Human approval gate
 
 When AI review passes (`readyForHuman: true`), the **"Approve" / "Reject" / "Request Changes"** buttons appear.
 
@@ -195,7 +223,7 @@ When AI review passes (`readyForHuman: true`), the **"Approve" / "Reject" / "Req
 
 ---
 
-### Step 10 · Ship
+### Step 11 · Ship
 
 Click **"Ship"** (appears after `approved` status).
 
@@ -203,7 +231,7 @@ Click **"Ship"** (appears after `approved` status).
 
 ---
 
-### Step 11 · ShipFlow Agent (`/agent`)
+### Step 12 · ShipFlow Agent (`/agent`)
 
 > **URL:** https://qship.ishaandev.co.in/agent
 
@@ -242,7 +270,7 @@ Try these exact prompts:
 
 ---
 
-### Step 12 · Scalar API docs
+### Step 13 · Scalar API docs
 
 > **URL:** https://repoapi-production-adfe.up.railway.app/docs
 
@@ -250,7 +278,7 @@ Try these exact prompts:
 - Judge quick-start table at the top of the info panel
 - Tag groups: Getting started / ShipFlow core / AI platform / Integrations
 - Interactive code samples with `curl` examples
-- MCP tool manifest with all 33 tool descriptions
+- MCP tool manifest with all **37** tool descriptions
 - `/mcp`, `/agent/stream`, `/webhooks/github` documented as reference paths
 
 ---
@@ -373,6 +401,7 @@ curl -s -X POST http://localhost:8000/mcp \
 | Human approval | Validate → approve/reject/changes | UI + agent tools |
 | GitHub integration | Webhooks, PR link, AI comment | `packages/services/github/` |
 | MCP | 37 tools, spec-compliant, public list | `POST /mcp` |
+| SaaS + billing | Razorpay checkout, server order verify, AI credits | `/billing`, `billing/order-verify.ts` |
 | Documentation | README + DEMO + JUDGE_WALKTHROUGH + ARCHITECTURE | This repo |
 | Code quality | TypeScript strict, CI green, Drizzle migrations | `.github/workflows/ci.yml` |
 | Deployment | Vercel (web + API) + Neon DB | live URLs above |

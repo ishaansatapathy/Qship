@@ -11,6 +11,7 @@ export const SAAS_EVAL_INVARIANTS = [
   "kanban_tasks_board",
   "billing_razorpay_checkout",
   "billing_order_server_verification",
+  "demo_docs_billing_walkthrough",
   "github_settings_connect",
   "app_shell_nav_all_surfaces",
   "trpc_proxy_csrf_session",
@@ -27,7 +28,7 @@ function readRepo(relativePath: string): string {
 
 describe("SaaS product experience eval harness", () => {
   it(`documents ${SAAS_EVAL_INVARIANT_COUNT} SaaS invariants`, () => {
-    expect(SAAS_EVAL_INVARIANT_COUNT).toBe(11);
+    expect(SAAS_EVAL_INVARIANT_COUNT).toBe(12);
   });
 
   it("exposes one-click demo login with next-path redirect", () => {
@@ -119,5 +120,14 @@ describe("SaaS product experience eval harness", () => {
     expect(spec).toContain('demoLogin(page, "/billing")');
     expect(spec).toContain("engineering board");
     expect(spec).toContain("billing & plans");
+  });
+
+  it("documents billing in judge walkthrough and demo guide", () => {
+    const walkthrough = readRepo("JUDGE_WALKTHROUGH.md");
+    const demo = readRepo("DEMO.md");
+    expect(walkthrough).toContain("/billing");
+    expect(walkthrough).toContain("order-verify.ts");
+    expect(demo).toContain("Step 7 · Billing");
+    expect(demo).toContain("13 steps");
   });
 });
