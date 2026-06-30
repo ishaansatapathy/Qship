@@ -12,6 +12,61 @@
 
 ---
 
+## 💳 Billing — live in production (real payments captured)
+
+Razorpay billing is **not a mock** — real UPI and Debit Card payments have been captured on the live deployment.
+
+| Payment ID | Amount | Method | Status | Date |
+|---|---|---|---|---|
+| `pay_T7uybJQGbdOkIX` | ₹19.00 | UPI | ✅ Captured | Jun 30, 2026 10:32 PM |
+| `pay_T7ursLMzf6jhHA` | ₹19.00 | UPI | ✅ Captured | Jun 30, 2026 10:26 PM |
+| `pay_T7d0epmwMOzI8U` | ₹10.00 | Debit Card | ✅ Captured | Jun 30, 2026 4:57 AM |
+
+> Real users upgraded to the **Test Plan (₹19)** via Razorpay UPI during the hackathon window — payment created → authorized → captured, with settlement scheduled to bank account.
+
+**Razorpay Dashboard — all payments captured:**
+
+![Razorpay payments list](./docs/assets/billing-payments-list.png)
+
+<details>
+<summary>Individual payment details (click to expand)</summary>
+
+**Payment 1 — ₹19.00 UPI · Captured**
+
+![Payment 1 detail](./docs/assets/billing-pay1-19rs.png)
+
+**Payment 2 — ₹19.00 UPI · Captured**
+
+![Payment 2 detail](./docs/assets/billing-pay2-19rs.png)
+
+**Payment 3 — ₹10.00 Debit Card · Captured** *(internal test)*
+
+![Payment 3 detail](./docs/assets/billing-pay3-10rs.png)
+
+</details>
+
+**How billing works end-to-end:**
+1. User visits `/billing` → selects a plan
+2. Qship creates a Razorpay order server-side (`POST /api/billing/create-order`)
+3. Razorpay payment sheet opens in-browser (UPI / Card / NetBanking)
+4. On success → client sends `payment_id + order_id + signature` to Qship
+5. Server verifies Razorpay signature (`crypto.createHmac`) + validates order amount
+6. Plan tier upgraded in DB → AI review credit limit updated immediately
+7. Razorpay webhook (optional) provides async confirmation
+
+**Plans:**
+
+| Plan | Price | AI Review Credits | Repos |
+|---|---|---|---|
+| Free | ₹0 | 5/month | 1 |
+| Test | ₹19 | 20/month | 3 |
+| Pro | ₹999 | 100/month | 10 |
+| Enterprise | Custom | Unlimited | Unlimited |
+
+**Code:** `packages/services/billing/` · **UI:** `apps/web/app/(app)/billing/`
+
+---
+
 ## 🔗 Live demo (zero setup — open in browser)
 
 | Resource | URL |
