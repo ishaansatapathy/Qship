@@ -16,7 +16,7 @@ const NAV = [
 ];
 
 export function QshipNav() {
-  const { openAuth } = useQshipAuth();
+  const { openAuth, demoLogin, isDemoLoading } = useQshipAuth();
   const { user, isLoading } = useQshipUser();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -85,12 +85,15 @@ export function QshipNav() {
               <button
                 type="button"
                 className="qship-btn-accent qship-nav-cta"
+                disabled={isDemoLoading}
                 onClick={() => {
                   closeMenu();
-                  openAuth("sign-in");
+                  void demoLogin();
                 }}
               >
-                <span className="qship-nav-cta-text">Get started</span>
+                <span className="qship-nav-cta-text">
+                  {isDemoLoading ? "Loading…" : "Get started"}
+                </span>
               </button>
             </>
           )}
@@ -136,12 +139,13 @@ export function QshipNav() {
               <button
                 type="button"
                 className="qship-btn-accent"
+                disabled={isDemoLoading}
                 onClick={() => {
                   closeMenu();
-                  openAuth("sign-in");
+                  void demoLogin();
                 }}
               >
-                Get started
+                {isDemoLoading ? "Loading…" : "Get started"}
               </button>
             )}
           </nav>

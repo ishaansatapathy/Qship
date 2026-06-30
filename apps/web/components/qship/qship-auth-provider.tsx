@@ -4,6 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useRouter, useSearchParams } from "next/navigation";
 import { QshipAuthScreen } from "./qship-auth-screen";
 import { useQshipUser } from "~/components/app/use-qship-user";
+import { authClient } from "~/lib/auth-client";
+
+const DEMO_EMAIL = "demo@qship.dev";
+const DEMO_PASSWORD = "DemoPass123!";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -11,6 +15,8 @@ type AuthContextValue = {
   isAuthOpen: boolean;
   openAuth: (mode?: AuthMode) => void;
   closeAuth: () => void;
+  demoLogin: () => Promise<void>;
+  isDemoLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -27,6 +33,7 @@ function QshipAuthProviderInner({ children }: { children: ReactNode }) {
   const { user, isLoading } = useQshipUser();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("sign-in");
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const errorMessage = searchParams.get("error") ?? undefined;
   const nextPath = searchParams.get("next") ?? undefined;
 
@@ -61,9 +68,33 @@ function QshipAuthProviderInner({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const demoLogin = useCallback(async () => {
+    if (user) {
+      router.push("/inbox");
+      return;
+    }
+    setIsDemoLoading(true);
+    try {
+      const result = await authClient.signIn.email({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+      });
+      if (result.error) {
+        openAuth("sign-in");
+        return;
+      }
+      router.push("/inbox");
+      router.refresh();
+    } catch {
+      openAuth("sign-in");
+    } finally {
+      setIsDemoLoading(false);
+    }
+  }, [user, router, openAuth]);
+
   const value = useMemo(
-    () => ({ isAuthOpen: open, openAuth, closeAuth }),
-    [open, openAuth, closeAuth],
+    () => ({ isAuthOpen: open, openAuth, closeAuth, demoLogin, isDemoLoading }),
+    [open, openAuth, closeAuth, demoLogin, isDemoLoading],
   );
 
   if (open) {
