@@ -7,6 +7,37 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 /** Hard ceiling on tool-call rounds. Must match the maxRounds passed by runAgentChat. */
 export const MAX_TOOL_ROUNDS = 10;
 
+// ── Retry helper ──────────────────────────────────────────────────────────────
+
+/** HTTP status codes that are safe to retry with back-off. */
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 500;
+
+/**
+ * Wraps a `fetchOpenAi` call with exponential back-off for transient errors.
+ * Retries on 429 (rate-limit) and 5xx (server error) up to MAX_RETRIES times.
+ * Non-retryable errors (4xx except 429) are thrown immediately.
+ */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  label: string,
+): Promise<Response> {
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    const res = await fetchOpenAi(url, init, { label });
+    if (res.ok || !RETRYABLE_STATUS.has(res.status)) return res;
+    // Store a placeholder to re-throw if all retries exhaust
+    lastError = new Error(`HTTP ${res.status}`);
+  }
+  throw lastError ?? new Error("OpenAI request failed after retries");
+}
+
 export type OpenAiToolDefinition = {
   type: "function";
   function: {
@@ -77,28 +108,31 @@ export async function runOpenAiToolLoop(
         tool_calls: choice.tool_calls,
       });
 
-      for (const call of choice.tool_calls) {
-        let args: Record<string, unknown> = {};
-        try {
-          args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>;
-        } catch {
-          args = {};
-        }
+      // Run all tool calls for this round in parallel — independent reads and
+      // writes are safe to overlap; DB-level optimistic locking handles any
+      // conflicts on the same entity.
+      const toolResults = await Promise.all(
+        choice.tool_calls.map(async (call) => {
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>;
+          } catch {
+            args = {};
+          }
+          let result: string;
+          try {
+            result = await executeTool(call.function.name, args);
+          } catch (error) {
+            result = JSON.stringify({
+              error: error instanceof Error ? error.message : "Tool execution failed",
+            });
+          }
+          return { id: call.id, result };
+        }),
+      );
 
-        let result: string;
-        try {
-          result = await executeTool(call.function.name, args);
-        } catch (error) {
-          result = JSON.stringify({
-            error: error instanceof Error ? error.message : "Tool execution failed",
-          });
-        }
-
-        transcript.push({
-          role: "tool",
-          tool_call_id: call.id,
-          content: result,
-        });
+      for (const { id, result } of toolResults) {
+        transcript.push({ role: "tool", tool_call_id: id, content: result });
       }
 
       continue;
@@ -129,7 +163,8 @@ async function fetchOpenAiChoice(
   if (!apiKey) throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured.");
   const useStream = Boolean(onToken);
 
-  const response = await fetchOpenAi(
+  const label = useStream ? "openai.chat.tools.stream" : "openai.chat.tools";
+  const response = await fetchWithRetry(
     "https://api.openai.com/v1/chat/completions",
     {
       method: "POST",
@@ -147,7 +182,7 @@ async function fetchOpenAiChoice(
       }),
       signal,
     },
-    { label: useStream ? "openai.chat.tools.stream" : "openai.chat.tools" },
+    label,
   );
 
   if (!response.ok) {

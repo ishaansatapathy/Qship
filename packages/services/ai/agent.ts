@@ -1,20 +1,6 @@
-import { logger } from "@repo/logger";
-import { ServiceError } from "../errors";
 import { isOpenAiConfigured } from "./openai";
-import type { OpenAiConversationMessage } from "./openai-tools";
-import { runOpenAiToolLoop, MAX_TOOL_ROUNDS } from "./openai-tools";
-import {
-  detectInjectionAttempt,
-  estimateTokenCount,
-  MAX_AGENT_CONTEXT_TOKENS,
-} from "./agent-guard";
-import { AGENT_TOOLS } from "./agent-internals";
-import { buildToolExecutor } from "./agent-executor";
-import { createToolMemoryTracker, loadAgentApprovalDefaults, prepareAgentRun, trimAgentHistory } from "./agent-run";
-import { summarizeToolResult } from "./agent-tool-memory";
 import type { AgentFocus } from "./agent-focus";
-import { AgentTrace } from "./agent-trace";
-import { exportAgentTrace } from "./agent-trace-export";
+import { runAgentCorePipeline } from "./agent-core";
 
 export type AgentHistoryMessage = {
   role: "user" | "assistant";
@@ -75,87 +61,5 @@ export async function runAgentChat(
     toolMemory?: import("./agent-tool-memory").AgentToolMemoryEntry[];
   },
 ): Promise<AgentChatResult> {
-  if (!isOpenAiConfigured()) {
-    throw new ServiceError("PRECONDITION_FAILED", "OpenAI is not configured. Set OPENAI_API_KEY.");
-  }
-
-  const injectionCheck = detectInjectionAttempt(input.message);
-  if (injectionCheck.flagged) {
-    logger.warn("agent.injection_attempt_blocked", {
-      tenantId,
-      reason: injectionCheck.reason,
-      messagePreview: input.message.slice(0, 200),
-    });
-    return {
-      reply:
-        "I can't process that request as it appears to contain instructions that could compromise security. " +
-        "If you were trying to do something specific, please rephrase it.",
-      actions: [],
-    };
-  }
-
-  const history = trimAgentHistory(input.history, input.focus);
-  const previewMessages: OpenAiConversationMessage[] = [
-    ...history.map((m) => ({ role: m.role, content: m.content })),
-    { role: "user" as const, content: input.message.trim() },
-  ];
-  const estimatedTokens = estimateTokenCount(previewMessages);
-  if (estimatedTokens > MAX_AGENT_CONTEXT_TOKENS) {
-    logger.warn("agent.context_too_large", { tenantId, estimatedTokens });
-    return {
-      reply: "The conversation history is too long for me to process safely. Please start a new conversation.",
-      actions: [],
-    };
-  }
-
-  const actions: AgentActionCard[] = [];
-  const approvalDefaults = await loadAgentApprovalDefaults(tenantId);
-  const trace = new AgentTrace();
-
-  const prepared = await prepareAgentRun(tenantId, input, approvalDefaults);
-  const memoryTracker = createToolMemoryTracker(prepared, input.toolMemory ?? []);
-
-  const baseExecutor = buildToolExecutor({
-    tenantId,
-    actions,
-    userMessage: input.message.trim(),
-    approvalDefaults,
-    trace,
-  });
-
-  const executeTool = async (name: string, args: Record<string, unknown>): Promise<string> => {
-    const result = await baseExecutor(name, args);
-    memoryTracker.track(summarizeToolResult(name, result, args));
-    return result;
-  };
-
-  const messages: OpenAiConversationMessage[] = [
-    { role: "system", content: prepared.systemPrompt },
-    ...prepared.history.map((m) => ({ role: m.role, content: m.content })),
-    { role: "user", content: input.message.trim() },
-  ];
-
-  const { content } = await runOpenAiToolLoop(messages, AGENT_TOOLS, executeTool, {
-    maxRounds: MAX_TOOL_ROUNDS,
-    timeoutMs: 120_000,
-  });
-
-  logger.info("agent.run.completed", {
-    ...trace.toLogPayload(),
-    tenantId,
-    toolCalls: memoryTracker.getNewEntries().length,
-    focusCleared: prepared.focusCleared,
-  });
-  await exportAgentTrace(trace, { tenantId, channel: "run" });
-
-  return {
-    reply: content,
-    actions,
-    focusCleared: prepared.focusCleared,
-    effectiveFocus: prepared.effectiveFocus,
-    toolMemory: memoryTracker.getMergedMemory(),
-    newToolMemoryEntries: memoryTracker.getNewEntries(),
-    traceId: trace.traceId,
-    traceSpans: trace.toSpans(),
-  };
+  return runAgentCorePipeline(tenantId, input, {}, "run");
 }
