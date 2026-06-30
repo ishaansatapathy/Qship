@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { Bot, ClipboardList, GitPullRequest, Kanban, Sparkles } from "lucide-react";
-import { InViewAnnotation } from "./qship-reveal";
 import { FlowDottedConnectors } from "./qship-flow-connectors";
 
 const STEPS = [
@@ -100,10 +99,7 @@ export function QshipProcess() {
           <div className="qship-flow-reveal" data-visible={headVisible}>
             <span className="qship-eyebrow">How it works</span>
             <h2 className="qship-h2" style={{ marginTop: 16 }}>
-              From request to{" "}
-              <InViewAnnotation type="underline" delay={350}>
-                shipped
-              </InViewAnnotation>
+              From request to shipped
             </h2>
             <p className="qship-lede" style={{ maxWidth: 520 }}>
               Five phases — discovery, planning, development, AI review, and human approval.

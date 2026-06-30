@@ -9,6 +9,7 @@ import { useQshipUser, initials } from "~/components/app/use-qship-user";
 import { useDemoMode } from "~/hooks/use-demo-mode";
 import { signOutShipflow } from "~/lib/sign-out";
 import { getApiUnreachableMessage, formatTrpcQueryError } from "~/lib/api-unreachable-message";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 
 const GITHUB_SETUP_HINT =
   "Set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, and GITHUB_WEBHOOK_SECRET on Railway (webhook secret must match your GitHub App).";
@@ -47,10 +48,66 @@ const githubStatusQueryOptions = {
   refetchOnWindowFocus: false,
 } as const;
 
+function ConnectedReposBadge({
+  label,
+  repos,
+  reposLoading,
+}: {
+  label: string;
+  repos?: Array<{ fullName: string; defaultBranch: string }>;
+  reposLoading?: boolean;
+}) {
+  const badge = (
+    <span
+      className={`qship-set-status${repos?.length ? " qship-set-status--hoverable" : ""}`}
+      data-on={true}
+      tabIndex={repos?.length ? 0 : undefined}
+    >
+      {label}
+    </span>
+  );
+
+  if (!repos?.length) {
+    return badge;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent
+        side="bottom"
+        align="end"
+        sideOffset={8}
+        className="border border-white/10 bg-[#111] px-3 py-2.5 text-white shadow-xl"
+      >
+        <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>
+          Connected repositories
+        </p>
+        {reposLoading ? (
+          <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Loading…</p>
+        ) : (
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 4 }}>
+            {repos.map((repo) => (
+              <li key={repo.fullName} style={{ fontSize: 12, fontFamily: "var(--qship-mono, monospace)" }}>
+                {repo.fullName}
+                <span style={{ marginLeft: 6, fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+                  ({repo.defaultBranch})
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function ConnectionRow({
   connected,
   connectHref,
   connectedLabel,
+  connectedRepos,
+  connectedReposLoading,
   onDisconnect,
   disconnecting,
   demoBlocked,
@@ -65,6 +122,8 @@ function ConnectionRow({
   connected: boolean;
   connectHref: string;
   connectedLabel: string;
+  connectedRepos?: Array<{ fullName: string; defaultBranch: string }>;
+  connectedReposLoading?: boolean;
   onDisconnect: () => void;
   disconnecting?: boolean;
   demoBlocked?: boolean;
@@ -87,9 +146,11 @@ function ConnectionRow({
   if (connected) {
     return (
       <div className="qship-set-row-actions">
-        <span className="qship-set-status" data-on={true}>
-          {connectedLabel}
-        </span>
+        <ConnectedReposBadge
+          label={connectedLabel}
+          repos={connectedRepos}
+          reposLoading={connectedReposLoading}
+        />
         {onSync ? (
           <button type="button" className="qship-btn-ghost" disabled={syncing} onClick={onSync}>
             {syncing ? "Syncing…" : "Sync repos"}
@@ -192,6 +253,15 @@ export default function SettingsPage() {
   const githubInstallUrl = trpc.github.getInstallUrl.useQuery(
     { returnTo: "/settings" },
     { ...githubStatusQueryOptions, enabled: Boolean(user) },
+  );
+  const githubRepos = trpc.github.listRepositories.useQuery(
+    {},
+    {
+      ...githubStatusQueryOptions,
+      enabled:
+        Boolean(user) &&
+        (githubStatus.data?.connected === true || githubCache?.connected === true),
+    },
   );
   const approvalDefaults = trpc.settings.getApprovalDefaults.useQuery({});
   const [name, setName] = useState("");
@@ -411,6 +481,8 @@ export default function SettingsPage() {
                 ? `Connected · ${githubRepositoryCount} repo${githubRepositoryCount === 1 ? "" : "s"}`
                 : "Connected"
             }
+            connectedRepos={githubConnected ? githubRepos.data : undefined}
+            connectedReposLoading={githubConnected && githubRepos.isPending}
             onDisconnect={() => disconnectGithub.mutate({})}
             disconnecting={disconnectGithub.isPending}
             onSync={() => syncGithub.mutate({})}

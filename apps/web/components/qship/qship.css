@@ -5,7 +5,7 @@
   --qship-surface-raised: #0f0f10;
   --qship-line: rgba(255, 255, 255, 0.1);
   --qship-border: rgba(255, 255, 255, 0.1);
-  --qship-line-strong: rgba(255, 255, 255, 0.2);
+  --qship-line-strong: rgba(255, 255, 255, 0.22);
   --qship-line-soft: rgba(255, 255, 255, 0.06);
   --qship-text: #f5f5f7;
   --qship-muted: #9ca3af;
@@ -96,20 +96,28 @@
   letter-spacing: 0;
 }
 
-/* InsForge-style side borders + centered frame */
-.qship-shell {
-  width: 100%;
-}
-
-.qship-frame {
+/* Thread-style grid: one column with continuous side rails + horizontal dividers per section */
+.qship-page-column {
   width: var(--qship-frame);
   margin-inline: auto;
   border-left: 1px solid var(--qship-line-strong);
   border-right: 1px solid var(--qship-line-strong);
 }
 
-.qship-section {
+.qship-shell {
+  width: 100%;
+}
+
+.qship-frame {
+  width: 100%;
+  margin-inline: 0;
+  border-left: none;
+  border-right: none;
   border-bottom: 1px solid var(--qship-line-strong);
+}
+
+.qship-section {
+  border-bottom: none;
 }
 
 .qship-grid-bg {
@@ -219,7 +227,7 @@
   height: 56px;
   background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--qship-line-strong);
+  border-bottom: none;
 }
 
 .qship-nav-inner {
@@ -232,6 +240,7 @@
   padding-inline: 20px;
   border-left: 1px solid var(--qship-line-strong);
   border-right: 1px solid var(--qship-line-strong);
+  border-bottom: 1px solid var(--qship-line-strong);
 }
 
 .qship-nav-link {
@@ -431,7 +440,7 @@
   position: relative;
   padding-top: 56px;
   padding-bottom: 48px;
-  overflow: hidden;
+  overflow-x: clip;
   background: #000000;
 }
 
@@ -468,10 +477,13 @@
     linear-gradient(to bottom, transparent 40%, rgba(0, 0, 0, 0.9) 100%);
 }
 
-/* Hero uses same Thread grid — vertical on frame, horizontal on section shell */
 .qship-hero-shell {
   position: relative;
   z-index: 2;
+}
+
+.qship-hero .qship-frame {
+  border-bottom: none;
 }
 
 .qship-hero-body {
@@ -516,6 +528,7 @@
 .qship-marquee {
   overflow: hidden;
   padding: 16px 0;
+  border-top: 1px solid var(--qship-line-strong);
 }
 
 .qship-marquee-track {
@@ -694,9 +707,16 @@
 }
 
 @media (max-width: 960px) {
-  .qship-frame,
+  .qship-page-column,
   .qship-nav-inner {
     width: calc(100% - 24px);
+  }
+
+  .qship-frame {
+    padding-inline: 12px;
+  }
+
+  .qship-nav-inner {
     padding-inline: 12px;
   }
 
