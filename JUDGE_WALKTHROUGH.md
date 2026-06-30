@@ -42,9 +42,9 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | 0:00 | Land on `/brief` — see pipeline stage counts | Product vision, working demo |
 | 0:10 | Click any feature → see delivery timeline | Feature depth |
 | 0:20 | Click **"Run Triage"** → P0 with riskLevel + riskFactors | AI quality |
-| 0:30 | Click **"Generate PRD"** → see technicalRequirements + rollbackPlan | AI quality |
-| 1:45 | Click **"Explain in Agent"** on a task → pseudo-code walkthrough | Task walkthrough |
-| 1:55 | Say **"Explain more"** then **"Next task"** | Agent + codebase mode |
+| 0:35 | Click **"Generate PRD"** → see technicalRequirements + rollbackPlan | AI quality |
+| 0:50 | Open `/tasks` — Kanban columns for generated tasks | SaaS — engineering board |
+| 0:55 | Optional: **"Explain in Agent"** on a task → walkthrough panel | Task walkthrough |
 
 ---
 
@@ -65,17 +65,21 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 
 ---
 
-## Minute 3 — Agent + MCP + docs (2:00 – 3:00)
+## Minute 3 — Billing + Agent + docs (2:00 – 3:00)
 
 | Time | Action | Rubric criterion |
 |---|---|---|
-| 2:00 | Open `/agent` | Agent quality |
-| 2:05 | Type: `"Summarise the pipeline and triage any submitted features"` | Agent tool use |
-| 2:20 | Watch streamed response + action cards rendered | Agent streaming |
-| 2:30 | Type: `"Show review delta for the last feature we reviewed"` | Review loop |
-| 2:40 | Open new tab: https://repoapi-production-adfe.up.railway.app/docs | Documentation |
-| 2:45 | Observe Scalar UI — tag groups, code samples, MCP manifest | Docs quality |
+| 2:00 | Open `/billing` — plan cards, AI credits, workspace stats | SaaS product experience |
+| 2:10 | Click **Pay with Razorpay** on Pro → demo instant upgrade **or** live checkout (your account) | Razorpay checkout |
+| 2:15 | Note **one-time purchase · credits added** copy + enforced AI review limits | Billing honesty |
+| 2:20 | Open `/agent` | Agent quality |
+| 2:25 | Type: `"Summarise the pipeline and triage any submitted features"` | Agent tool use |
+| 2:35 | Watch streamed response + action cards rendered | Agent streaming |
+| 2:45 | Open https://repoapi-production-adfe.up.railway.app/docs | Documentation |
+| 2:50 | Observe Scalar UI — tag groups, code samples, MCP manifest | Docs quality |
 | 2:55 | Open https://repoapi-production-adfe.up.railway.app/openapi.json | API completeness |
+
+**Billing quick path:** `/billing` → see **Plan · AI credits · Status** → demo upgrade (no keys) or live Razorpay (production keys set). Server verifies order amount + workspace before activating plan (`packages/services/billing/order-verify.ts`).
 
 ---
 
@@ -129,6 +133,25 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | PR linking | `shipflow/<uuid>` branch | Auto-links to feature |
 | PR AI comment | Linked PR | Structured review comment posted/updated |
 | Installation events | `installation.deleted` | Org disconnected gracefully |
+
+---
+
+### SaaS Product Experience & Billing
+
+| What to check | Where | What to look for |
+|---|---|---|
+| Plan tiers | `/billing` | Free, Pro, Enterprise (+ optional Test with `BILLING_ENABLE_TEST_PLAN`) |
+| Razorpay checkout | `/billing` → Pay | Checkout modal or demo upgrade |
+| Server order verify | `order-verify.ts` | Amount + workspace + plan from Razorpay order notes |
+| AI credit limits | `/billing` stats → Run AI Review | Credits decrement; block at 0 |
+| One-click demo | `/api-auth/demo?next=/brief` | Lands on pipeline without signup |
+| App shell | Sidebar + `⌘K` | All 7 surfaces reachable |
+
+**Differentiators:**
+- `resolveVerifiedPlanTierFromOrder` — client cannot upgrade to a higher tier than paid amount
+- `consumeAiReviewCredit` — atomic DB decrement, fails closed at zero credits
+- `getVisibleBillingPlans` — hides internal Test tier unless env flag set
+- Demo paid upgrades blocked in production when Razorpay keys missing
 
 ---
 
@@ -195,7 +218,9 @@ https://qship.ishaandev.co.in/api-auth/demo?next=/brief
 | File | What makes it impressive |
 |---|---|
 | `packages/services/feature-ai.ts` | 9-dim PR review, delta re-review, technical PRD, risk triage |
-| `packages/services/review.ts` | Approval gate validation, delta comparison, audit trail |
+| `packages/services/billing/order-verify.ts` | Server-side Razorpay order amount + workspace verification |
+| `packages/services/billing/index.ts` | Checkout, confirm, demo fallback guard |
+| `packages/services/review.ts` | AI credit consumption + approval gate |
 | `packages/services/github/client.ts` | 55-min token cache, structured logging |
 | `packages/services/github/diff.ts` | Paginated, per-file truncation, binary exclusion |
 | `packages/services/github/pr-review.ts` | Update-in-place comment, delta-aware review selection |

@@ -45,8 +45,9 @@ node scripts/verify-production.mjs
 | Step | Link |
 |------|------|
 | **1. Try the product (60 sec)** | [**One-click demo → Brief**](https://qship.ishaandev.co.in/api-auth/demo?next=/brief) |
-| **2. Scoring walkthrough (3 min)** | **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** |
-| **3. Submission one-pager** | **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** |
+| **2. Scoring walkthrough (3 min)** | **[JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)** — pipeline, review, **billing**, agent, Scalar |
+| **3. Step-by-step demo (13 steps)** | **[DEMO.md](./DEMO.md)** |
+| **4. Submission one-pager** | **[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)** |
 
 Demo login: `demo@qship.dev` / `DemoPass123!`
 
@@ -158,7 +159,7 @@ curl -fsS https://repoapi-production-adfe.up.railway.app/integrations/slack
 | **Duplicate detection** | Before every new feature | `check_existing_capability` |
 | **Multi-channel intake** | Email / support / API ingestion | `intake_from_channel` |
 | **Analytics** | `/analytics` — delivery metrics | `shipflow-observability` |
-| **Billing** | `/billing` — Razorpay checkout | billing tRPC |
+| **Billing** | `/billing` — one-time Razorpay checkout + AI credit limits | billing tRPC |
 | **Scalar API docs** | Production OpenAPI reference | `GET /docs` |
 
 ---
@@ -229,7 +230,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 │  /tasks      Engineering Kanban (backlog → todo → done)            │
 │  /analytics  Delivery metrics + throughput                         │
 │  /settings   GitHub App connect + repo sync + approval toggles     │
-│  /billing    Razorpay subscription management                      │
+│  /billing    One-time Razorpay checkout + AI credit entitlements   │
 └────────────────────────┬───────────────────────────────────────────┘
                          │  tRPC + REST (OpenAPI/Scalar)
 ┌────────────────────────▼───────────────────────────────────────────┐
@@ -282,7 +283,7 @@ See **[deploy/YOU_DEPLOY.md](./deploy/YOU_DEPLOY.md)** for a concise deploy chec
 | **MCP** | MCP 2024-11-05 — 37 tools, JSON-RPC 2.0, CI parity test |
 | **GitHub** | GitHub App + Octokit — install, repo sync, webhooks, PR review comments |
 | **Background jobs** | In-process workflows on Railway (PRD gen, task gen, AI review); Inngest optional |
-| **Billing** | Razorpay — subscription checkout + webhook |
+| **Billing** | Razorpay — one-time checkout, server order verify, webhook, AI credit limits |
 | **CI** | GitHub Actions — parallel type-check + test + E2E + Playwright artifacts |
 
 ---

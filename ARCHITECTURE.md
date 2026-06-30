@@ -17,7 +17,7 @@
 │  /analytics   Delivery metrics — throughput, cycle time, stage funnel       │
 │  /inbox       Multi-channel intake (email, support, API)                    │
 │  /settings    GitHub App connect + approval toggles                         │
-│  /billing     Razorpay subscription management                              │
+│  /billing     One-time Razorpay checkout + AI credit entitlements           │
 │  /queue       Approval queue                                                │
 │  /calendar    Calendar integration                                          │
 └──────────────────────────────┬──────────────────────────────────────────────┘

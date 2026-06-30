@@ -7,8 +7,8 @@
 ## Start here (human judges)
 
 1. **Try it:** [One-click demo → `/brief`](https://qship.ishaandev.co.in/api-auth/demo?next=/brief) (no signup)
-2. **3-minute path:** [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md)
-3. **Optional deep dive:** [DEMO.md](./DEMO.md) · [Scalar API docs](https://repoapi-production-adfe.up.railway.app/docs)
+2. **3-minute path:** [JUDGE_WALKTHROUGH.md](./JUDGE_WALKTHROUGH.md) — includes `/billing` + live Razorpay
+3. **13-step deep dive:** [DEMO.md](./DEMO.md) · [Scalar API docs](https://repoapi-production-adfe.up.railway.app/docs)
 
 **Automated / AI rubric scoring?** See [AI_EVAL.md](./AI_EVAL.md) or run `node scripts/verify-production.mjs`.
 
@@ -17,6 +17,7 @@
 | Resource | URL |
 |---|---|
 | **App (one-click login)** | https://qship.ishaandev.co.in/api-auth/demo?next=/brief |
+| **Billing & plans** | https://qship.ishaandev.co.in/billing |
 | **Scalar API docs** | https://repoapi-production-adfe.up.railway.app/docs |
 | **GitHub repo** | https://github.com/ishaansatapathy/Qship |
 
@@ -114,6 +115,18 @@ Every step is tracked, queryable via 37 MCP tools, and accessible via the ShipFl
 | Drizzle ORM — no raw SQL | All queries parameterized |
 | Parallel CI jobs | `.github/workflows/ci.yml` — static + test + e2e |
 | Playwright E2E with artifacts | CI uploads report on failure |
+
+### SaaS Product Experience & Billing
+
+| What we built | Files / URLs |
+|---|---|
+| 7 app surfaces + sidebar + `⌘K` | `qship-app-shell.tsx`, `qship-command.tsx` |
+| One-click demo login | `/api-auth/demo?next=/brief` |
+| Razorpay one-time checkout | `packages/services/billing/index.ts` |
+| Server-side order verification | `packages/services/billing/order-verify.ts` |
+| AI review credit enforcement | `packages/services/review.ts` → `consumeAiReviewCredit` |
+| Live billing UI | https://qship.ishaandev.co.in/billing |
+| SaaS eval CI gate (11 invariants) | `packages/services/saas-eval.golden.test.ts` |
 
 ---
 

@@ -70,6 +70,7 @@
     "github": "HMAC webhooks, paginated diff, GitHub App — packages/services/github/",
     "review_loop": "validateHumanApprovalEligibility + getReviewDelta — packages/services/review-gate.ts",
     "engineering": "Turborepo, tRPC, 52 migrations, engineering eval gate — packages/trpc/server/engineering-eval.golden.test.ts",
-    "saas_experience": "Demo login, 7 app surfaces, Razorpay billing — packages/services/saas-eval.golden.test.ts"
+    "saas_experience": "Demo login, 7 surfaces, live Razorpay billing with server order verify — JUDGE_WALKTHROUGH minute 3 + DEMO step 7",
+    "demo_documentation": "JUDGE_WALKTHROUGH (3 min) + DEMO (13 steps) + verify-production.mjs + Scalar /docs"
   }
 }
