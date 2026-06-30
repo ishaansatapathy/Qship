@@ -1,30 +1,20 @@
 "use client";
 
-
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import {
-
   Bot,
-
   ClipboardList,
-
   Command,
-
   FileText,
-
   GitPullRequest,
-
   Kanban,
-
   ListChecks,
-
   Search,
-
   Sparkles,
-
 } from "lucide-react";
+
+import GradientBlinds from "./GradientBlinds";
 
 import { QshipLogoMark, QshipWordmark } from "./qship-logo";
 
@@ -68,7 +58,7 @@ function RequestsState() {
 
     <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", minHeight: 380 }}>
 
-      <div className="qship-hero-pane-side" style={{ borderRight: "1px solid var(--qship-line)", padding: 18 }}>
+      <div className="qship-hero-pane-side">
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
 
@@ -328,61 +318,106 @@ const STATES: Record<string, () => React.ReactNode> = {
 
 
 
+// Words for staggered headline animation
+const HEADLINE_WORDS = ["Ship", "features", "with", "AI", "velocity", "—", "human", "control."];
+const SUB_WORDS = [
+  "Qship", "turns", "messy", "requests", "into", "PRDs,",
+  "engineering", "tasks,", "and", "GitHub", "PRs", "—",
+  "then", "runs", "a", "QA", "agent", "loop", "before",
+  "humans", "approve", "release.",
+];
+
 export function QshipHero() {
 
   const { demoLogin, isDemoLoading } = useQshipAuth();
 
   const [tab, setTab] = useState("requests");
+  const [visibleWords, setVisibleWords] = useState(0);
+  const [subVisible, setSubVisible] = useState(false);
+  const [ctaVisible, setCtaVisible] = useState(false);
 
   const activeTab = DOCK.find((d) => d.id === tab) ?? DOCK[0]!;
-
   const StateView = STATES[tab] ?? RequestsState;
 
-
+  useEffect(() => {
+    // Stagger headline words: 80ms apart, starting after 200ms
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    HEADLINE_WORDS.forEach((_, i) => {
+      timers.push(setTimeout(() => setVisibleWords(i + 1), 200 + i * 80));
+    });
+    // Sub text fades in after headline finishes
+    timers.push(setTimeout(() => setSubVisible(true), 200 + HEADLINE_WORDS.length * 80 + 100));
+    // CTA appears last
+    timers.push(setTimeout(() => setCtaVisible(true), 200 + HEADLINE_WORDS.length * 80 + 400));
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   return (
 
     <section className="qship-hero">
-      <div className="qship-grid-bg" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
+      {/* Gradient only behind headline — not bleeding into preview area */}
+      <div className="qship-hero-bg" aria-hidden="true">
+        <GradientBlinds
+          gradientColors={["#030308", "#0a1028", "#152060", "#030308"]}
+          angle={19}
+          noise={0.18}
+          blindCount={18}
+          blindMinWidth={55}
+          spotlightRadius={0.45}
+          spotlightSoftness={1.2}
+          spotlightOpacity={0.65}
+          mouseDampening={0.2}
+          distortAmount={0}
+          shineDirection="right"
+          mixBlendMode="normal"
+          className="qship-gradient-blinds-bg"
+        />
+        <div className="qship-hero-vignette" />
+      </div>
 
-      <div className="qship-shell qship-section">
+      <div className="qship-shell qship-section qship-hero-shell">
 
         <div className="qship-frame">
 
-          <div className="qship-hero-body qship-fade-up">
-
-            <h1 className="qship-headline" data-hero-font="minecraft">
-
-              Ship features with
-
-              <br />
-
-              <span className="qship-headline-accent">AI velocity — human control.</span>
-
+          <div className="qship-hero-body">
+            {/* Staggered word-by-word headline */}
+            <h1
+              className="qship-headline"
+              style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0.28em", lineHeight: 1.15 }}
+            >
+              {HEADLINE_WORDS.map((word, i) => {
+                const isAccent = i >= 3 && i <= 4; // "AI velocity"
+                return (
+                  <span
+                    key={i}
+                    style={{
+                      display: "inline-block",
+                      opacity: visibleWords > i ? 1 : 0,
+                      transform: visibleWords > i ? "translateY(0)" : "translateY(18px)",
+                      transition: "opacity 0.45s ease, transform 0.45s ease",
+                      color: isAccent ? "var(--qship-accent-bright)" : undefined,
+                    }}
+                  >
+                    {word}
+                  </span>
+                );
+              })}
             </h1>
 
-
-
+            {/* Subtext fades in as a block */}
             <p
-
               style={{
-
                 marginTop: 22,
-
                 maxWidth: 560,
-
                 marginInline: "auto",
-
                 fontSize: "1.05rem",
-
                 lineHeight: 1.75,
-
                 color: "var(--qship-muted)",
-
+                opacity: subVisible ? 1 : 0,
+                transform: subVisible ? "translateY(0)" : "translateY(12px)",
+                transition: "opacity 0.5s ease, transform 0.5s ease",
               }}
-
             >
-
               Qship turns messy requests into PRDs, engineering tasks, and GitHub PRs — then runs a{" "}
               <strong style={{ color: "var(--qship-text)", fontWeight: 600 }}>
                 <InViewAnnotation type="underline" delay={600} strokeWidth={2}>
@@ -392,10 +427,19 @@ export function QshipHero() {
               before humans approve release.
             </p>
 
-
-
-            <div style={{ marginTop: 40, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-
+            {/* CTA buttons */}
+            <div
+              style={{
+                marginTop: 40,
+                display: "flex",
+                gap: 10,
+                justifyContent: "center",
+                flexWrap: "wrap",
+                opacity: ctaVisible ? 1 : 0,
+                transform: ctaVisible ? "translateY(0)" : "translateY(10px)",
+                transition: "opacity 0.5s ease, transform 0.5s ease",
+              }}
+            >
               <button
                 type="button"
                 className="qship-btn-primary"
@@ -404,27 +448,25 @@ export function QshipHero() {
               >
                 {isDemoLoading ? "Loading…" : "Start free"}
               </button>
-
-              <a href="#how" className="qship-btn-ghost">
-
-                See the workflow
-
-              </a>
-
+              <a href="#how" className="qship-btn-ghost">See the workflow</a>
             </div>
 
-
-
-            <p style={{ marginTop: 28, fontSize: 12, color: "var(--qship-dim)" }}>
-
+            <p
+              style={{
+                marginTop: 28,
+                fontSize: 12,
+                color: "var(--qship-dim)",
+                opacity: ctaVisible ? 1 : 0,
+                transition: "opacity 0.6s ease 0.2s",
+              }}
+            >
               Next.js · tRPC · GitHub · Inngest · Drizzle · BetterAuth · Razorpay
-
             </p>
-
           </div>
 
 
 
+          <div className="qship-preview-wrap">
           <div id="preview" className="qship-preview-window">
 
             <div className="qship-preview-chrome">
@@ -493,8 +535,6 @@ export function QshipHero() {
 
           </div>
 
-
-
           <div className="qship-hero-dock" role="tablist" aria-label="Preview tabs">
 
             {DOCK.map((d) => (
@@ -547,6 +587,7 @@ export function QshipHero() {
 
             </button>
 
+          </div>
           </div>
 
         </div>
