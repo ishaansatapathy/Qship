@@ -18,6 +18,7 @@ const dbMocks = vi.hoisted(() => {
   const repoFindFirst = vi.fn();
   const featureFindFirst = vi.fn();
   const approvalFindFirst = vi.fn();
+  const pullRequestFindFirst = vi.fn();
   const mockOnConflict = vi.fn(async () => ({}));
   const mockValues = vi.fn(() => ({ onConflictDoUpdate: mockOnConflict }));
   const mockInsert = vi.fn(() => ({ values: mockValues }));
@@ -30,6 +31,7 @@ const dbMocks = vi.hoisted(() => {
     repoFindFirst,
     featureFindFirst,
     approvalFindFirst,
+    pullRequestFindFirst,
     mockInsert,
     mockUpdate,
     mockDelete,
@@ -69,6 +71,7 @@ vi.mock("@repo/database", async (importOriginal) => {
         repositories: { findFirst: (...args: unknown[]) => dbMocks.repoFindFirst(...args) },
         featureRequests: { findFirst: (...args: unknown[]) => dbMocks.featureFindFirst(...args) },
         humanApprovals: { findFirst: (...args: unknown[]) => dbMocks.approvalFindFirst(...args) },
+        pullRequests: { findFirst: (...args: unknown[]) => dbMocks.pullRequestFindFirst(...args) },
       },
       insert: dbMocks.mockInsert,
       update: dbMocks.mockUpdate,
@@ -80,6 +83,7 @@ vi.mock("@repo/database", async (importOriginal) => {
 import {
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
+  processGithubPushWebhook,
 } from "./webhook";
 
 const FEATURE_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -240,6 +244,98 @@ describe("processGithubPullRequestWebhook (production)", () => {
     const result = await processGithubPullRequestWebhook(payload, "del-7");
     expect(result).toMatchObject({ handled: true, linked: false });
     expect(result).toHaveProperty("hint");
+  });
+});
+
+function basePushPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    ref: `refs/heads/shipflow/${FEATURE_ID}`,
+    before: "aaa111",
+    after: "def456",
+    deleted: false,
+    installation: { id: 999 },
+    repository: { id: 12345, full_name: "acme/core" },
+    pusher: { name: "dev" },
+    commits: [{ id: "def456", message: "fix: validation" }],
+    ...overrides,
+  };
+}
+
+describe("processGithubPushWebhook (production)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsDuplicate.mockResolvedValue(false);
+    installMocks.syncInstallationRepositoriesForOrg.mockResolvedValue(undefined);
+    installMocks.dispatchWebhookPullRequestAiReview.mockResolvedValue({
+      queued: true,
+      workflowRunId: "wf-push",
+    });
+    dbMocks.orgFindFirst.mockResolvedValue({ id: ORG_ID });
+    dbMocks.repoFindFirst.mockResolvedValue({ id: REPO_ROW_ID });
+    dbMocks.featureFindFirst.mockResolvedValue({
+      id: FEATURE_ID,
+      organizationId: ORG_ID,
+      status: "fix_needed",
+    });
+    dbMocks.pullRequestFindFirst.mockResolvedValue(null);
+  });
+
+  it("ignores non-shipflow branches", async () => {
+    const result = await processGithubPushWebhook(
+      basePushPayload({ ref: "refs/heads/main" }),
+      "del-push-1",
+    );
+    expect(result).toMatchObject({ handled: true, linked: false, reason: "unlinked_branch" });
+  });
+
+  it("links push and queues AI review when open PR exists", async () => {
+    dbMocks.pullRequestFindFirst.mockResolvedValueOnce({
+      id: `${ORG_ID}-pr-777`,
+      githubPrNumber: 8,
+      state: "open",
+    });
+
+    const result = await processGithubPushWebhook(basePushPayload(), "del-push-2");
+
+    expect(result).toMatchObject({
+      handled: true,
+      linked: true,
+      featureId: FEATURE_ID,
+      reviewQueued: true,
+      prNumber: 8,
+    });
+    expect(mockAppend).toHaveBeenCalledWith(
+      FEATURE_ID,
+      expect.objectContaining({ title: "Feature branch updated" }),
+    );
+    expect(mockTransition).toHaveBeenCalledWith(FEATURE_ID, "pr_open");
+    expect(installMocks.dispatchWebhookPullRequestAiReview).toHaveBeenCalledWith({
+      pullRequestId: `${ORG_ID}-pr-777`,
+      featureId: FEATURE_ID,
+      headSha: "def456",
+    });
+    expect(dbMocks.mockUpdate).toHaveBeenCalled();
+  });
+
+  it("links push without PR and hints to open one", async () => {
+    const result = await processGithubPushWebhook(basePushPayload(), "del-push-3");
+
+    expect(result).toMatchObject({
+      handled: true,
+      linked: true,
+      featureId: FEATURE_ID,
+      reviewQueued: false,
+    });
+    expect(result).toHaveProperty("hint");
+    expect(installMocks.dispatchWebhookPullRequestAiReview).not.toHaveBeenCalled();
+  });
+
+  it("skips branch deletion pushes", async () => {
+    const result = await processGithubPushWebhook(
+      basePushPayload({ deleted: true, after: "0000000000000000000000000000000000000000" }),
+      "del-push-4",
+    );
+    expect(result).toMatchObject({ handled: true, linked: false, reason: "branch_deleted" });
   });
 });
 

@@ -104,6 +104,18 @@ if (match) {
 
 This means developers (or the AI code implementation agent) just need to create branches with this naming convention — no manual linking required.
 
+### Push events (local / CI commits)
+
+When code is pushed to `shipflow/<feature-uuid>` (without opening a new PR):
+
+1. GitHub sends a `push` webhook
+2. Qship extracts the feature UUID from the branch name
+3. Activity is logged on the feature timeline
+4. If an **open PR** already exists for that feature → head SHA is updated and **AI re-review is queued** (same as `pull_request.synchronize`)
+5. If no PR exists yet → feature moves to `in_development` when appropriate; open a PR to trigger the first AI review
+
+This is how laptop pushes and `git push origin shipflow/<uuid>` stay in sync with Qship without extra UI steps.
+
 ---
 
 ## Webhook security

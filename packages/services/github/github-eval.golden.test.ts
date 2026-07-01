@@ -19,6 +19,7 @@ import {
   getGithubWebhookOutboxStats,
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
+  processGithubPushWebhook,
 } from "./index";
 import { executeFeatureRelease } from "./release-ship";
 
@@ -28,6 +29,7 @@ export const GITHUB_EVAL_INVARIANTS = [
   "webhook_hmac_timing_safe",
   "postgres_delivery_dedup",
   "webhook_processor_pull_request",
+  "webhook_processor_push",
   "webhook_processor_installation",
   "octokit_squash_merge_contract",
   "feature_branch_shipflow_uuid",
@@ -88,6 +90,20 @@ describe("github integration eval harness", () => {
     expect(typeof enqueueGithubWebhookRetry).toBe("function");
     expect(typeof getGithubWebhookOutboxStats).toBe("function");
     expect(typeof dispatchWebhookPullRequestAiReview).toBe("function");
+    expect(typeof processGithubPushWebhook).toBe("function");
+  });
+
+  it("routes push events for shipflow branch linking", () => {
+    const handler = readFileSync(
+      path.resolve(__dirname, "../../../apps/api/src/github-webhook.ts"),
+      "utf8",
+    );
+    expect(handler).toContain('event === "push"');
+    expect(handler).toContain("processGithubPushWebhook");
+
+    const webhookSource = readFileSync(path.resolve(__dirname, "./webhook.ts"), "utf8");
+    expect(webhookSource).toContain("processGithubPushWebhook");
+    expect(webhookSource).toContain("extractFeatureIdFromBranchName");
   });
 
   it("webhook processor returns operator guidance when repo is unsynced", async () => {

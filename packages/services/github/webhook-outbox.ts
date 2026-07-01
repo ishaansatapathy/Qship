@@ -6,6 +6,7 @@ import { logger } from "@repo/logger";
 import {
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
+  processGithubPushWebhook,
 } from "./webhook";
 import { computeNextRetryAt } from "./webhook-outbox-utils";
 
@@ -50,6 +51,13 @@ async function dispatchOutboxRow(row: typeof githubWebhookOutbox.$inferSelect) {
   if (row.eventType === "pull_request") {
     return processGithubPullRequestWebhook(
       row.payload as Parameters<typeof processGithubPullRequestWebhook>[0],
+      row.deliveryId,
+      opts,
+    );
+  }
+  if (row.eventType === "push") {
+    return processGithubPushWebhook(
+      row.payload as Parameters<typeof processGithubPushWebhook>[0],
       row.deliveryId,
       opts,
     );
