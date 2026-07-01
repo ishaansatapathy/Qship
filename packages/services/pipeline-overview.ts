@@ -16,6 +16,7 @@ import { getPipelineHealthSummary } from "./feature-analytics";
 import { getWorkspaceProjectForUser } from "./feature-request";
 import {
   briefKindFromHour,
+  briefTitleFromHour,
   greetingFromHour,
   localHourFromTimezoneOffset,
 } from "./pipeline-brief-time";
@@ -34,6 +35,7 @@ export type OverviewActionItem = {
 
 export type PipelineOverviewResult = {
   brief: string;
+  briefTitle: string;
   actionItems: OverviewActionItem[];
   healthLabel: "healthy" | "congested" | "stalled";
   healthInsight: string;
@@ -82,9 +84,10 @@ export async function getPipelineOverview(
       ? localHourFromTimezoneOffset(options.timezoneOffsetMinutes)
       : new Date().getHours();
   const greeting = greetingFromHour(localHour);
+  const briefTitle = briefTitleFromHour(localHour);
   const ws = await getWorkspaceProjectForUser(userId);
   if (!ws) {
-    return emptyOverview();
+    return emptyOverview(briefTitle);
   }
 
   const projectId = ws.project.id;
@@ -201,6 +204,7 @@ export async function getPipelineOverview(
 
   return {
     brief,
+    briefTitle,
     actionItems: actionItems.slice(0, 8),
     healthLabel: health.healthLabel,
     healthInsight: health.insight,
@@ -284,9 +288,10 @@ function buildFallbackBrief(
   return `${greeting}. ${health.insight} ${actionItems.length > 0 ? `${actionItems.length} item${actionItems.length === 1 ? "" : "s"} waiting for your input.` : "Pipeline is moving smoothly."}`;
 }
 
-function emptyOverview(): PipelineOverviewResult {
+function emptyOverview(briefTitle = "Pipeline brief"): PipelineOverviewResult {
   return {
     brief: "No workspace found. Set up your workspace to start tracking features.",
+    briefTitle,
     actionItems: [],
     healthLabel: "healthy",
     healthInsight: "No active features in the pipeline.",

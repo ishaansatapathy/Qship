@@ -15,7 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { briefTitleFromHour } from "@repo/services/pipeline-brief-time";
+import { useBriefTitle } from "~/hooks/use-brief-title";
 import { trpc } from "~/trpc/client";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -74,7 +74,7 @@ const STATUS_NEXT_PATH: Record<string, string> = {
 export default function OverviewPage() {
   const router = useRouter();
   const timezoneOffsetMinutes = useMemo(() => new Date().getTimezoneOffset(), []);
-  const briefTitle = briefTitleFromHour(new Date().getHours());
+  const clientBriefTitle = useBriefTitle();
 
   const overview = trpc.feature.pipelineOverview.useQuery(
     { timezoneOffsetMinutes },
@@ -82,6 +82,7 @@ export default function OverviewPage() {
   );
 
   const data = overview.data;
+  const briefTitle = data?.briefTitle ?? clientBriefTitle;
 
   return (
     <div className="qship-brief-page">

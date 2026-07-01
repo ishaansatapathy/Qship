@@ -25,9 +25,9 @@ import { QshipCommand } from "./qship-command";
 import { ShortcutsHelp } from "./shortcuts-help";
 import { useQshipUser, initials } from "./use-qship-user";
 import { useSyncEvents } from "~/hooks/use-sync-events";
+import { useBriefTitle } from "~/hooks/use-brief-title";
 import { DemoBar } from "./demo-bar";
 import { signOutShipflow } from "~/lib/sign-out";
-import { briefTitleFromHour } from "@repo/services/pipeline-brief-time";
 
 const NAV = [
   { label: "Overview", href: "/overview", icon: Sun },
@@ -60,6 +60,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const queueCount = 0;
+  const overviewBriefTitle = useBriefTitle();
   useSyncEvents();
 
   useEffect(() => {
@@ -175,7 +176,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
 
   const meta = PAGE_META[pathname ?? "/brief"] ?? { title: "Qship", sub: "" };
   const pageTitle =
-    pathname === "/overview" ? briefTitleFromHour(new Date().getHours()) : meta.title;
+    pathname === "/overview" ? overviewBriefTitle : meta.title;
 
   return (
     <div className="qship-page qship-app">
