@@ -24,9 +24,9 @@ import {
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 import { AgentMentionInput } from "~/components/app/agent-mention-input";
+import { AgentAttachedContext } from "~/components/app/agent-attached-context";
 import { AgentContextPicker } from "~/components/app/agent-context-picker";
 import { AgentFocusChip, type AgentFocusState } from "~/components/app/agent-focus-chip";
-import { FeatureDeliveryPanel } from "~/components/app/feature-delivery-panel";
 import { fromFeatureFocusId, isFeatureFocusId } from "~/lib/shipflow-focus";
 import { AgentSessionSidebar } from "~/components/app/agent-session-sidebar";
 import { TaskWalkthroughPanel } from "~/components/app/task-walkthrough-panel";
@@ -400,6 +400,7 @@ function AgentPageContent() {
   const [isPending, setIsPending] = useState(false);
   const [streamStatus, setStreamStatus] = useState<string | null>(null);
   const [focus, setFocus] = useState<AgentFocusState>({});
+  const [attachmentTimelineOpen, setAttachmentTimelineOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [activeWalkthroughTaskId, setActiveWalkthroughTaskId] = useState("");
@@ -490,12 +491,18 @@ function AgentPageContent() {
           ? "Online"
           : "Unavailable";
 
+  const attachedFeatureId = isFeatureFocusId(focus.contextId)
+    ? fromFeatureFocusId(focus.contextId!)
+    : null;
+
   const agentPlaceholder = status.isLoading
     ? "Connecting to agent…"
     : status.isError
       ? "API unavailable — run pnpm dev and refresh"
       : ready
-        ? "Ask Qship Agent… e.g. triage requests or generate a PRD"
+        ? attachedFeatureId
+          ? "Ask about this attached feature… e.g. fix review blockers or update the PR"
+          : "Ask Qship Agent… e.g. triage requests or generate a PRD"
         : "Restart pnpm dev after saving OPENAI_API_KEY in .env";
 
   const { isDemo: isDemoUser, tryFeature, modal: demoModal } = useDemoAiGuard(meQuery.data?.email, "agent");
@@ -828,11 +835,13 @@ function AgentPageContent() {
   const handleClearFocus = async () => {
     const next = {};
     setFocus(next);
+    setAttachmentTimelineOpen(false);
     await persistFocus(next);
   };
 
   const handleAttachFocus = async (next: AgentFocusState) => {
     setFocus(next);
+    setAttachmentTimelineOpen(false);
     await persistFocus(next);
   };
 
@@ -979,6 +988,9 @@ function AgentPageContent() {
                     <Paperclip size={12} />
                     Attach
                   </button>
+                  {attachedFeatureId ? (
+                    <span className="qship-agent-attached-label">Message applies to attached feature</span>
+                  ) : null}
                 </div>
                 <AgentContextPicker
                   open={pickerOpen}
@@ -986,16 +998,6 @@ function AgentPageContent() {
                   onSelect={(next) => void handleAttachFocus(next)}
                   disabled={isPending}
                 />
-                {isFeatureFocusId(focus.contextId) ? (
-                  <div className="qship-agent-delivery-wrap">
-                    <FeatureDeliveryPanel
-                      featureId={fromFeatureFocusId(focus.contextId!)}
-                      compact
-                      showOpenLink
-                      onDismiss={() => void handleClearFocus()}
-                    />
-                  </div>
-                ) : null}
                 <AgentMentionInput
                   value={input}
                   onChange={setInput}
@@ -1003,6 +1005,15 @@ function AgentPageContent() {
                   disabled={isPending}
                   placeholder={agentPlaceholder}
                 />
+                {attachedFeatureId ? (
+                  <AgentAttachedContext
+                    featureId={attachedFeatureId}
+                    timelineOpen={attachmentTimelineOpen}
+                    onTimelineOpenChange={setAttachmentTimelineOpen}
+                    onQuickPrompt={(prompt) => send(prompt)}
+                    disabled={isPending}
+                  />
+                ) : null}
               </div>
             </form>
           </div>
