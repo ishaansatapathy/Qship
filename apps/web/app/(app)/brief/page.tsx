@@ -92,14 +92,7 @@ function relativeUpdated(iso: string) {
   return new Date(iso).toLocaleDateString();
 }
 
-function greetingForHour() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-const ONBOARD_KEY = "qship_onboarded_v1";
+import { greetingFromHour } from "@repo/services/pipeline-brief-time"; = "qship_onboarded_v1";
 
 const ONBOARD_STEPS = [
   {
@@ -362,7 +355,7 @@ export default function BriefPage() {
         </header>
 
         <div className="qship-brief-hero qship-content-reveal">
-          <p className="qship-brief-greeting">{greetingForHour()}</p>
+          <p className="qship-brief-greeting">{greetingFromHour(new Date().getHours())}</p>
           <p className="qship-brief-summary">
             {summaryLoading ? (
               <span className="qship-skeleton qship-brief-skeleton-inline" aria-hidden />

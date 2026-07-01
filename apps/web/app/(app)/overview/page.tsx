@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,8 +14,8 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { toast } from "sonner";
 
+import { briefTitleFromHour } from "@repo/services/pipeline-brief-time";
 import { trpc } from "~/trpc/client";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -72,9 +73,11 @@ const STATUS_NEXT_PATH: Record<string, string> = {
 
 export default function OverviewPage() {
   const router = useRouter();
+  const timezoneOffsetMinutes = useMemo(() => new Date().getTimezoneOffset(), []);
+  const briefTitle = briefTitleFromHour(new Date().getHours());
 
   const overview = trpc.feature.pipelineOverview.useQuery(
-    {},
+    { timezoneOffsetMinutes },
     { refetchInterval: 60_000 },
   );
 
@@ -85,7 +88,7 @@ export default function OverviewPage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="qship-brief-header">
         <div className="qship-brief-header-main">
-          <h1>Morning brief</h1>
+          <h1>{briefTitle}</h1>
           <p>AI-generated pipeline summary — what needs you, what's moving, what's blocked.</p>
         </div>
         <button
