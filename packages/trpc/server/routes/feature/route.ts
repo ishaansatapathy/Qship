@@ -262,7 +262,7 @@ export const featureRouter = router({
         if (orgId !== ws.organization.id) {
           throw new ServiceError("FORBIDDEN", "Organization mismatch");
         }
-        return ingestFeatureRequest({
+        const result = await ingestFeatureRequest({
           organizationId: ws.organization.id,
           projectId: ws.project.id,
           title: input.title,
@@ -271,6 +271,12 @@ export const featureRouter = router({
           source: input.source ?? "manual",
           runTriage: input.runTriage,
         });
+        return {
+          id: result.feature.id,
+          educated: result.educated,
+          education: result.education,
+          triage: result.triage,
+        };
       } catch (error) {
         mapServiceError(error);
       }
