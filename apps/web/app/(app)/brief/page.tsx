@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import type { RouterOutputs } from "@repo/trpc/client";
+import { greetingFromHour } from "@repo/services/pipeline-brief-time";
 import { trpc } from "~/trpc/client";
 import {
   AttentionCardSkeleton,
@@ -92,7 +93,7 @@ function relativeUpdated(iso: string) {
   return new Date(iso).toLocaleDateString();
 }
 
-import { greetingFromHour } from "@repo/services/pipeline-brief-time"; = "qship_onboarded_v1";
+const ONBOARD_KEY = "qship_onboarded_v1";
 
 const ONBOARD_STEPS = [
   {
