@@ -98,6 +98,7 @@ function compilerOptionsForGeneratedFiles(): ts.CompilerOptions {
     target: ts.ScriptTarget.ES2020,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Node10,
+    lib: ["ES2020", "DOM"],
     rootDir: CODEGEN_VIRTUAL_ROOT,
     baseUrl: CODEGEN_VIRTUAL_ROOT,
     strict: true,
