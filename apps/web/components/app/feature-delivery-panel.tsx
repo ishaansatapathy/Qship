@@ -23,11 +23,14 @@ export function FeatureDeliveryPanel({
   compact,
   showOpenLink,
   onDismiss,
+  timelineOnly,
 }: {
   featureId: string;
   compact?: boolean;
   showOpenLink?: boolean;
   onDismiss?: () => void;
+  /** Agent embed — activity list only, no duplicate header block */
+  timelineOnly?: boolean;
 }) {
   const delivery = trpc.feature.delivery.useQuery({ id: featureId }, { staleTime: 15_000 });
 
@@ -41,38 +44,44 @@ export function FeatureDeliveryPanel({
   const visibleTimeline = compact ? timeline.slice(-4) : timeline;
 
   return (
-    <section className="qship-delivery-panel" data-compact={compact ? "true" : undefined}>
-      <div className="qship-delivery-panel-head">
-        <div className="qship-delivery-panel-head-main">
-          <h3>{compact ? "Attached feature" : "Delivery timeline"}</h3>
-          {!compact ? <span className="qship-delivery-status-pill">{statusLabel}</span> : null}
+    <section
+      className="qship-delivery-panel"
+      data-compact={compact ? "true" : undefined}
+      data-timeline-only={timelineOnly ? "true" : undefined}
+    >
+      {!timelineOnly ? (
+        <div className="qship-delivery-panel-head">
+          <div className="qship-delivery-panel-head-main">
+            <h3>{compact ? "Attached feature" : "Delivery timeline"}</h3>
+            {!compact ? <span className="qship-delivery-status-pill">{statusLabel}</span> : null}
+          </div>
+          <div className="qship-delivery-panel-actions">
+            {showOpenLink ? (
+              <Link href={`/requests?id=${featureId}`} className="qship-mono-tag">
+                Open →
+              </Link>
+            ) : null}
+            {onDismiss ? (
+              <button
+                type="button"
+                className="qship-delivery-panel-dismiss"
+                onClick={onDismiss}
+                aria-label="Close attached feature"
+                title="Close"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
         </div>
-        <div className="qship-delivery-panel-actions">
-          {showOpenLink ? (
-            <Link href={`/requests?id=${featureId}`} className="qship-mono-tag">
-              Open →
-            </Link>
-          ) : null}
-          {onDismiss ? (
-            <button
-              type="button"
-              className="qship-delivery-panel-dismiss"
-              onClick={onDismiss}
-              aria-label="Close attached feature"
-              title="Close"
-            >
-              <X size={14} />
-            </button>
-          ) : null}
-        </div>
-      </div>
+      ) : null}
 
-      {compact ? (
+      {!timelineOnly && compact ? (
         <>
           <p className="qship-delivery-compact-title">{title}</p>
           <p className="qship-delivery-compact-next">{nextStep}</p>
         </>
-      ) : (
+      ) : !timelineOnly ? (
         <div className="qship-delivery-summary">
           <p className="qship-delivery-summary-text">{summary}</p>
           <div className="qship-delivery-stats">
@@ -93,7 +102,7 @@ export function FeatureDeliveryPanel({
             <p>{nextStep}</p>
           </div>
         </div>
-      )}
+      ) : null}
 
       <div className="qship-delivery-timeline-wrap">
         <span className="qship-delivery-timeline-label">Activity</span>
