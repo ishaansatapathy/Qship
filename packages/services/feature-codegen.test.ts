@@ -26,6 +26,25 @@ describe("feature-codegen validation", () => {
     expect(() => sanitizeGeneratedContent(huge)).toThrow(ServiceError);
   });
 
+  it("accepts plain HTML/CSS/JS static implementations without TS typecheck", () => {
+    expect(() =>
+      validateGeneratedCodeGate([
+        {
+          path: "index.html",
+          content: "<!DOCTYPE html><html><body><h1>Hi</h1></body></html>\n",
+          action: "create",
+          summary: "html",
+        },
+        {
+          path: "app.js",
+          content: "document.getElementById('btn')?.addEventListener('click', () => {});\n",
+          action: "create",
+          summary: "js",
+        },
+      ]),
+    ).not.toThrow();
+  });
+
   it("resolves cross-file relative imports between generated files", () => {
     expect(() =>
       validateGeneratedCodeGate([
