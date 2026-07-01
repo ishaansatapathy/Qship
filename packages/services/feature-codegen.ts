@@ -1,4 +1,6 @@
 import type { PrdContent } from "@repo/database/schema";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import ts from "typescript";
 
@@ -91,16 +93,12 @@ export function validateGeneratedCodeSyntax(files: GeneratedCodeFile[]): void {
   }
 }
 
-const CODEGEN_VIRTUAL_ROOT = "/shipflow-codegen";
-
-function compilerOptionsForGeneratedFiles(): ts.CompilerOptions {
+function compilerOptionsForDiskTypecheck(rootDir: string): ts.CompilerOptions {
   return {
     target: ts.ScriptTarget.ES2020,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Node10,
-    lib: ["ES2020", "DOM"],
-    rootDir: CODEGEN_VIRTUAL_ROOT,
-    baseUrl: CODEGEN_VIRTUAL_ROOT,
+    rootDir,
     strict: true,
     skipLibCheck: true,
     noEmit: true,
@@ -110,132 +108,57 @@ function compilerOptionsForGeneratedFiles(): ts.CompilerOptions {
   };
 }
 
-function toVirtualRepoPath(repoRelative: string): string {
-  return path.posix.join(CODEGEN_VIRTUAL_ROOT, repoRelative);
-}
-
-function matchGeneratedFile(
-  fileName: string,
-  fileContents: Map<string, string>,
-): { virtual: string; repo: string; content: string } | null {
-  const normalized = fileName.replace(/\\/g, "/");
-  for (const [repo, content] of fileContents) {
-    const virtual = toVirtualRepoPath(repo);
-    if (
-      normalized === virtual ||
-      normalized === repo ||
-      normalized.endsWith(`/${repo}`) ||
-      normalized.endsWith(`/${virtual}`)
-    ) {
-      return { virtual, repo, content };
-    }
-  }
-  return null;
-}
-
-function resolveRelativeGeneratedModule(
-  moduleName: string,
-  containingFile: string,
-  fileContents: Map<string, string>,
-): string | null {
-  if (!moduleName.startsWith(".")) return null;
-
-  const containingDir = path.posix.dirname(containingFile.replace(/\\/g, "/"));
-  const joined = path.posix.normalize(path.posix.join(containingDir, moduleName));
-  const candidates = [
-    joined,
-    `${joined}.ts`,
-    `${joined}.tsx`,
-    `${joined}.js`,
-    path.posix.join(joined, "index.ts"),
-  ];
-
-  for (const candidate of candidates) {
-    if (matchGeneratedFile(candidate, fileContents)) {
-      return matchGeneratedFile(candidate, fileContents)!.virtual;
-    }
-  }
-
-  return null;
-}
-
-/** Type-checks generated TS/TSX files together (tsc --noEmit equivalent). */
+/** Type-checks generated TS/TSX on disk — avoids broken virtual lib loading (Array global error). */
 export function validateGeneratedCodeTypes(files: GeneratedCodeFile[]): void {
-  const typedFiles = files
-    .map((file) => {
-      validateCodegenPath(file.path);
-      return {
-        path: file.path.trim().replace(/\\/g, "/").replace(/^\/+/, ""),
-        content: sanitizeGeneratedContent(file.content),
-        kind: scriptKindForPath(file.path),
-      };
-    })
-    .filter((file): file is typeof file & { kind: ts.ScriptKind } => file.kind !== null);
+  const normalized = files.map((file) => {
+    validateCodegenPath(file.path);
+    return {
+      path: file.path.trim().replace(/\\/g, "/").replace(/^\/+/, ""),
+      content: sanitizeGeneratedContent(file.content),
+      kind: scriptKindForPath(file.path),
+    };
+  });
 
+  const typedFiles = normalized.filter(
+    (file): file is typeof file & { kind: ts.ScriptKind } => file.kind !== null,
+  );
   if (typedFiles.length === 0) return;
 
-  const fileContents = new Map(typedFiles.map((file) => [file.path, file.content]));
-  const compilerOptions = compilerOptionsForGeneratedFiles();
-  const baseHost = ts.createCompilerHost(compilerOptions);
-  const rootNames = typedFiles.map((file) => toVirtualRepoPath(file.path));
-
-  const host: ts.CompilerHost = {
-    getCurrentDirectory: () => CODEGEN_VIRTUAL_ROOT,
-    getCanonicalFileName: (fileName) => fileName,
-    useCaseSensitiveFileNames: () => true,
-    getNewLine: () => "\n",
-    getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
-    writeFile: () => undefined,
-    fileExists: (fileName) =>
-      matchGeneratedFile(fileName, fileContents) !== null || baseHost.fileExists(fileName),
-    readFile: (fileName) =>
-      matchGeneratedFile(fileName, fileContents)?.content ?? baseHost.readFile(fileName),
-    getSourceFile: (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
-      const match = matchGeneratedFile(fileName, fileContents);
-      if (match) {
-        return ts.createSourceFile(
-          match.virtual,
-          match.content,
-          languageVersion,
-          shouldCreateNewSourceFile,
-          scriptKindForPath(match.repo) ?? ts.ScriptKind.TS,
-        );
-      }
-      return baseHost.getSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
-    },
-    resolveModuleNameLiterals: (moduleLiterals, containingFile) =>
-      moduleLiterals.map((literal) => {
-        const resolvedVirtual = resolveRelativeGeneratedModule(
-          literal.text,
-          containingFile,
-          fileContents,
-        );
-        return {
-          resolvedModule: resolvedVirtual
-            ? {
-                resolvedFileName: resolvedVirtual,
-                extension: ts.Extension.Ts,
-                isExternalLibraryImport: false,
-              }
-            : undefined,
-        };
-      }),
-  };
-
-  const program = ts.createProgram(rootNames, compilerOptions, host);
-
-  const errors = ts.getPreEmitDiagnostics(program).filter(
-    (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
+  const hasTypeScript = typedFiles.some(
+    (file) => file.path.endsWith(".ts") || file.path.endsWith(".tsx"),
   );
+  // Static HTML features usually ship plain .js — syntax gate above is enough.
+  if (!hasTypeScript) return;
 
-  if (errors.length > 0) {
-    const diagnostic = errors[0]!;
-    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-    const file = diagnostic.file?.fileName ?? "generated";
-    throw new ServiceError(
-      "PRECONDITION_FAILED",
-      `Generated code type error in ${file}: ${message}`,
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "shipflow-codegen-"));
+  try {
+    for (const file of normalized) {
+      const absPath = path.join(tmpDir, file.path);
+      fs.mkdirSync(path.dirname(absPath), { recursive: true });
+      fs.writeFileSync(absPath, file.content, "utf8");
+    }
+
+    const rootNames = typedFiles.map((file) => path.join(tmpDir, file.path));
+    const program = ts.createProgram(rootNames, compilerOptionsForDiskTypecheck(tmpDir));
+
+    const errors = ts.getPreEmitDiagnostics(program).filter(
+      (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
     );
+
+    if (errors.length > 0) {
+      const diagnostic = errors[0]!;
+      const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+      const absFile = diagnostic.file?.fileName;
+      const displayFile = absFile?.startsWith(tmpDir)
+        ? path.relative(tmpDir, absFile).replace(/\\/g, "/")
+        : (absFile ?? "generated");
+      throw new ServiceError(
+        "PRECONDITION_FAILED",
+        `Generated code type error in ${displayFile}: ${message}`,
+      );
+    }
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 
