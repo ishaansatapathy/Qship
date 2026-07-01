@@ -65,7 +65,10 @@ const PrReviewIssueSchema = z.object({
   description: z.string(),
   suggestion: z.string().optional(),
   filePath: z.string().optional(),
-  lineNumber: z.string().optional(),
+  lineNumber: z
+    .union([z.string(), z.number()])
+    .nullish()
+    .transform((v) => (v == null ? undefined : String(v))),
   requirementRef: z.string().optional(),
 });
 
