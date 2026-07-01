@@ -13,6 +13,7 @@ vi.mock("@repo/services/github", () => ({
   verifyGithubWebhookSignature: vi.fn(),
   enqueueGithubWebhookRetry: vi.fn(async () => undefined),
   processGithubPullRequestWebhook: vi.fn(async () => ({ handled: true })),
+  processGithubPushWebhook: vi.fn(async () => ({ handled: true, linked: true })),
   processGithubInstallationWebhook: vi.fn(async () => ({ handled: true })),
 }));
 
@@ -88,6 +89,24 @@ describe("handleGithubWebhook HTTP layer", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toMatchObject({ ok: true, event: "pull_request" });
+  });
+
+  it("returns 200 and routes push after valid signature", async () => {
+    vi.mocked(verifyGithubWebhookSignature).mockImplementation(() => undefined);
+
+    const payload = Buffer.from(JSON.stringify({ ref: "refs/heads/main" }));
+    const res = mockRes();
+    await handleGithubWebhook(
+      mockReq(payload, {
+        "x-hub-signature-256": "sha256=valid",
+        "x-github-event": "push",
+        "x-github-delivery": crypto.randomUUID(),
+      }),
+      res,
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, event: "push" });
   });
 
   it("returns 503 when webhook secret is not configured", async () => {

@@ -12,6 +12,7 @@ import {
 import {
   processGithubInstallationWebhook,
   processGithubPullRequestWebhook,
+  processGithubPushWebhook,
 } from "@repo/services/github";
 import { processGithubIssueWebhook } from "@repo/services/github/issue-intake";
 
@@ -25,6 +26,7 @@ import { processGithubIssueWebhook } from "@repo/services/github/issue-intake";
  *
  * Event routing:
  * - `pull_request`              → link PRs to features, trigger AI review
+ * - `push`                      → link shipflow branches, re-review open PRs on new commits
  * - `installation`              → sync / disconnect GitHub App installations
  * - `installation_repositories` → remove unlinked repositories
  * - all others                  → acknowledged (200) but not processed
@@ -88,6 +90,12 @@ export async function handleGithubWebhook(req: Request, res: Response) {
         deliveryId,
       );
       result = { ...result, ...prResult };
+    } else if (event === "push") {
+      const pushResult = await processGithubPushWebhook(
+        body as Parameters<typeof processGithubPushWebhook>[0],
+        deliveryId,
+      );
+      result = { ...result, ...pushResult };
     } else if (event === "issues") {
       const issueResult = await processGithubIssueWebhook(
         body as Parameters<typeof processGithubIssueWebhook>[0],
@@ -112,7 +120,13 @@ export async function handleGithubWebhook(req: Request, res: Response) {
       error: message,
     });
 
-    if (event === "pull_request" || event === "issues" || event === "installation" || event === "installation_repositories") {
+    if (
+      event === "pull_request" ||
+      event === "push" ||
+      event === "issues" ||
+      event === "installation" ||
+      event === "installation_repositories"
+    ) {
       await enqueueGithubWebhookRetry({
         deliveryId,
         eventType: event,
