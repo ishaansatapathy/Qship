@@ -27,6 +27,7 @@ import { useQshipUser, initials } from "./use-qship-user";
 import { useSyncEvents } from "~/hooks/use-sync-events";
 import { DemoBar } from "./demo-bar";
 import { signOutShipflow } from "~/lib/sign-out";
+import { briefTitleFromHour } from "@repo/services/pipeline-brief-time";
 
 const NAV = [
   { label: "Overview", href: "/overview", icon: Sun },
@@ -39,7 +40,7 @@ const NAV = [
 ];
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {
-  "/overview": { title: "Morning brief", sub: "AI-generated pipeline summary and action items" },
+  "/overview": { title: "Pipeline brief", sub: "AI-generated pipeline summary and action items" },
   "/brief": { title: "Pipeline overview", sub: "Status, focus, and what needs you next" },
   "/inbox": { title: "Intake hub", sub: "Email, support, calls, and in-app feature requests" },
   "/requests": { title: "Feature Requests", sub: "Submit, triage, and ship product work" },
@@ -173,6 +174,8 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
   }
 
   const meta = PAGE_META[pathname ?? "/brief"] ?? { title: "Qship", sub: "" };
+  const pageTitle =
+    pathname === "/overview" ? briefTitleFromHour(new Date().getHours()) : meta.title;
 
   return (
     <div className="qship-page qship-app">
@@ -261,7 +264,7 @@ export function QshipAppShell({ children }: { children: ReactNode }) {
           </button>
 
           <span className="qship-app-title">
-            {meta.title}
+            {pageTitle}
             {meta.sub && <span className="qship-app-title-sub">{meta.sub}</span>}
           </span>
 

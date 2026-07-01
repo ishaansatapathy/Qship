@@ -743,7 +743,7 @@ export const featureRouter = router({
       }
     }),
 
-  // ── Pipeline overview (AI morning brief) ─────────────────────────────────
+  // ── Pipeline overview (AI pipeline brief) ────────────────────────────────
   pipelineOverview: protectedProcedure
     .meta({
       openapi: {
@@ -754,11 +754,19 @@ export const featureRouter = router({
         summary: "AI-generated pipeline brief with actionable items requiring human decision",
       },
     })
-    .input(zodUndefinedModel)
+    .input(
+      z
+        .object({
+          timezoneOffsetMinutes: z.number().int().optional(),
+        })
+        .strict(),
+    )
     .output(openApiResponse)
-    .query(async ({ ctx }) => {
+    .query(async ({ ctx, input }) => {
       try {
-        return await getPipelineOverview(ctx.user.id);
+        return await getPipelineOverview(ctx.user.id, {
+          timezoneOffsetMinutes: input.timezoneOffsetMinutes,
+        });
       } catch (error) {
         mapServiceError(error);
       }

@@ -1,5 +1,5 @@
 /**
- * AI-powered pipeline overview — generates a natural-language morning brief
+ * AI-powered pipeline overview — generates a time-aware pipeline brief
  * and surfaces actionable items that require human decision.
  *
  * Designed to be the first thing a PM sees on login: what needs attention,
@@ -14,6 +14,11 @@ import { logger } from "@repo/logger";
 import { createChatCompletion, isOpenAiConfigured } from "./ai/openai";
 import { getPipelineHealthSummary } from "./feature-analytics";
 import { getWorkspaceProjectForUser } from "./feature-request";
+import {
+  briefKindFromHour,
+  greetingFromHour,
+  localHourFromTimezoneOffset,
+} from "./pipeline-brief-time";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -68,7 +73,15 @@ function staleDays(updatedAt: Date): number {
  * Builds the pipeline overview for a user's workspace.
  * Surfaces actionable items and generates an AI brief if OpenAI is configured.
  */
-export async function getPipelineOverview(userId: string): Promise<PipelineOverviewResult> {
+export async function getPipelineOverview(
+  userId: string,
+  options?: { timezoneOffsetMinutes?: number },
+): Promise<PipelineOverviewResult> {
+  const localHour =
+    options?.timezoneOffsetMinutes !== undefined
+      ? localHourFromTimezoneOffset(options.timezoneOffsetMinutes)
+      : new Date().getHours();
+  const greeting = greetingFromHour(localHour);
   const ws = await getWorkspaceProjectForUser(userId);
   if (!ws) {
     return emptyOverview();
@@ -173,8 +186,10 @@ export async function getPipelineOverview(userId: string): Promise<PipelineOverv
         healthLabel: health.healthLabel,
         shippedLast30Days: health.shippedLast30Days,
         healthInsight: health.insight,
+        greeting,
+        briefKind: briefKindFromHour(localHour),
       })
-    : buildFallbackBrief(health, actionItems);
+    : buildFallbackBrief(health, actionItems, greeting);
 
   logger.info("pipeline_overview.generated", {
     userId,
@@ -205,6 +220,8 @@ async function generateAiBrief(input: {
   healthLabel: string;
   shippedLast30Days: number;
   healthInsight: string;
+  greeting: string;
+  briefKind: string;
 }): Promise<string> {
   const actionSummary = input.actionItems.length > 0
     ? input.actionItems
@@ -216,7 +233,7 @@ async function generateAiBrief(input: {
     .map(([s, c]) => `${STATUS_LABELS[s] ?? s}: ${c}`)
     .join(", ");
 
-  const prompt = `You are a product pipeline assistant. Generate a concise, professional morning briefing (3-5 sentences) for a PM based on the following pipeline state.
+  const prompt = `You are a product pipeline assistant. Generate a concise, professional ${input.briefKind} briefing (3-5 sentences) for a PM based on the following pipeline state.
 
 Pipeline health: ${input.healthLabel} — ${input.healthInsight}
 Active features (${input.totalActive} total): ${byStatusText}
@@ -226,6 +243,7 @@ Immediate action items:
 ${actionSummary}
 
 Instructions:
+- Start with exactly "${input.greeting}." (include the period).
 - Be direct and actionable, not generic.
 - Mention specific features by name if there are urgent items.
 - If the pipeline is healthy, acknowledge it briefly and focus on what's next.
@@ -246,6 +264,7 @@ Instructions:
     return buildFallbackBrief(
       { totalActive: input.totalActive, healthLabel: input.healthLabel, insight: input.healthInsight, shippedLast30Days: input.shippedLast30Days },
       input.actionItems,
+      input.greeting,
     );
   }
 }
@@ -253,15 +272,16 @@ Instructions:
 function buildFallbackBrief(
   health: { totalActive: number; healthLabel: string; insight: string; shippedLast30Days: number },
   actionItems: OverviewActionItem[],
+  greeting: string,
 ): string {
   const high = actionItems.filter((a) => a.urgency === "high");
   if (high.length > 0) {
-    return `${health.insight} You have ${high.length} high-urgency item${high.length === 1 ? "" : "s"} needing attention: ${high.map((a) => `"${a.featureTitle}"`).join(", ")}.`;
+    return `${greeting}. ${health.insight} You have ${high.length} high-urgency item${high.length === 1 ? "" : "s"} needing attention: ${high.map((a) => `"${a.featureTitle}"`).join(", ")}.`;
   }
   if (health.totalActive === 0) {
-    return "Your pipeline is clear. Submit a new feature request to get started.";
+    return `${greeting}. Your pipeline is clear. Submit a new feature request to get started.`;
   }
-  return `${health.insight} ${actionItems.length > 0 ? `${actionItems.length} item${actionItems.length === 1 ? "" : "s"} waiting for your input.` : "Pipeline is moving smoothly."}`;
+  return `${greeting}. ${health.insight} ${actionItems.length > 0 ? `${actionItems.length} item${actionItems.length === 1 ? "" : "s"} waiting for your input.` : "Pipeline is moving smoothly."}`;
 }
 
 function emptyOverview(): PipelineOverviewResult {
