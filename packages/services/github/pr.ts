@@ -4,7 +4,7 @@ import { pullRequests, repositories } from "@repo/database/schema";
 import { logger } from "@repo/logger";
 
 import { ServiceError } from "../errors";
-import { appendFeatureActivity, getFeatureRequest, updateFeatureStatus } from "../feature-request";
+import { appendFeatureActivity, getFeatureRequest, transitionFeatureStatus, updateFeatureStatus } from "../feature-request";
 import { getGithubAppConfig } from "./config";
 import { getInstallationOctokit } from "./client";
 
@@ -276,6 +276,10 @@ export async function createFeaturePullRequest(input: {
       target: pullRequests.id,
       set: { url: prUrl, headSha, state: "open", updatedAt: new Date() },
     });
+
+  if (["planning", "plan_approved", "prd_ready"].includes(feature.status)) {
+    await transitionFeatureStatus(feature.id, "in_development");
+  }
 
   await updateFeatureStatus(feature.id, "pr_open");
   await appendFeatureActivity(feature.id, {
