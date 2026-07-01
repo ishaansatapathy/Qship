@@ -26,6 +26,10 @@ export function briefTitleFromHour(hour: number): string {
   return "Evening brief";
 }
 
+export function briefTitleFromTimezoneOffset(offsetMinutes: number): string {
+  return briefTitleFromHour(localHourFromTimezoneOffset(offsetMinutes));
+}
+
 export function briefKindFromHour(hour: number): string {
   const period = briefPeriodFromHour(hour);
   if (period === "morning") return "morning";
