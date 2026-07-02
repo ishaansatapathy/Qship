@@ -6066,6 +6066,30 @@
 
 .qship-req-page[data-detail="open"] {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  height: calc(100dvh - 120px);
+  max-height: calc(100dvh - 120px);
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.qship-req-page[data-detail="open"] .qship-req-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.qship-req-main-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.qship-app-content:has(.qship-req-page[data-detail="open"]) {
+  overflow: hidden;
 }
 
 .qship-req-main {
@@ -6288,6 +6312,13 @@
   animation: qship-panel-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.qship-req-page[data-detail="open"] .qship-req-detail {
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+  overscroll-behavior: contain;
+}
+
 @keyframes qship-panel-in {
   from {
     opacity: 0;
@@ -6475,12 +6506,32 @@
 @media (max-width: 960px) {
   .qship-req-page[data-detail="open"] {
     grid-template-columns: 1fr;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .qship-req-page[data-detail="open"] .qship-req-main {
+    display: block;
+    overflow: visible;
+    padding-bottom: 32px;
+  }
+
+  .qship-req-main-scroll {
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .qship-app-content:has(.qship-req-page[data-detail="open"]) {
+    overflow-y: auto;
   }
 
   .qship-req-detail {
     border-left: none;
     border-top: 1px solid var(--qship-line);
     padding: 20px 0 0;
+    height: auto;
+    max-height: none;
   }
 }
 

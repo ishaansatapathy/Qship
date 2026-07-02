@@ -1262,54 +1262,60 @@ function RequestsPageContent() {
         )}
 
         {features.isLoading ? (
-          <SkeletonList count={5} />
+          <div className={selectedId ? "qship-req-main-scroll" : undefined}>
+            <SkeletonList count={5} />
+          </div>
         ) : sorted.length === 0 ? (
-          <div className="qship-req-empty">
-            <Rocket size={28} />
-            <h2>No requests yet</h2>
-            <p>Employees can submit product ideas here. AI scores priority and drafts PRDs.</p>
-            <button type="button" className="qship-btn-accent" onClick={() => setModalOpen(true)}>
-              Submit first request
-            </button>
+          <div className={selectedId ? "qship-req-main-scroll" : undefined}>
+            <div className="qship-req-empty">
+              <Rocket size={28} />
+              <h2>No requests yet</h2>
+              <p>Employees can submit product ideas here. AI scores priority and drafts PRDs.</p>
+              <button type="button" className="qship-btn-accent" onClick={() => setModalOpen(true)}>
+                Submit first request
+              </button>
+            </div>
           </div>
         ) : (
-          <ul className="qship-req-list">
-            {sorted.map((feature) => {
-              const triage = getTriage(feature);
-              const active = selectedId === feature.id;
-              return (
-                <li key={feature.id}>
-                  <button
-                    type="button"
-                    className="qship-req-row"
-                    data-active={active}
-                    onClick={() => setSelectedId(active ? null : feature.id)}
-                  >
-                    <div className="qship-req-row-top">
-                      {triage?.priority ? (
-                        <span
-                          className="qship-req-priority"
-                          style={{ color: PRIORITY_COLORS[triage.priority] ?? "#fafafa" }}
-                        >
-                          {triage.priority}
-                        </span>
-                      ) : (
-                        <span className="qship-req-priority qship-req-priority-muted">—</span>
-                      )}
-                      <span className="qship-req-status-pill">{STATUS_LABELS[feature.status] ?? feature.status}</span>
-                    </div>
-                    <strong>{feature.title}</strong>
-                    {triage?.impactSummary ? <p>{triage.impactSummary}</p> : <p>{feature.rawRequest.slice(0, 120)}…</p>}
-                    <span className="qship-req-row-meta">
-                      {triage?.category ?? "Uncategorized"} · Updated{" "}
-                      {new Date(feature.updatedAt).toLocaleDateString()}
-                      <ArrowRight size={13} />
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <div className={selectedId ? "qship-req-main-scroll" : undefined}>
+            <ul className="qship-req-list">
+              {sorted.map((feature) => {
+                const triage = getTriage(feature);
+                const active = selectedId === feature.id;
+                return (
+                  <li key={feature.id}>
+                    <button
+                      type="button"
+                      className="qship-req-row"
+                      data-active={active}
+                      onClick={() => setSelectedId(active ? null : feature.id)}
+                    >
+                      <div className="qship-req-row-top">
+                        {triage?.priority ? (
+                          <span
+                            className="qship-req-priority"
+                            style={{ color: PRIORITY_COLORS[triage.priority] ?? "#fafafa" }}
+                          >
+                            {triage.priority}
+                          </span>
+                        ) : (
+                          <span className="qship-req-priority qship-req-priority-muted">—</span>
+                        )}
+                        <span className="qship-req-status-pill">{STATUS_LABELS[feature.status] ?? feature.status}</span>
+                      </div>
+                      <strong>{feature.title}</strong>
+                      {triage?.impactSummary ? <p>{triage.impactSummary}</p> : <p>{feature.rawRequest.slice(0, 120)}…</p>}
+                      <span className="qship-req-row-meta">
+                        {triage?.category ?? "Uncategorized"} · Updated{" "}
+                        {new Date(feature.updatedAt).toLocaleDateString()}
+                        <ArrowRight size={13} />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
       </div>
 
