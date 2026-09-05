@@ -41,6 +41,7 @@ export function buildTrustedOrigins(input: {
     input.betterAuthUrl,
     ...(input.extra ?? []),
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:8000",
   ]
     .filter((v): v is string => Boolean(v?.trim()))

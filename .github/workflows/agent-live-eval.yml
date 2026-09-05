@@ -1,6 +1,7 @@
 name: Agent live eval
 
-# Disabled automatic cron schedule to prevent unwanted test runs & failure notifications
+# Fully off. Do not run on push, PR, or cron. Manual dispatch is also
+# disabled so this cannot start by accident.
 on:
   workflow_dispatch:
 
@@ -8,40 +9,8 @@ jobs:
   live-eval:
     name: Live LLM golden turns
     runs-on: ubuntu-latest
-    # Run only when manually triggered with valid secrets
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: false
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Load OpenAI API key from GitHub secret
-        id: openai
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          if [ -n $OPENAI_API_KEY ]; then
-            echo configured=true >> $GITHUB_OUTPUT
-            echo OPENAI_API_KEY=$OPENAI_API_KEY >> $GITHUB_ENV
-          else
-            echo configured=false >> $GITHUB_OUTPUT
-            echo ::notice::Add OPENAI_API_KEY in GitHub repo Secrets to run live eval.
-          fi
-
-      - name: Run live agent eval (10 golden turns)
-        if: steps.openai.outputs.configured == 'true'
-        run: pnpm --filter @repo/services exec vitest run ai/agent-live-eval.test.ts
-        env:
-          AGENT_LIVE_EVAL: 1
-          OPENAI_MODEL: gpt-4o-mini
+      - name: Live eval disabled
+        run: echo "Agent live eval is off. Run locally only if needed."

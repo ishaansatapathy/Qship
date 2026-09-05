@@ -31,6 +31,7 @@ export const auth = betterAuth({
     process.env.CLIENT_URL,
     process.env.BASE_URL,
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:8000",
   ]
     .map((o) => o?.trim().replace(/\/$/, ""))

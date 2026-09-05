@@ -1,10 +1,10 @@
 name: CI
 
+# Automatic push/PR runs disabled — was failing on every push and sending
+# repeat notifications. Run locally with `pnpm check-types`, `pnpm lint`,
+# and `pnpm test`, or trigger this workflow manually from GitHub Actions.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   # Cancel in-progress runs on the same branch to save CI minutes.
